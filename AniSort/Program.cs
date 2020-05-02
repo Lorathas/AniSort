@@ -89,7 +89,7 @@ paths           paths to process files for
                 }
                 else
                 {
-                    options.PathsToProcess.Add(arg);
+                    options.Sources.Add(arg);
                 }
             }
 
@@ -136,7 +136,7 @@ paths           paths to process files for
         {
             var fileQueue = new Queue<string>();
 
-            AddPathsToQueue(options.PathsToProcess, fileQueue);
+            AddPathsToQueue(options.Sources, fileQueue);
 
             var client = new AniDbClient("anidbapiclient", 1, options.Username, options.Password);
 
@@ -268,7 +268,7 @@ paths           paths to process files for
         {
             var fileQueue = new Queue<string>();
 
-            AddPathsToQueue(options.PathsToProcess, fileQueue);
+            AddPathsToQueue(options.Sources, fileQueue);
 
             while (fileQueue.TryDequeue(out string path))
             {

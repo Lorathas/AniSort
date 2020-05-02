@@ -50,14 +50,35 @@ namespace AniSort.Core.IO
             return builder.ToString();
         }
 
+        enum ParserMode
+        {
+            Constant,
+            EscapedConstant,
+            Variable,
+            VariablePrefix,
+            VariableSuffix
+        }
+
         public static PathBuilder Compile(string root, string tvPath, string moviePath, string format)
         {
+            FileMaskFirstByte fb1 = 0;
+            FileMaskSecondByte fb2 = 0;
+            FileMaskThirdByte fb3 = 0;
+            FileMaskFourthByte fb4 = 0;
+            FileMaskFifthByte fb5 = 0;
+            FileAnimeMaskFirstByte ab1 = 0;
+            FileAnimeMaskSecondByte ab2 = 0;
+            FileAnimeMaskThirdByte ab3 = 0;
+            FileAnimeMaskFourthByte ab4 = 0;
+
             var emitters = new List<IFileFormatEmitter>();
 
             emitters.Add(new ConstFileFormatEmitter(root));
             emitters.Add(new AnimeTypeFileFormatEmitter(tvPath, moviePath));
 
-            return new PathBuilder(emitters);
+            throw new NotImplementedException("Emitter generation not implemented");
+
+            return new PathBuilder(emitters, new FileMask(fb1, fb2, fb3, fb4, fb5), new FileAnimeMask(ab1, ab2, ab3, ab4));
         }
     }
 
@@ -104,13 +125,13 @@ namespace AniSort.Core.IO
         }
     }
 
-    class AnimeFileFormatEmitter : IFileFormatEmitter
+    class AnimeTypeFileFormatEmitter : IFileFormatEmitter
     {
         private readonly string tvPath;
 
         private readonly string moviePath;
 
-        public AnimeFileFormatEmitter(string tvPath, string moviePath)
+        public AnimeTypeFileFormatEmitter(string tvPath, string moviePath)
         {
             this.tvPath = tvPath;
             this.moviePath = moviePath;
