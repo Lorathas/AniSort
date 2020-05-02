@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<Config>
+    <Mode>Normal</mode>
+    <Debug>true</debug>
+    <Verbose>true</verbose>
+    <AniDb>
+        <Username>TestUSer</Username>
+        <Password>SecurePassword</Password>
+    </AniDb>
+    <Sources>
+        <Source>\\server\unsorted</Source>
+    </Sources>
+    <Destination>
+        <Path>\\SERVEY\anime</Path>
+        <ShowPath>tv<ShowPath>
+        <MoviePath>mov</MoviePath>
+        <Format>{animeRomaji}\{animeRomaji} - {episodeNumber} - {episodeEnglish}[{subGroupShort}][{resolution}][{videoCodec}][{crc32}]</Format>
+    </Destination>
+</Config>

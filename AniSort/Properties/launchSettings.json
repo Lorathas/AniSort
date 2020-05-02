@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AniSort": {
+      "commandName": "Project",
+      "commandLineArgs": "--config sample-config.xml"
+    }
+  }
+}
