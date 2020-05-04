@@ -47,7 +47,36 @@ namespace AniSort.Core.IO
                 },
                 {
                     "episodeNumber",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.EpisodeNumber, prefix, suffix)
+                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) =>
+                    {
+                        int paddingDigits = 6;
+                        for (int idx = 2; idx < 6; idx++)
+                        {
+                            if (Math.Pow(10, idx) > a.HighestEpisodeNumber)
+                            {
+                                paddingDigits = idx;
+                                break;
+                            }
+                        }
+
+                        if (a.EpisodeNumber.Length < paddingDigits)
+                        {
+                            var builder = new StringBuilder();
+
+                            for (int idx = 0; idx < paddingDigits - a.EpisodeNumber.Length; idx++)
+                            {
+                                builder.Append('0');
+                            }
+
+                            builder.Append(a.EpisodeNumber);
+
+                            return builder.ToString();
+                        }
+                        else
+                        {
+                            return a.EpisodeNumber;
+                        }
+                    }, prefix, suffix)
                 },
                 {
                     "fileVersion",
@@ -308,21 +337,7 @@ namespace AniSort.Core.IO
 
                         break;
                     case FileFormatParserMode.Variable:
-                        if (c == '{' || c == '}')
-                        {
-                            if (c != lastChar)
-                            {
-                                throw new InvalidFormatPathException(
-                                    $"Cannot have mixed curly brace escape sequence: {lastChar}{c}");
-                            }
-
-                            mode = FileFormatParserMode.Constant;
-                        }
-                        else if (c == '\'')
-                        {
-                            mode = FileFormatParserMode.VariableSuffix;
-                        }
-                        else if (c == '}')
+                        if (c == '}')
                         {
                             string variableName = buffer.ToString();
                             buffer.Clear();
@@ -339,6 +354,20 @@ namespace AniSort.Core.IO
 
                             emitters.Add(VariableFormatters[variableName](prefix, suffix));
                             FlagModifiers[variableName](ref fb0, ref fb1, ref fb2, ref fb3, ref fb4, ref ab0, ref ab1, ref ab2, ref ab3);
+                        }
+                        else if (c == '{' || c == '}')
+                        {
+                            if ((lastChar == '{' || lastChar == '}') && c != lastChar)
+                            {
+                                throw new InvalidFormatPathException(
+                                    $"Cannot have mixed curly brace escape sequence at column {idx}: {lastChar}{c}");
+                            }
+
+                            mode = FileFormatParserMode.Constant;
+                        }
+                        else if (c == '\'')
+                        {
+                            mode = FileFormatParserMode.VariableSuffix;
                         }
                         else
                         {
@@ -397,6 +426,11 @@ namespace AniSort.Core.IO
                 }
 
                 lastChar = c;
+            }
+
+            if (mode == FileFormatParserMode.Constant && buffer.Length > 0)
+            {
+                emitters.Add(new ConstFileFormatEmitter(buffer.ToString()));
             }
 
             return (emitters, new FileMask(fb0, fb1, fb2, fb3, fb4), new FileAnimeMask(ab0, ab1, ab2, ab3));

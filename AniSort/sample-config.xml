@@ -14,6 +14,6 @@
         <Path>\\SERVEY\anime</Path>
         <ShowPath>tv<ShowPath>
         <MoviePath>mov</MoviePath>
-        <Format>{animeRomaji}\{animeRomaji} - {episodeNumber} - {episodeEnglish}[{subGroupShort}][{resolution}][{videoCodec}][{crc32}]</Format>
+        <Format>{animeRomaji}\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish}[{groupShort}][{resolution}][{videoCodec}][{crc32}]</Format>
     </Destination>
 </Config>
