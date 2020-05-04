@@ -15,18 +15,28 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Text;
 using AniDbSharp.Data;
+using FileInfo = AniDbSharp.Data.FileInfo;
 
 namespace AniSort.Core.IO
 {
     public class PathBuilder
     {
+        private readonly string root;
+
+        private readonly AnimeTypeFileFormatEmitter animeTypeEmitter;
+
         private readonly IReadOnlyList<IFileFormatEmitter> emitters;
+
         public FileMask FileMask { get; }
+
         public FileAnimeMask AnimeMask { get; }
 
-        private PathBuilder([NotNull] IReadOnlyList<IFileFormatEmitter> emitters, [NotNull] FileMask fileMask, [NotNull] FileAnimeMask animeMask)
+        private PathBuilder([NotNull] string root, [NotNull] AnimeTypeFileFormatEmitter animeTypeEmitter,
+            [NotNull] IReadOnlyList<IFileFormatEmitter> emitters, [NotNull] FileMask fileMask,
+            [NotNull] FileAnimeMask animeMask)
         {
             if (emitters == null)
             {
@@ -38,116 +48,73 @@ namespace AniSort.Core.IO
                 throw new ArgumentException($"{nameof(emitters)} must have at least one emitter");
             }
 
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                throw new ArgumentNullException(nameof(root));
+            }
+
+            if (animeTypeEmitter == null)
+            {
+                throw new ArgumentNullException(nameof(animeTypeEmitter));
+            }
+
+            if (fileMask == null)
+            {
+                throw new ArgumentNullException(nameof(fileMask));
+            }
+
+            if (animeMask == null)
+            {
+                throw new ArgumentNullException(nameof(animeMask));
+            }
+
+            this.root = root;
+            this.animeTypeEmitter = animeTypeEmitter;
             this.emitters = emitters;
             FileMask = fileMask;
             AnimeMask = animeMask;
         }
 
-        public string BuildPath()
+        public string BuildPath(FileInfo fileInfo, FileAnimeInfo animeInfo)
         {
             var builder = new StringBuilder();
 
-            return builder.ToString();
-        }
-
-        enum ParserMode
-        {
-            Constant,
-            EscapedConstant,
-            Variable,
-            VariablePrefix,
-            VariableSuffix
-        }
-
-        public static PathBuilder Compile(string root, string tvPath, string moviePath, string format)
-        {
-            FileMaskFirstByte fb1 = 0;
-            FileMaskSecondByte fb2 = 0;
-            FileMaskThirdByte fb3 = 0;
-            FileMaskFourthByte fb4 = 0;
-            FileMaskFifthByte fb5 = 0;
-            FileAnimeMaskFirstByte ab1 = 0;
-            FileAnimeMaskSecondByte ab2 = 0;
-            FileAnimeMaskThirdByte ab3 = 0;
-            FileAnimeMaskFourthByte ab4 = 0;
-
-            var emitters = new List<IFileFormatEmitter>();
-
-            emitters.Add(new ConstFileFormatEmitter(root));
-            emitters.Add(new AnimeTypeFileFormatEmitter(tvPath, moviePath));
-
-            throw new NotImplementedException("Emitter generation not implemented");
-
-            return new PathBuilder(emitters, new FileMask(fb1, fb2, fb3, fb4, fb5), new FileAnimeMask(ab1, ab2, ab3, ab4));
-        }
-    }
-
-    interface IFileFormatEmitter
-    {
-        string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo);
-    }
-
-    /// <summary>
-    /// Constant string emitter
-    /// </summary>
-    class ConstFileFormatEmitter : IFileFormatEmitter
-    {
-        private readonly string value;
-
-        public ConstFileFormatEmitter(string value)
-        {
-            this.value = value;
-        }
-
-        /// <inheritdoc />
-        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo)
-        {
-            return value;
-        }
-    }
-
-    /// <summary>
-    /// Variable emitter
-    /// </summary>
-    class VariableFileFormatEmitter : IFileFormatEmitter
-    {
-        private readonly Func<FileInfo, FileAnimeInfo, string> predicate;
-
-        public VariableFileFormatEmitter(Func<FileInfo, FileAnimeInfo, string> predicate)
-        {
-            this.predicate = predicate;
-        }
-
-        /// <inheritdoc />
-        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo)
-        {
-            return predicate(fileInfo, animeInfo);
-        }
-    }
-
-    class AnimeTypeFileFormatEmitter : IFileFormatEmitter
-    {
-        private readonly string tvPath;
-
-        private readonly string moviePath;
-
-        public AnimeTypeFileFormatEmitter(string tvPath, string moviePath)
-        {
-            this.tvPath = tvPath;
-            this.moviePath = moviePath;
-        }
-
-        /// <inheritdoc />
-        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo)
-        {
-            if (string.Equals(animeInfo.Type, "TV Series"))
+            foreach (var emitter in emitters)
             {
-                return tvPath;
+                builder.Append(emitter.Emit(fileInfo, animeInfo));
             }
-            else
+
+            return Path.Combine(root, animeTypeEmitter.Emit(fileInfo, animeInfo), builder.ToString());
+        }
+
+        public static PathBuilder Compile([NotNull] string root, [NotNull] string tvPath, [NotNull] string moviePath,
+            [NotNull] string format)
+        {
+            if (string.IsNullOrWhiteSpace(root))
             {
-                return moviePath;
+                throw new ArgumentNullException(nameof(root));
             }
+
+            if (string.IsNullOrWhiteSpace(tvPath))
+            {
+                throw new ArgumentNullException(nameof(tvPath));
+            }
+
+            if (string.IsNullOrWhiteSpace(moviePath))
+            {
+                throw new ArgumentNullException(nameof(moviePath));
+            }
+
+            if (string.IsNullOrWhiteSpace(format))
+            {
+                throw new ArgumentNullException(nameof(format));
+            }
+
+            var (emitters, fileMask, animeMask) = FileFormatParser.Parse(format);
+
+            return new PathBuilder(root, new AnimeTypeFileFormatEmitter(tvPath, moviePath), emitters, fileMask,
+                new FileAnimeMask(animeMask.FirstByteFlags | FileAnimeMaskFirstByte.Type, animeMask.SecondByteFlags,
+                    animeMask.ThirdByteFlags, animeMask.FourthByteFlags));
         }
     }
 }
