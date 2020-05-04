@@ -26,7 +26,7 @@ namespace AniDbSharp.Data
         public int? MyListId { get; set; }
         public string OtherEpisodes { get; set; }
         public short? IsDeprecated { get; set; }
-        public short? State { get; set; }
+        public FileState? State { get; set; }
 
         public long? Size { get; set; }
         public byte[] Ed2kHash { get; set; }

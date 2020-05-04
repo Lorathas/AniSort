@@ -101,6 +101,7 @@ namespace AniDbSharp.Data
             var shortType = typeof(short?);
             var longType = typeof(long?);
             var stringType = typeof(string);
+            var fileStateType = typeof(FileState?);
 
             if (property.PropertyType == byteArrayType)
             {
@@ -146,6 +147,16 @@ namespace AniDbSharp.Data
             {
                 property.SetValue(target, rawValue.Replace('`', '\'').Replace('/', '|').Replace("<br/>", "\n"));
                 return true;
+            }
+            else if (property.PropertyType == fileStateType)
+            {
+                if (byte.TryParse(rawValue, out byte val))
+                {
+                    property.SetValue(target, (FileState) val);
+                    return true;
+                }
+
+                return false;
             }
             else
             {

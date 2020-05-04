@@ -118,6 +118,17 @@ namespace AniSort.Core.IO
                         ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
                         ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
                         ref FileAnimeMaskFourthByte ab3) => ab1 |= FileAnimeMaskSecondByte.KanjiName
+                },
+                {
+                    "episodeNumber",
+                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
+                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
+                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
+                        ref FileAnimeMaskFourthByte ab3) =>
+                    {
+                        ab2 |= FileAnimeMaskThirdByte.EpisodeNumber;
+                        
+                    }
                 }
             };
 
@@ -128,6 +139,16 @@ namespace AniSort.Core.IO
             {
                 throw new ArgumentNullException(nameof(format));
             }
+
+            FileMaskFirstByte fb0 = 0;
+            FileMaskSecondByte fb1 = 0;
+            FileMaskThirdByte fb2 = 0;
+            FileMaskFourthByte fb3 = 0;
+            FileMaskFifthByte fb4 = 0;
+            FileAnimeMaskFirstByte ab0 = 0;
+            FileAnimeMaskSecondByte ab1 = 0;
+            FileAnimeMaskThirdByte ab2 = 0;
+            FileAnimeMaskFourthByte ab3 = 0;
 
             var mode = FileFormatParserMode.Constant;
 
@@ -196,10 +217,13 @@ namespace AniSort.Core.IO
                             suffixBuffer.Clear();
                             mode = FileFormatParserMode.Constant;
 
-                            if (!VariableFormatters.ContainsKey(variableName))
+                            if (!VariableFormatters.ContainsKey(variableName) || !FlagModifiers.ContainsKey(variableName))
                             {
                                 throw new InvalidFormatPathException($"Unknown variable: {variableName}");
                             }
+
+                            emitters.Add(VariableFormatters[variableName](prefix, suffix));
+                            FlagModifiers[variableName](ref fb0, ref fb1, ref fb2, ref fb3, ref fb4, ref ab0, ref ab1, ref ab2, ref ab3);
                         }
                         else
                         {
@@ -217,6 +241,14 @@ namespace AniSort.Core.IO
                             string suffix = suffixBuffer.ToString();
                             suffixBuffer.Clear();
                             mode = FileFormatParserMode.Constant;
+
+                            if (!VariableFormatters.ContainsKey(variableName) || !FlagModifiers.ContainsKey(variableName))
+                            {
+                                throw new InvalidFormatPathException($"Unknown variable: {variableName}");
+                            }
+
+                            emitters.Add(VariableFormatters[variableName](prefix, suffix));
+                            FlagModifiers[variableName](ref fb0, ref fb1, ref fb2, ref fb3, ref fb4, ref ab0, ref ab1, ref ab2, ref ab3);
                         }
                         else
                         {
@@ -252,7 +284,7 @@ namespace AniSort.Core.IO
                 lastChar = c;
             }
 
-            return (emitters, new FileMask(fb0, fb1, fb2, fb3, fb4), new FileAnimeMask(ab0, ab1, ab3, ab4));
+            return (emitters, new FileMask(fb0, fb1, fb2, fb3, fb4), new FileAnimeMask(ab0, ab1, ab2, ab3));
         }
     }
 

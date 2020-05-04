@@ -12,48 +12,20 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using AniDbSharp.Extensions;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace AniDbSharp.Extensions.Tests
+namespace AniDbSharp.Data
 {
-    [TestClass()]
-    public class StringExtensionsTests
+    [Flags]
+    public enum FileState : byte
     {
-        [TestMethod()]
-        public void HexStringToBytesTest()
-        {
-            byte[] bytes = "FF".HexStringToBytes();
-
-            Assert.AreEqual(1, bytes.Length);
-            Assert.AreEqual(255, bytes[0]);
-
-            bytes = "faef".HexStringToBytes();
-
-            Assert.AreEqual(2, bytes.Length);
-            Assert.AreEqual(250, bytes[0]);
-            Assert.AreEqual(239, bytes[1]);
-
-            try
-            {
-                "asdlkjlk;j".HexStringToBytes();
-                Assert.Fail("Invalid Characters Accepted");
-            }
-            catch (Exception)
-            {
-            }
-
-            try
-            {
-                "asd".HexStringToBytes();
-                Assert.Fail("Invalid Length Accepted");
-            }
-            catch (Exception)
-            {
-            }
-        }
+        CrcOk = 1,
+        CrcErr = 2,
+        IsVersion2 = 4,
+        IsVersion3 = 8,
+        IsVersion4 = 16,
+        IsVersion5 = 32,
+        Uncensored = 64,
+        Censored = 128
     }
 }
