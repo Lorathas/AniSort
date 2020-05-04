@@ -28,13 +28,14 @@ The following variables are available to use in the format strings:
 * `episodeEnglish` - Episode title in English
 * `episodeRomaji` - Episode title in Japanese, romanized to Latin characters
 * `episodeKanji` - Episode title in Kanji
-* `subGroup` - Full sub/release group name
-* `subGroupShort` - Abbreviated sub/release group name
+* `group` - Full release group name
+* `groupShort` - Abbreviated release group name
 * `resolution` - Video resolution for the file
 * `videoCodec` - Video codec for the file
 * `crc32` - CRC32 hash of the file in hex
-* `sha1` - SHA-1 hash of the file in hex
 * `ed2k` - eD2k hash of the file in hex
+* `md5` - MD5 hash of the file in hex
+* `sha1` - SHA-1 hash of the file in hex
 
 You can also add conditionally rendered prefixes and suffixes to a variable by starting or ending a variable block with apostrophes. So as an example if you wanted the file version to be prefixed with v you could do a format string of `{episodeNumber}{'v'fileVersion}` to output `02v2` for the above example file assuming the file version is the second version. Since `{fileVersion}` is only emitted to the path when it is greater than 1 the same format string would render `02` for version one of the file.
 
