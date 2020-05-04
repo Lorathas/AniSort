@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Config>
-    <Mode>Normal</mode>
-    <Debug>true</debug>
-    <Verbose>true</verbose>
+    <Mode>Normal</Mode>
+    <Debug>true</Debug>
+    <Verbose>true</Verbose>
     <AniDb>
         <Username>TestUSer</Username>
         <Password>SecurePassword</Password>
