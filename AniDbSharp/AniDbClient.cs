@@ -124,7 +124,17 @@ namespace AniDbSharp
 
             await udpClient.SendAsync(bytes, bytes.Length);
 
-            var result = await udpClient.ReceiveAsync();
+            var task = udpClient.ReceiveAsync();
+
+            task.Wait(TimeSpan.FromSeconds(30));
+
+            if (!task.IsCompleted)
+            {
+                Console.WriteLine("AniDB refused to respond to request. Please wait a day and try again.");
+                Environment.Exit(1);
+            }
+
+            var result = task.Result;
 
             string data = Encoding.ASCII.GetString(result.Buffer);
 

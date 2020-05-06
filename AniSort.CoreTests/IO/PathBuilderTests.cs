@@ -26,12 +26,6 @@ namespace AniSort.Core.IO.Tests
     public class PathBuilderTests
     {
         [TestMethod()]
-        public void BuildPathTest()
-        {
-            throw new NotImplementedException();
-        }
-
-        [TestMethod()]
         public void CompileTest()
         {
             var fileInfo = new FileInfo

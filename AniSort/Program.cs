@@ -21,10 +21,14 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Serialization;
 using AniDbSharp;
 using AniDbSharp.Data;
 using AniSort.Core.Crypto;
+using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
+using AniSort.Core.IO;
 using AniSort.Extensions;
 
 namespace AniSort
@@ -34,11 +38,16 @@ namespace AniSort
         private const string UsageText =
             @"Usage: anisort.exe [-d | --debug] [-v | --verbose] [-h | --hash] <-u username> <-p password> <paths...>
 paths           paths to process files for
+-c  --config    config file path
 -u  --username  anidb username
 -p  --password  anidb password
 -h  --hash      hash files and output hashes to console
 -d  --debug     enable debug mode to leave files intact and to output suggested actions
 -v  --verbose   enable verbose logging";
+
+        private const string ApiClientName = "anidbapiclient";
+
+        private const int ApiClientVersion = 1;
 
         private static readonly string[] SupportedFileExtensions =
         {
@@ -49,7 +58,7 @@ paths           paths to process files for
 
         static void Main(string[] args)
         {
-            var options = new Options();
+            var config = new Config();
 
             for (int idx = 0; idx < args.Length; idx++)
             {
@@ -57,15 +66,15 @@ paths           paths to process files for
 
                 if (string.Equals(arg, "-d") || string.Equals(arg, "--debug"))
                 {
-                    options.DebugMode = true;
+                    config.Debug = true;
                 }
                 else if (string.Equals(arg, "-v") || string.Equals(arg, "--verbose"))
                 {
-                    options.VerboseLogging = true;
+                    config.Verbose = true;
                 }
                 else if (string.Equals(arg, "-h") || string.Equals(arg, "--hash"))
                 {
-                    options.Mode = Mode.Hash;
+                    config.Mode = Mode.Hash;
                 }
                 else if (string.Equals(arg, "-u") || string.Equals(arg, "--username"))
                 {
@@ -74,7 +83,7 @@ paths           paths to process files for
                         PrintUsageAndExit();
                     }
 
-                    options.Username = args[idx + 1];
+                    config.AniDb.Username = args[idx + 1];
                     idx++;
                 }
                 else if (string.Equals(arg, "-p") || string.Equals(arg, "--password"))
@@ -84,23 +93,47 @@ paths           paths to process files for
                         PrintUsageAndExit();
                     }
 
-                    options.Password = args[idx + 1];
+                    config.AniDb.Password = args[idx + 1];
                     idx++;
+                }
+                else if (string.Equals(arg, "-c") || string.Equals(arg, "--config"))
+                {
+                    string configFilePath = args[idx + 1];
+
+                    var serializer = new XmlSerializer(typeof(Config));
+
+                    try
+                    {
+                        if (!File.Exists(configFilePath))
+                        {
+                            Console.WriteLine($"File does not exist for path: {configFilePath}");
+                        }
+
+                        using var fs = File.OpenRead(configFilePath);
+                        config = (Config) serializer.Deserialize(fs);
+                    }
+                    catch (XmlException ex)
+                    {
+                        Console.WriteLine($"Invalid XML config file: {ex.Message}");
+                        Environment.Exit(0);
+                    }
+
+                    break;
                 }
                 else
                 {
-                    options.Sources.Add(arg);
+                    config.Sources.Add(arg);
                 }
             }
 
-            if (!options.IsValid)
+            if (!config.IsValid)
             {
                 PrintUsageAndExit();
             }
 
             try
             {
-                var task = RunAsync(options);
+                var task = RunAsync(config);
                 task.Wait();
             }
             catch (AggregateException ex)
@@ -119,26 +152,39 @@ paths           paths to process files for
             Environment.Exit(0);
         }
 
-        private static async Task RunAsync(Options options)
+        private static async Task RunAsync(Config config)
         {
-            switch (options.Mode)
+            switch (config.Mode)
             {
                 case Mode.Normal:
-                    await RunNormalAsync(options);
+                    await RunNormalAsync(config);
                     break;
                 case Mode.Hash:
-                    RunHashes(options);
+                    RunHashes(config);
                     break;
             }
         }
 
-        private static async Task RunNormalAsync(Options options)
+        private static async Task RunNormalAsync(Config config)
         {
             var fileQueue = new Queue<string>();
 
-            AddPathsToQueue(options.Sources, fileQueue);
+            AddPathsToQueue(config.Sources, fileQueue);
 
-            var client = new AniDbClient("anidbapiclient", 1, options.Username, options.Password);
+            PathBuilder pathBuilder = null;
+
+            try
+            {
+                pathBuilder = PathBuilder.Compile(config.Destination.Path, config.Destination.TvPath,
+                    config.Destination.MoviePath, config.Destination.Format);
+            }
+            catch (InvalidFormatPathException ex)
+            {
+                Console.WriteLine(ex.Message);
+                Environment.Exit(0);
+            }
+
+            var client = new AniDbClient(ApiClientName, ApiClientVersion, config.AniDb.Username, config.AniDb.Password);
 
             try
             {
@@ -147,7 +193,13 @@ paths           paths to process files for
 
                 if (!auth.Success)
                 {
-                    throw new Exception("RIP");
+                    Console.WriteLine("Invalid auth credentials");
+                    Environment.Exit(0);
+                }
+
+                if (auth.HasNewVersion)
+                {
+                    Console.WriteLine("A new version of the software is available. Please download it when possible");
                 }
 
                 while (fileQueue.TryDequeue(out string path))
@@ -186,24 +238,14 @@ paths           paths to process files for
                                 $"\rHashed: {(path.Length + 8 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth)}");
                             Console.WriteLine($"  eD2k hash: {hash.ToHexString()}");
 
-                            if (options.VerboseLogging)
+                            if (config.Verbose)
                             {
                                 Console.WriteLine(
                                     $"  Processed {(double)totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round(((double)totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds):F2}MB/s");
                             }
 
                             var result =
-                                await client.SearchForFile(totalBytes, hash,
-                                    new FileMask(FileMaskFirstByte.IsDeprecated | FileMaskFirstByte.State,
-                                        FileMaskSecondByte.Crc32,
-                                        FileMaskThirdByte.Quality | FileMaskThirdByte.Source |
-                                        FileMaskThirdByte.VideoCodec, 0, 0),
-                                    new FileAnimeMask(
-                                        FileAnimeMaskFirstByte.HighestEpisodeNumber |
-                                        FileAnimeMaskFirstByte.TotalEpisodes | FileAnimeMaskFirstByte.Type,
-                                        FileAnimeMaskSecondByte.RomajiName,
-                                        FileAnimeMaskThirdByte.EpisodeName | FileAnimeMaskThirdByte.EpisodeNumber,
-                                        FileAnimeMaskFourthByte.GroupShortName));
+                                await client.SearchForFile(totalBytes, hash, pathBuilder.FileMask, pathBuilder.AnimeMask);
 
                             if (!result.FileFound)
                             {
@@ -214,7 +256,7 @@ paths           paths to process files for
 
                             Console.WriteLine($"File found for {filename}");
 
-                            if (options.VerboseLogging)
+                            if (config.Verbose)
                             {
                                 Console.WriteLine($"  Anime: {result.AnimeInfo.RomajiName}");
                                 Console.WriteLine(
@@ -223,11 +265,75 @@ paths           paths to process files for
                                 Console.WriteLine($"  Group: {result.AnimeInfo.GroupShortName}");
                             }
 
+                            string extension = Path.GetExtension(filename);
+
+                            string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo).CleanPath();
+
+                            string destinationFilename = Path.ChangeExtension(destinationPath, extension);
+
+                            if (File.Exists(destinationFilename))
+                            {
+                                Console.WriteLine("Destination file \"{destinationFilename}\" already exists. Skipping...");
+                            }
+                            else if (config.Copy)
+                            {
+                                if (!config.Debug)
+                                {
+                                    try
+                                    {
+                                        File.Copy(filename, destinationFilename);
+                                    }
+                                    catch (UnauthorizedAccessException)
+                                    {
+                                        Console.WriteLine(
+                                            "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
+                                    }
+                                    catch (PathTooLongException)
+                                    {
+                                        Console.WriteLine(
+                                            "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
+                                    }
+                                    catch (IOException ex)
+                                    {
+                                        Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
+                                    }
+                                }
+
+                                Console.WriteLine($"Copied {filename} to {destinationFilename}");
+                            }
+                            else
+                            {
+                                if (!config.Debug)
+                                {
+                                    try
+                                    {
+                                        File.Move(filename, destinationFilename);
+                                    }
+                                    catch (UnauthorizedAccessException)
+                                    {
+                                        Console.WriteLine(
+                                            "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
+                                    }
+                                    catch (PathTooLongException)
+                                    {
+                                        Console.WriteLine(
+                                            "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
+                                    }
+                                    catch (IOException ex)
+                                    {
+                                        Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
+                                    }
+                                }
+
+                                Console.WriteLine($"Moved {filename} to {destinationFilename}");
+                            }
+
                             Console.WriteLine();
                         }
                     }
                     catch (Exception ex)
                     {
+                        Console.WriteLine($"An unknown error has occurred: {ex.Message}");
                     }
                 }
             }
@@ -264,11 +370,11 @@ paths           paths to process files for
             }
         }
 
-        private static void RunHashes(Options options)
+        private static void RunHashes(Config config)
         {
             var fileQueue = new Queue<string>();
 
-            AddPathsToQueue(options.Sources, fileQueue);
+            AddPathsToQueue(config.Sources, fileQueue);
 
             while (fileQueue.TryDequeue(out string path))
             {
@@ -302,7 +408,7 @@ paths           paths to process files for
                         $"\rHashed: {(path.Length + 8 > Console.WindowWidth ? Path.GetFileName(path) : path).Truncate(Console.WindowWidth)}");
                     Console.WriteLine($"  eD2k hash: {hash.ToHexString()}");
 
-                    if (options.VerboseLogging)
+                    if (config.Verbose)
                     {
                         Console.WriteLine(
                             $"  Processed {(double) totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round(((double) totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds):F2}MB/s");

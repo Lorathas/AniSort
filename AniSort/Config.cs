@@ -1,12 +1,24 @@
-﻿using System;
+﻿// Copyright © 2020 Lorathas
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
+// files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,
+// modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+// IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 using System.Collections.Generic;
-using System.Text;
 using System.Xml.Serialization;
 
 namespace AniSort
 {
-    [XmlRoot("config", IsNullable = false)]
-    class Config
+    [XmlRoot("Config", IsNullable = false)]
+    public class Config
     {
         public Mode Mode { get; set; } = Mode.Normal;
 
@@ -14,17 +26,23 @@ namespace AniSort
 
         public bool Verbose { get; set; }
 
-        [XmlElement(IsNullable = false)]
-        public AniDbConfig AniDb { get; set; }
+        public bool Copy { get; set; }
 
         [XmlElement(IsNullable = false)]
-        public string[] Sources { get; set; }
-        
+        public AniDbConfig AniDb { get; set; } = new AniDbConfig();
+
+        [XmlArray(IsNullable = false), XmlArrayItem("Source")]
+        public List<string> Sources { get; set; } = new List<string>();
+
         [XmlElement(IsNullable = false)]
-        public DestinationConfig Destination { get; set; }
+        public DestinationConfig Destination { get; set; } = new DestinationConfig();
+
+        public bool IsValid => (Mode == Mode.Normal && !string.IsNullOrWhiteSpace(AniDb?.Username) &&
+                                !string.IsNullOrWhiteSpace(AniDb?.Password)) ||
+                               (Mode == Mode.Hash && Sources.Count > 0);
     }
 
-    class AniDbConfig
+    public class AniDbConfig
     {
         [XmlElement(IsNullable = false)]
         public string Username { get; set; }
@@ -33,12 +51,18 @@ namespace AniSort
         public string Password { get; set; }
     }
 
-    class DestinationConfig
+    public class DestinationConfig
     {
         [XmlElement(IsNullable = false)]
         public string Path { get; set; }
 
         [XmlElement(IsNullable = false)]
         public string Format { get; set; }
+
+        [XmlElement(IsNullable = false)]
+        public string TvPath { get; set; }
+
+        [XmlElement(IsNullable = false)]
+        public string MoviePath { get; set; }
     }
 }

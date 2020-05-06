@@ -12,11 +12,21 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-namespace AniSort
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+
+namespace AniSort.Core.Exceptions
 {
-    public enum Mode
+    public static class StringExtensions
     {
-        Normal,
-        Hash
+        private static readonly Regex InvalidPathRegex =
+            new Regex($@"[{new string(Path.GetInvalidPathChars())}]+", RegexOptions.Compiled);
+        private static readonly Regex WhitespaceRegex = new Regex("\\s{2,}", RegexOptions.Compiled);
+
+        public static string CleanPath(this string path)
+        {
+            return WhitespaceRegex.Replace(InvalidPathRegex.Replace(path, " "), " ");
+        }
     }
 }
