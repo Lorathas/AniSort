@@ -24,7 +24,7 @@ namespace AniSort.Core.IO
 {
     public class PathBuilder
     {
-        private readonly string root;
+        public string Root { get; }
 
         private readonly AnimeTypeFileFormatEmitter animeTypeEmitter;
 
@@ -68,7 +68,7 @@ namespace AniSort.Core.IO
                 throw new ArgumentNullException(nameof(animeMask));
             }
 
-            this.root = root;
+            this.Root = root;
             this.animeTypeEmitter = animeTypeEmitter;
             this.emitters = emitters;
             FileMask = fileMask;
@@ -84,7 +84,7 @@ namespace AniSort.Core.IO
                 builder.Append(emitter.Emit(fileInfo, animeInfo));
             }
 
-            return Path.Combine(root, animeTypeEmitter.Emit(fileInfo, animeInfo), builder.ToString());
+            return Path.Combine(Root, animeTypeEmitter.Emit(fileInfo, animeInfo), builder.ToString());
         }
 
         public static PathBuilder Compile([NotNull] string root, [NotNull] string tvPath, [NotNull] string moviePath,

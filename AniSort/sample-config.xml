@@ -13,7 +13,7 @@
     </Sources>
     <Destination>
         <Path>\\SERVEY\anime</Path>
-        <TvPath>tv<TvPath>
+        <TvPath>tv</TvPath>
         <MoviePath>mov</MoviePath>
         <Format>{animeRomaji}\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish}[{groupShort}][{resolution}][{videoCodec}][{crc32}]</Format>
     </Destination>
