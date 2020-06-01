@@ -184,6 +184,14 @@ paths           paths to process files for
                 Environment.Exit(0);
             }
 
+            if (config.Verbose)
+            {
+                Console.WriteLine("Config setup to write to following directories for files:");
+                Console.WriteLine($"  TV:     {Path.Combine(config.Destination.Path, config.Destination.TvPath)}");
+                Console.WriteLine($"  Movies: {Path.Combine(config.Destination.Path, config.Destination.MoviePath)}");
+                Console.WriteLine($"Path builder base path: {pathBuilder.Root}");
+            }
+
             var client = new AniDbClient(ApiClientName, ApiClientVersion, config.AniDb.Username, config.AniDb.Password);
 
             try
@@ -281,7 +289,12 @@ paths           paths to process files for
                                 {
                                     try
                                     {
-                                        File.Copy(filename, destinationFilename);
+                                        if (config.Verbose)
+                                        {
+                                            Console.WriteLine($"Destination Path: {destinationFilename}");
+                                        }
+
+                                        File.Copy(path, destinationFilename);
                                     }
                                     catch (UnauthorizedAccessException)
                                     {
@@ -307,7 +320,7 @@ paths           paths to process files for
                                 {
                                     try
                                     {
-                                        File.Move(filename, destinationFilename);
+                                        File.Move(path, destinationFilename);
                                     }
                                     catch (UnauthorizedAccessException)
                                     {
