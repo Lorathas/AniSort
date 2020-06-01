@@ -2,7 +2,7 @@
   "profiles": {
     "AniSort": {
       "commandName": "Project",
-      "commandLineArgs": "--config sample-config.xml"
+      "commandLineArgs": "--config \"%USERPROFILE%\\anisort-config.xml\""
     }
   }
 }

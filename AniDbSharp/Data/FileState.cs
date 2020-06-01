@@ -12,17 +12,20 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+using System;
+
 namespace AniDbSharp.Data
 {
-    public class AuthResult
+    [Flags]
+    public enum FileState : byte
     {
-        public bool Success { get; }
-        public bool HasNewVersion { get; }
-
-        public AuthResult(bool success, bool hasNewVersion = false)
-        {
-            Success = success;
-            HasNewVersion = hasNewVersion;
-        }
+        CrcOk = 1,
+        CrcErr = 2,
+        IsVersion2 = 4,
+        IsVersion3 = 8,
+        IsVersion4 = 16,
+        IsVersion5 = 32,
+        Uncensored = 64,
+        Censored = 128
     }
 }

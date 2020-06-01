@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AniDbSharp", "AniDbSharp\An
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AniSort.Core", "AniSort.Core\AniSort.Core.csproj", "{F2EE0AF7-FACA-4BBD-B0F0-1071DBCCA640}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AniDbSharpTests", "AniDbSharpTests\AniDbSharpTests.csproj", "{A7DAE692-25D2-4C2E-A546-9099D061EC1C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AniDbSharpTests", "AniDbSharpTests\AniDbSharpTests.csproj", "{A7DAE692-25D2-4C2E-A546-9099D061EC1C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AniSort.CoreTests", "AniSort.CoreTests\AniSort.CoreTests.csproj", "{340BED82-CB02-4891-B6C7-F6855C92F2FE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +53,14 @@ Global
 		{A7DAE692-25D2-4C2E-A546-9099D061EC1C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A7DAE692-25D2-4C2E-A546-9099D061EC1C}.Release|x64.ActiveCfg = Release|Any CPU
 		{A7DAE692-25D2-4C2E-A546-9099D061EC1C}.Release|x64.Build.0 = Release|Any CPU
+		{340BED82-CB02-4891-B6C7-F6855C92F2FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{340BED82-CB02-4891-B6C7-F6855C92F2FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{340BED82-CB02-4891-B6C7-F6855C92F2FE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{340BED82-CB02-4891-B6C7-F6855C92F2FE}.Debug|x64.Build.0 = Debug|Any CPU
+		{340BED82-CB02-4891-B6C7-F6855C92F2FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{340BED82-CB02-4891-B6C7-F6855C92F2FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{340BED82-CB02-4891-B6C7-F6855C92F2FE}.Release|x64.ActiveCfg = Release|Any CPU
+		{340BED82-CB02-4891-B6C7-F6855C92F2FE}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

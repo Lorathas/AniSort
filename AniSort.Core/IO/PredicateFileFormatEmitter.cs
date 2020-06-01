@@ -12,17 +12,42 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-namespace AniDbSharp.Data
-{
-    public class AuthResult
-    {
-        public bool Success { get; }
-        public bool HasNewVersion { get; }
+using System;
+using AniDbSharp.Data;
 
-        public AuthResult(bool success, bool hasNewVersion = false)
+namespace AniSort.Core.IO
+{
+    /// <summary>
+    /// Variable emitter
+    /// </summary>
+    class PredicateFileFormatEmitter : IFileFormatEmitter
+    {
+        private readonly Func<FileInfo, FileAnimeInfo, string> predicate;
+
+        private readonly string prefix;
+
+        private readonly string suffix;
+
+        public PredicateFileFormatEmitter(Func<FileInfo, FileAnimeInfo, string> predicate, string prefix = null, string suffix = null)
         {
-            Success = success;
-            HasNewVersion = hasNewVersion;
+            this.predicate = predicate;
+            this.prefix = prefix ?? string.Empty;
+            this.suffix = suffix ?? string.Empty;
+        }
+
+        /// <inheritdoc />
+        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo)
+        {
+            string predicateResult = predicate(fileInfo, animeInfo);
+
+            if (!string.IsNullOrWhiteSpace(predicateResult))
+            {
+                return $"{prefix}{predicateResult}{suffix}";
+            }
+            else
+            {
+                return string.Empty;
+            }
         }
     }
 }

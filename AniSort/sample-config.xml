@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Config>
-    <Mode>Normal</mode>
-    <Debug>true</debug>
-    <Verbose>true</verbose>
+    <Mode>Normal</Mode>
+    <Debug>true</Debug>
+    <Verbose>true</Verbose>
+    <Copy>true</Copy>
     <AniDb>
-        <Username>TestUSer</Username>
+        <Username>TestUser</Username>
         <Password>SecurePassword</Password>
     </AniDb>
     <Sources>
@@ -12,8 +13,8 @@
     </Sources>
     <Destination>
         <Path>\\SERVEY\anime</Path>
-        <ShowPath>tv<ShowPath>
+        <TvPath>tv</TvPath>
         <MoviePath>mov</MoviePath>
-        <Format>{animeRomaji}\{animeRomaji} - {episodeNumber} - {episodeEnglish}[{subGroupShort}][{resolution}][{videoCodec}][{crc32}]</Format>
+        <Format>{animeRomaji}\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish}[{groupShort}][{resolution}][{videoCodec}][{crc32}]</Format>
     </Destination>
 </Config>

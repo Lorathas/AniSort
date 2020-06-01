@@ -12,17 +12,33 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-namespace AniDbSharp.Data
-{
-    public class AuthResult
-    {
-        public bool Success { get; }
-        public bool HasNewVersion { get; }
+using AniDbSharp.Data;
 
-        public AuthResult(bool success, bool hasNewVersion = false)
+namespace AniSort.Core.IO
+{
+    class AnimeTypeFileFormatEmitter : IFileFormatEmitter
+    {
+        private readonly string tvPath;
+
+        private readonly string moviePath;
+
+        public AnimeTypeFileFormatEmitter(string tvPath, string moviePath)
         {
-            Success = success;
-            HasNewVersion = hasNewVersion;
+            this.tvPath = tvPath;
+            this.moviePath = moviePath;
+        }
+
+        /// <inheritdoc />
+        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo)
+        {
+            if (string.Equals(animeInfo.Type, "TV Series"))
+            {
+                return tvPath;
+            }
+            else
+            {
+                return moviePath;
+            }
         }
     }
 }

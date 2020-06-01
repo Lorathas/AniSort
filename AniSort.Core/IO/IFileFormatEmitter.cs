@@ -12,17 +12,12 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-namespace AniDbSharp.Data
-{
-    public class AuthResult
-    {
-        public bool Success { get; }
-        public bool HasNewVersion { get; }
+using AniDbSharp.Data;
 
-        public AuthResult(bool success, bool hasNewVersion = false)
-        {
-            Success = success;
-            HasNewVersion = hasNewVersion;
-        }
+namespace AniSort.Core.IO
+{
+    internal interface IFileFormatEmitter
+    {
+        string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo);
     }
 }

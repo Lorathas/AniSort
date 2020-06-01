@@ -14,7 +14,7 @@
 
 namespace AniSort
 {
-    enum Mode
+    public enum Mode
     {
         Normal,
         Hash

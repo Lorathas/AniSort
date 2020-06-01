@@ -12,17 +12,21 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-namespace AniDbSharp.Data
-{
-    public class AuthResult
-    {
-        public bool Success { get; }
-        public bool HasNewVersion { get; }
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 
-        public AuthResult(bool success, bool hasNewVersion = false)
+namespace AniSort.Core.Exceptions
+{
+    public static class StringExtensions
+    {
+        private static readonly Regex InvalidPathRegex =
+            new Regex($@"[{new string(Path.GetInvalidPathChars())}]+", RegexOptions.Compiled);
+        private static readonly Regex WhitespaceRegex = new Regex("\\s{2,}", RegexOptions.Compiled);
+
+        public static string CleanPath(this string path)
         {
-            Success = success;
-            HasNewVersion = hasNewVersion;
+            return WhitespaceRegex.Replace(InvalidPathRegex.Replace(path, " "), " ");
         }
     }
 }
