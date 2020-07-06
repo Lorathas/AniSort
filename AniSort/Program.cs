@@ -25,10 +25,12 @@ using System.Xml;
 using System.Xml.Serialization;
 using AniDbSharp;
 using AniDbSharp.Data;
+using AniSort.Core;
 using AniSort.Core.Crypto;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
 using AniSort.Core.IO;
+using AniSort.Core.Utils;
 using AniSort.Extensions;
 
 namespace AniSort
@@ -58,6 +60,11 @@ paths           paths to process files for
 
         static void Main(string[] args)
         {
+            AppPaths.Initialize();
+            var titleDumpTask = AniDbUtils.UpdateAnimeTitlesDumpIfNeededAsync();
+            titleDumpTask.Wait();
+            
+
             var config = new Config();
 
             for (int idx = 0; idx < args.Length; idx++)
