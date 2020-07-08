@@ -276,7 +276,8 @@ paths           paths to process files for
 
                             string extension = Path.GetExtension(filename);
 
-                            string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo, PlatformUtils.MaxPathLength - extension.Length);
+                            // Trailing dot is there to prevent Path.ChangeExtension from screwing with the path if it has been ellipsized or has ellipsis in it
+                            string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo, PlatformUtils.MaxPathLength - extension.Length) + ".";
 
                             string destinationFilename = Path.ChangeExtension(destinationPath, extension);
 
