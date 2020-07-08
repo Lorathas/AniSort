@@ -14,7 +14,7 @@ The console program itself that uses functionality from the AniSort.Core and Ani
 
 ### File Organization
 To control the naming of files you can provide a custom format string such as  
-`{animeRomaji}\{animeRomaji} - {episodeNumber} - {episodeEnglish}[{subGroupShort}][{resolution}][{videoCodec}][{crc32}]`  
+`{animeRomaji}\{animeRomaji} - {episodeNumber} - {episodeEnglish...} [{subGroupShort}][{resolution}][{videoCodec}][{crc32}]`  
 which would output  
 `Koukaku Kidoutai S.A.C. 2nd GIG\Koukaku Kidoutai S.A.C. 2nd GIG - 02 - Night Cruise[Hi10][1280x688][h264][D7083952]`  
 as the folder and filename.
@@ -37,6 +37,12 @@ The following variables are available to use in the format strings:
 * `md5` - MD5 hash of the file in hex
 * `sha1` - SHA-1 hash of the file in hex
 
+#### Prefixes and Suffixes
 You can also add conditionally rendered prefixes and suffixes to a variable by starting or ending a variable block with apostrophes. So as an example if you wanted the file version to be prefixed with v you could do a format string of `{episodeNumber}{'v'fileVersion}` to output `02v2` for the above example file assuming the file version is the second version. Since `{fileVersion}` is only emitted to the path when it is greater than 1 the same format string would render `02` for version one of the file.
 
+#### Ellipsizing
+Any variable can optionally be ellipsized to meet path limitations for certain file systems. Trailing the variable with `...` will cause the path to be ellipsized if needed to meet the OS defined path limitations. As an example, if for whatever reason the path above were limited to be two characters shorter it would output `Koukaku Kidoutai S.A.C. 2nd GIG\Koukaku Kidoutai S.A.C. 2nd GIG - 02 - Night C...[Hi10][1280x688][h264][D7083952]` instead to adhere to the path limits.  
+As a quick note this is just set to 255. I need to look further into Linux/BSD/macOS path length limits, but for the time being 255 seems to be a safe assumption and satisfies Windows' extremely short path length.
+
+#### Escape Sequences
 If you want to use curly braces in your paths for whatever reason they can be escape them by using two of whichever curly brace you are trying to use.
