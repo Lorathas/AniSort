@@ -86,7 +86,10 @@ namespace AniSort.Core.IO
                 builder.Append(emitter.Emit(fileInfo, animeInfo));
             }
 
-            string path = Path.Combine(Root, animeTypeEmitter.Emit(fileInfo, animeInfo), builder.ToString());
+            string cleanedRoot = Root.CleanRootPath();
+            string cleanedAnimePath = animeTypeEmitter.Emit(fileInfo, animeInfo).CleanPath();
+
+            string path = Path.Combine(cleanedRoot, cleanedAnimePath, builder.ToString().CleanPath());
 
             if (path.Length > maxLength)
             {
@@ -111,7 +114,7 @@ namespace AniSort.Core.IO
 
                 string built = new string(builder.ToString().Reverse().ToArray());
 
-                path = Path.Combine(Root, animeTypeEmitter.Emit(fileInfo, animeInfo), built).CleanPath();
+                path = Path.Combine(cleanedRoot, cleanedAnimePath, built.CleanPath());
             }
 
             return path;
