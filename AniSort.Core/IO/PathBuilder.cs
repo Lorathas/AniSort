@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Text;
 using AniDbSharp.Data;
 using FileInfo = AniDbSharp.Data.FileInfo;
@@ -75,7 +76,7 @@ namespace AniSort.Core.IO
             AnimeMask = animeMask;
         }
 
-        public string BuildPath(FileInfo fileInfo, FileAnimeInfo animeInfo)
+        public string BuildPath(FileInfo fileInfo, FileAnimeInfo animeInfo, int maxLength)
         {
             var builder = new StringBuilder();
 
@@ -84,7 +85,35 @@ namespace AniSort.Core.IO
                 builder.Append(emitter.Emit(fileInfo, animeInfo));
             }
 
-            return Path.Combine(Root, animeTypeEmitter.Emit(fileInfo, animeInfo), builder.ToString());
+            string path = Path.Combine(Root, animeTypeEmitter.Emit(fileInfo, animeInfo), builder.ToString());
+
+            if (path.Length > maxLength)
+            {
+                builder.Clear();
+                int overExtension = path.Length - maxLength;
+
+                for (int idx = emitters.Count - 1; idx >= 0; idx--)
+                {
+                    var emitter = emitters[idx];
+
+                    if (emitter is PredicateFileFormatEmitter predicateEmitter && predicateEmitter.Ellipsize)
+                    {
+                        string emitted = predicateEmitter.Emit(fileInfo, animeInfo, overExtension + 3) + "...";
+
+                        builder.Append(new string(emitted.Reverse().ToArray()));
+                    }
+                    else
+                    {
+                        builder.Append(new string(emitter.Emit(fileInfo, animeInfo).Reverse().ToArray()));
+                    }
+                }
+
+                string built = new string(builder.ToString().Reverse().ToArray());
+
+                path = Path.Combine(Root, animeTypeEmitter.Emit(fileInfo, animeInfo), built);
+            }
+
+            return path;
         }
 
         public static PathBuilder Compile([NotNull] string root, [NotNull] string tvPath, [NotNull] string moviePath,

@@ -6,7 +6,7 @@
     <RootNamespace>AniSort</RootNamespace>
     <AssemblyName>anisort</AssemblyName>
     <Platforms>AnyCPU;x64</Platforms>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -30,130 +30,148 @@ namespace AniSort.Core.IO
             ref FileAnimeMaskFirstByte ab0, ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
             ref FileAnimeMaskFourthByte ab3);
 
-        private static readonly Dictionary<string, Func<string, string, PredicateFileFormatEmitter>> VariableFormatters
-            = new Dictionary<string, Func<string, string, PredicateFileFormatEmitter>>
-            {
+        private static readonly Dictionary<string, Func<string, string, bool, PredicateFileFormatEmitter>>
+            VariableFormatters
+                = new Dictionary<string, Func<string, string, bool, PredicateFileFormatEmitter>>
                 {
-                    "animeEnglish",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.EnglishName, prefix, suffix)
-                },
-                {
-                    "animeRomaji",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.RomajiName, prefix, suffix)
-                },
-                {
-                    "animeKanji",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.KanjiName, prefix, suffix)
-                },
-                {
-                    "episodeNumber",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) =>
                     {
-                        int paddingDigits = 6;
-                        for (int idx = 2; idx < 6; idx++)
+                        "animeEnglish",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => a.EnglishName, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "animeRomaji",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => a.RomajiName, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "animeKanji",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => a.KanjiName, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "episodeNumber",
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a) =>
                         {
-                            if (Math.Pow(10, idx) > a.HighestEpisodeNumber)
+                            int paddingDigits = 6;
+                            for (int idx = 2; idx < 6; idx++)
                             {
-                                paddingDigits = idx;
-                                break;
-                            }
-                        }
-
-                        if (a.EpisodeNumber.Length < paddingDigits)
-                        {
-                            var builder = new StringBuilder();
-
-                            for (int idx = 0; idx < paddingDigits - a.EpisodeNumber.Length; idx++)
-                            {
-                                builder.Append('0');
+                                if (Math.Pow(10, idx) > a.HighestEpisodeNumber)
+                                {
+                                    paddingDigits = idx;
+                                    break;
+                                }
                             }
 
-                            builder.Append(a.EpisodeNumber);
+                            if (a.EpisodeNumber.Length < paddingDigits)
+                            {
+                                var builder = new StringBuilder();
 
-                            return builder.ToString();
-                        }
-                        else
-                        {
-                            return a.EpisodeNumber;
-                        }
-                    }, prefix, suffix)
-                },
-                {
-                    "fileVersion",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) =>
+                                for (int idx = 0; idx < paddingDigits - a.EpisodeNumber.Length; idx++)
+                                {
+                                    builder.Append('0');
+                                }
+
+                                builder.Append(a.EpisodeNumber);
+
+                                return builder.ToString();
+                            }
+                            else
+                            {
+                                return a.EpisodeNumber;
+                            }
+                        }, prefix, suffix, ellipsize)
+                    },
                     {
-                        if (f.State == null)
+                        "fileVersion",
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a) =>
                         {
-                            return null;
-                        }
+                            if (f.State == null)
+                            {
+                                return null;
+                            }
 
-                        if (f.State.Value.HasFlag(FileState.IsVersion5))
-                        {
-                            return "5";
-                        }
-                        else if (f.State.Value.HasFlag(FileState.IsVersion4))
-                        {
-                            return "4";
-                        }
-                        else if (f.State.Value.HasFlag(FileState.IsVersion3))
-                        {
-                            return "3";
-                        }
-                        else if (f.State.Value.HasFlag(FileState.IsVersion2))
-                        {
-                            return "2";
-                        }
-                        else
-                        {
-                            return null;
-                        }
-                    }, prefix, suffix)
-                },
-                {
-                    "episodeEnglish",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.EpisodeName, prefix, suffix)
-                },
-                {
-                    "episodeRomaji",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.EpisodeRomajiName, prefix, suffix)
-                },
-                {
-                    "episodeKanji",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.EpisodeKanjiName, prefix, suffix)
-                },
-                {
-                    "group",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.GroupName, prefix, suffix)
-                },
-                {
-                    "groupShort",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => a.GroupShortName, prefix, suffix)
-                },
-                {
-                    "resolution",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => f.VideoResolution, prefix, suffix)
-                },
-                {
-                    "videoCodec",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => f.VideoCodec, prefix, suffix)
-                },
-                {
-                    "crc32",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => f.Crc32Hash.ToHexString(), prefix, suffix)
-                },
-                {
-                    "ed2k",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => f.Ed2kHash.ToHexString(), prefix, suffix)
-                },
-                {
-                    "md5",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => f.Md5Hash.ToHexString(), prefix, suffix)
-                },
-                {
-                    "sha1",
-                    (prefix, suffix) => new PredicateFileFormatEmitter((f, a) => f.Sha1Hash.ToHexString(), prefix, suffix)
-                },
-            };
+                            if (f.State.Value.HasFlag(FileState.IsVersion5))
+                            {
+                                return "5";
+                            }
+                            else if (f.State.Value.HasFlag(FileState.IsVersion4))
+                            {
+                                return "4";
+                            }
+                            else if (f.State.Value.HasFlag(FileState.IsVersion3))
+                            {
+                                return "3";
+                            }
+                            else if (f.State.Value.HasFlag(FileState.IsVersion2))
+                            {
+                                return "2";
+                            }
+                            else
+                            {
+                                return null;
+                            }
+                        }, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "episodeEnglish",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => a.EpisodeName, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "episodeRomaji",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => a.EpisodeRomajiName, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "episodeKanji",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => a.EpisodeKanjiName, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "group",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => a.GroupName, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "groupShort",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => a.GroupShortName, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "resolution",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => f.VideoResolution, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "videoCodec",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => f.VideoCodec, prefix, suffix, ellipsize)
+                    },
+                    {
+                        "crc32",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => f.Crc32Hash.ToHexString(), prefix, suffix,
+                                ellipsize)
+                    },
+                    {
+                        "ed2k",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => f.Ed2kHash.ToHexString(), prefix, suffix,
+                                ellipsize)
+                    },
+                    {
+                        "md5",
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a) => f.Md5Hash.ToHexString(),
+                            prefix, suffix, ellipsize)
+                    },
+                    {
+                        "sha1",
+                        (prefix, suffix, ellipsize) =>
+                            new PredicateFileFormatEmitter((f, a) => f.Sha1Hash.ToHexString(), prefix, suffix,
+                                ellipsize)
+                    },
+                };
 
         private static readonly Dictionary<string, FlagModifier> FlagModifiers =
             new Dictionary<string, FlagModifier>
@@ -298,6 +316,9 @@ namespace AniSort.Core.IO
 
             var emitters = new List<IFileFormatEmitter>();
 
+            bool ellipsize = false;
+            var ellipsizeBuffer = new StringBuilder(3);
+
             var buffer = new StringBuilder();
 
             var prefixBuffer = new StringBuilder();
@@ -347,13 +368,22 @@ namespace AniSort.Core.IO
                             suffixBuffer.Clear();
                             mode = FileFormatParserMode.Constant;
 
-                            if (!VariableFormatters.ContainsKey(variableName) || !FlagModifiers.ContainsKey(variableName))
+                            if (!VariableFormatters.ContainsKey(variableName) ||
+                                !FlagModifiers.ContainsKey(variableName))
                             {
                                 throw new InvalidFormatPathException($"Unknown variable: {variableName}");
                             }
 
-                            emitters.Add(VariableFormatters[variableName](prefix, suffix));
-                            FlagModifiers[variableName](ref fb0, ref fb1, ref fb2, ref fb3, ref fb4, ref ab0, ref ab1, ref ab2, ref ab3);
+                            if (ellipsizeBuffer.Length == 3)
+                            {
+                                ellipsize = true;
+                            }
+                            ellipsizeBuffer.Clear();
+
+                            emitters.Add(VariableFormatters[variableName](prefix, suffix, ellipsize));
+                            FlagModifiers[variableName](ref fb0, ref fb1, ref fb2, ref fb3, ref fb4, ref ab0, ref ab1,
+                                ref ab2, ref ab3);
+                            ellipsize = false;
                         }
                         else if (c == '{' || c == '}')
                         {
@@ -368,6 +398,10 @@ namespace AniSort.Core.IO
                         else if (c == '\'')
                         {
                             mode = FileFormatParserMode.VariableSuffix;
+                        }
+                        else if (c == '.' && ellipsizeBuffer.Length < 3)
+                        {
+                            ellipsizeBuffer.Append(c);
                         }
                         else
                         {
@@ -386,13 +420,26 @@ namespace AniSort.Core.IO
                             suffixBuffer.Clear();
                             mode = FileFormatParserMode.Constant;
 
-                            if (!VariableFormatters.ContainsKey(variableName) || !FlagModifiers.ContainsKey(variableName))
+                            if (!VariableFormatters.ContainsKey(variableName) ||
+                                !FlagModifiers.ContainsKey(variableName))
                             {
                                 throw new InvalidFormatPathException($"Unknown variable: {variableName}");
                             }
 
-                            emitters.Add(VariableFormatters[variableName](prefix, suffix));
-                            FlagModifiers[variableName](ref fb0, ref fb1, ref fb2, ref fb3, ref fb4, ref ab0, ref ab1, ref ab2, ref ab3);
+                            if (ellipsizeBuffer.Length == 3)
+                            {
+                                ellipsize = true;
+                            }
+                            ellipsizeBuffer.Clear();
+
+                            emitters.Add(VariableFormatters[variableName](prefix, suffix, ellipsize));
+                            FlagModifiers[variableName](ref fb0, ref fb1, ref fb2, ref fb3, ref fb4, ref ab0, ref ab1,
+                                ref ab2, ref ab3);
+                            ellipsize = false;
+                        }
+                        else if (c == '.' && ellipsizeBuffer.Length < 3)
+                        {
+                            ellipsizeBuffer.Append(c);
                         }
                         else
                         {
@@ -449,6 +496,8 @@ namespace AniSort.Core.IO
 
         VariablePrefix,
 
-        VariableSuffix
+        VariableSuffix,
+
+        Ellipsize
     }
 }
