@@ -276,7 +276,7 @@ paths           paths to process files for
 
                             string extension = Path.GetExtension(filename);
 
-                            string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo, PlatformUtils.MaxPathLength).CleanPath();
+                            string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo, PlatformUtils.MaxPathLength - extension.Length).CleanPath();
 
                             string destinationFilename = Path.ChangeExtension(destinationPath, extension);
 
