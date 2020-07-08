@@ -281,7 +281,7 @@ paths           paths to process files for
 
                             if (File.Exists(destinationFilename))
                             {
-                                Console.WriteLine("Destination file \"{destinationFilename}\" already exists. Skipping...");
+                                Console.WriteLine($"Destination file \"{destinationFilename}\" already exists. Skipping...");
                             }
                             else if (config.Copy)
                             {
