@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Text;
 using AniDbSharp.Data;
 using AniDbSharp.Extensions;
+using AniSort.Core.Utils;
 
 namespace AniSort.Core.IO.Tests
 {
