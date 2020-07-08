@@ -21,13 +21,20 @@ namespace AniSort.Core.Exceptions
     public static class StringExtensions
     {
         private static readonly string InvalidPathRegexString = $"[{new string(Path.GetInvalidPathChars())}\"!?*<>|:]+";
+        private static readonly string InvalidRootPathRegexString = $"[{new string(Path.GetInvalidPathChars())}\"!?*<>|]+";
         private static readonly Regex InvalidPathRegex =
             new Regex(InvalidPathRegexString, RegexOptions.Compiled);
+        private static readonly Regex InvalidRootPathRegex = new Regex(InvalidRootPathRegexString, RegexOptions.Compiled);
         private static readonly Regex WhitespaceRegex = new Regex("\\s{2,}", RegexOptions.Compiled);
 
         public static string CleanPath(this string path)
         {
-            return WhitespaceRegex.Replace(InvalidPathRegex.Replace(path, " "), "_");
+            return WhitespaceRegex.Replace(InvalidPathRegex.Replace(path, "_"), " ");
+        }
+
+        public static string CleanRootPath(this string path)
+        {
+            return WhitespaceRegex.Replace(InvalidRootPathRegex.Replace(path, "_"), " ");
         }
     }
 }
