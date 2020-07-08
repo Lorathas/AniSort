@@ -25,6 +25,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using AniDbSharp;
 using AniDbSharp.Data;
+using AniSort.Core;
 using AniSort.Core.Crypto;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
@@ -275,7 +276,7 @@ paths           paths to process files for
 
                             string extension = Path.GetExtension(filename);
 
-                            string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo).CleanPath();
+                            string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo, PlatformUtils.MaxPathLength).CleanPath();
 
                             string destinationFilename = Path.ChangeExtension(destinationPath, extension);
 

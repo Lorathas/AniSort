@@ -28,11 +28,14 @@ namespace AniSort.Core.IO
 
         private readonly string suffix;
 
-        public PredicateFileFormatEmitter(Func<FileInfo, FileAnimeInfo, string> predicate, string prefix = null, string suffix = null)
+        public bool Ellipsize { get; }
+
+        public PredicateFileFormatEmitter(Func<FileInfo, FileAnimeInfo, string> predicate, string prefix = null, string suffix = null, bool ellipsize = false)
         {
             this.predicate = predicate;
             this.prefix = prefix ?? string.Empty;
             this.suffix = suffix ?? string.Empty;
+            Ellipsize = ellipsize;
         }
 
         /// <inheritdoc />
@@ -43,6 +46,22 @@ namespace AniSort.Core.IO
             if (!string.IsNullOrWhiteSpace(predicateResult))
             {
                 return $"{prefix}{predicateResult}{suffix}";
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+
+        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, int trimLength)
+        {
+            string predicateResult = predicate(fileInfo, animeInfo);
+
+            if (!string.IsNullOrWhiteSpace(predicateResult))
+            {
+                string built = $"{prefix}{predicateResult}{suffix}";
+
+                return built.Substring(0, built.Length - trimLength);
             }
             else
             {
