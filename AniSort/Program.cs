@@ -279,9 +279,24 @@ paths           paths to process files for
 
                             string destinationFilename = Path.ChangeExtension(destinationPath, extension);
 
+                            string destinationDirectory = Path.GetDirectoryName(destinationPath);
+
+                            if (!config.Debug && !Directory.Exists(destinationDirectory))
+                            {
+                                try
+                                {
+                                    Directory.CreateDirectory(destinationDirectory);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine("An unknown error occurred while trying to created the directory. Please make sure the program has access to the target directory: " + ex.Message);
+                                    continue;
+                                }
+                            }
+
                             if (File.Exists(destinationFilename))
                             {
-                                Console.WriteLine("Destination file \"{destinationFilename}\" already exists. Skipping...");
+                                Console.WriteLine($"Destination file \"{destinationFilename}\" already exists. Skipping...");
                             }
                             else if (config.Copy)
                             {
@@ -300,15 +315,18 @@ paths           paths to process files for
                                     {
                                         Console.WriteLine(
                                             "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
+                                        continue;
                                     }
                                     catch (PathTooLongException)
                                     {
                                         Console.WriteLine(
                                             "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
+                                        continue;
                                     }
                                     catch (IOException ex)
                                     {
                                         Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
+                                        continue;
                                     }
                                 }
 
@@ -326,15 +344,18 @@ paths           paths to process files for
                                     {
                                         Console.WriteLine(
                                             "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
+                                        continue;
                                     }
                                     catch (PathTooLongException)
                                     {
                                         Console.WriteLine(
                                             "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
+                                        continue;
                                     }
                                     catch (IOException ex)
                                     {
                                         Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
+                                        continue;
                                     }
                                 }
 
