@@ -279,6 +279,21 @@ paths           paths to process files for
 
                             string destinationFilename = Path.ChangeExtension(destinationPath, extension);
 
+                            string destinationDirectory = Path.GetDirectoryName(destinationPath);
+
+                            if (!config.Debug && !Directory.Exists(destinationDirectory))
+                            {
+                                try
+                                {
+                                    Directory.CreateDirectory(destinationDirectory);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine("An unknown error occurred while trying to created the directory. Please make sure the program has access to the target directory: " + ex.Message);
+                                    continue;
+                                }
+                            }
+
                             if (File.Exists(destinationFilename))
                             {
                                 Console.WriteLine($"Destination file \"{destinationFilename}\" already exists. Skipping...");
