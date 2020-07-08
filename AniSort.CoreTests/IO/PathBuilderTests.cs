@@ -70,12 +70,12 @@ namespace AniSort.Core.IO.Tests
             Assert.IsTrue(builder.AnimeMask.SecondByteFlags.HasFlag(FileAnimeMaskSecondByte.EnglishName));
             Assert.IsTrue(builder.AnimeMask.FirstByteFlags.HasFlag(FileAnimeMaskFirstByte.Type));
 
-            string path = builder.BuildPath(fileInfo, animeInfo);
+            string path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
 
             Assert.AreEqual("testRoot\\tv\\Ghost in the Shell: Stand Alone Complex 2nd GIG\\test", path);
 
             builder = PathBuilder.Compile("testRoot", "tv", "movie",
-                "{animeRomaji}\\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish}[{groupShort}][{resolution}][{videoCodec}][{crc32}]");
+                "{animeRomaji}\\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...}[{groupShort}][{resolution}][{videoCodec}][{crc32}]");
 
             Assert.IsTrue(builder.FileMask.FirstByteFlags.HasFlag(FileMaskFirstByte.State));
             Assert.IsTrue(builder.FileMask.SecondByteFlags.HasFlag(FileMaskSecondByte.Crc32));
@@ -89,10 +89,15 @@ namespace AniSort.Core.IO.Tests
             Assert.IsTrue(builder.AnimeMask.ThirdByteFlags.HasFlag(FileAnimeMaskThirdByte.EpisodeNumber));
             Assert.IsTrue(builder.AnimeMask.ThirdByteFlags.HasFlag(FileAnimeMaskThirdByte.EpisodeName));
 
-            path = builder.BuildPath(fileInfo, animeInfo);
+            path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
 
             Assert.AreEqual(
                 "testRoot\\tv\\Koukaku Kidoutai S.A.C. 2nd GIG\\Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night Cruise[Hi10][1280x688][h264][D7083952]",
+                path);
+
+            path = builder.BuildPath(fileInfo, animeInfo, 127);
+
+            Assert.AreEqual("testRoot\\tv\\Koukaku Kidoutai S.A.C. 2nd GIG\\Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night C...[Hi10][1280x688][h264][D7083952]",
                 path);
         }
     }
