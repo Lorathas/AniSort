@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using AniDbSharp.Data;
+using AniSort.Core.Exceptions;
 using FileInfo = AniDbSharp.Data.FileInfo;
 
 namespace AniSort.Core.IO
@@ -110,7 +111,7 @@ namespace AniSort.Core.IO
 
                 string built = new string(builder.ToString().Reverse().ToArray());
 
-                path = Path.Combine(Root, animeTypeEmitter.Emit(fileInfo, animeInfo), built);
+                path = Path.Combine(Root, animeTypeEmitter.Emit(fileInfo, animeInfo), built).CleanPath();
             }
 
             return path;
