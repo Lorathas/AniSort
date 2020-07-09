@@ -45,6 +45,8 @@ namespace AniSort.Core
             }
         }
 
+        public static string CheckedFilesPath => Path.Combine(DataPath, "checked-files.csv");
+
         /// <summary>
         /// Path to store the anime title dump from 
         /// </summary>
