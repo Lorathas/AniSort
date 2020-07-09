@@ -83,13 +83,13 @@ namespace AniSort.Core.IO
 
             foreach (var emitter in emitters)
             {
-                builder.Append(emitter.Emit(fileInfo, animeInfo));
+                builder.Append(emitter.Emit(fileInfo, animeInfo).CleanPath());
             }
 
             string cleanedRoot = Root.CleanRootPath();
             string cleanedAnimePath = animeTypeEmitter.Emit(fileInfo, animeInfo).CleanPath();
 
-            string path = Path.Combine(cleanedRoot, cleanedAnimePath, builder.ToString().CleanPath());
+            string path = Path.Combine(cleanedRoot, cleanedAnimePath, builder.ToString());
 
             if (path.Length > maxLength)
             {
@@ -102,19 +102,19 @@ namespace AniSort.Core.IO
 
                     if (emitter is PredicateFileFormatEmitter predicateEmitter && predicateEmitter.Ellipsize)
                     {
-                        string emitted = predicateEmitter.Emit(fileInfo, animeInfo, overExtension + 3) + "...";
+                        string emitted = predicateEmitter.Emit(fileInfo, animeInfo, overExtension + 3).CleanPath() + "...";
 
                         builder.Append(new string(emitted.Reverse().ToArray()));
                     }
                     else
                     {
-                        builder.Append(new string(emitter.Emit(fileInfo, animeInfo).Reverse().ToArray()));
+                        builder.Append(new string(emitter.Emit(fileInfo, animeInfo).CleanPath().Reverse().ToArray()));
                     }
                 }
 
                 string built = new string(builder.ToString().Reverse().ToArray());
 
-                path = Path.Combine(cleanedRoot, cleanedAnimePath, built.CleanPath());
+                path = Path.Combine(cleanedRoot, cleanedAnimePath, built);
             }
 
             return path;
