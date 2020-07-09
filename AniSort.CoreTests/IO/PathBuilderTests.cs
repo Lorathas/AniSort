@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Text;
 using AniDbSharp.Data;
 using AniDbSharp.Extensions;
+using AniSort.Core.Utils;
 
 namespace AniSort.Core.IO.Tests
 {
@@ -72,7 +73,7 @@ namespace AniSort.Core.IO.Tests
 
             string path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
 
-            Assert.AreEqual("testRoot\\tv\\Ghost in the Shell: Stand Alone Complex 2nd GIG\\test", path);
+            Assert.AreEqual("testRoot\\tv\\Ghost in the Shell_ Stand Alone Complex 2nd GIG\\test", path);
 
             builder = PathBuilder.Compile("testRoot", "tv", "movie",
                 "{animeRomaji}\\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...}[{groupShort}][{resolution}][{videoCodec}][{crc32}]");
@@ -98,6 +99,14 @@ namespace AniSort.Core.IO.Tests
             path = builder.BuildPath(fileInfo, animeInfo, 127);
 
             Assert.AreEqual("testRoot\\tv\\Koukaku Kidoutai S.A.C. 2nd GIG\\Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night C...[Hi10][1280x688][h264][D7083952]",
+                path);
+
+            animeInfo.EpisodeName = "Night Cruise...";
+
+            path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
+
+            Assert.AreEqual(
+                "testRoot\\tv\\Koukaku Kidoutai S.A.C. 2nd GIG\\Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night Cruise_[Hi10][1280x688][h264][D7083952]",
                 path);
         }
     }

@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
@@ -30,7 +31,10 @@ using AniSort.Core.Crypto;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
 using AniSort.Core.IO;
+using AniSort.Core.Models;
+using AniSort.Core.Utils;
 using AniSort.Extensions;
+using CsvHelper;
 
 namespace AniSort
 {
@@ -57,8 +61,14 @@ paths           paths to process files for
             ".mxf", ".nsv", ".f4v", ".f4p", ".f4a", ".f4b"
         };
 
+        private static List<FileImportStatus> importedFiles;
+
         static void Main(string[] args)
         {
+            AppPaths.Initialize();
+
+            importedFiles = FileImportUtils.LoadImportedFiles();
+
             var config = new Config();
 
             for (int idx = 0; idx < args.Length; idx++)
@@ -217,9 +227,34 @@ paths           paths to process files for
                     {
                         string filename = Path.GetFileName(path);
 
-                        using (var fs = new BufferedStream(File.OpenRead(path)))
+                        var fileImportStatus = importedFiles.FirstOrDefault(i => i.FilePath == path);
+
+                        if (fileImportStatus == null)
                         {
-                            long totalBytes = fs.Length;
+                            fileImportStatus = new FileImportStatus(path);
+                            importedFiles.Add(fileImportStatus);
+                        }
+
+                        if (fileImportStatus.Status == ImportStatus.Imported)
+                        {
+                            Console.WriteLine($"File \"{path}\" has already been imported. Skipping...");
+                            Console.WriteLine();
+                            continue;
+                        }
+
+                        byte[] hash;
+                        long totalBytes;
+                        if (fileImportStatus.Hash != null)
+                        {
+                            hash = fileImportStatus.Hash;
+                            totalBytes = fileImportStatus.FileLength;
+
+                            Console.WriteLine($"File \"{path}\" already hashed. Skipping hashing process...");
+                        }
+                        else
+                        {
+                            await using var fs = new BufferedStream(File.OpenRead(path));
+                            fileImportStatus.FileLength = totalBytes = fs.Length;
 
                             hashProgressBar = new ConsoleProgressBar(totalBytes, 40, postfixMessage: $"hashing: {path}",
                                 postfixMessageShort: $"hashing: {filename}");
@@ -239,9 +274,10 @@ paths           paths to process files for
 
                             hashTask.Wait();
 
-                            byte[] hash = hashTask.Result;
+                            fileImportStatus.Hash = hash = hashTask.Result;
 
                             sw.Stop();
+
 
                             Console.WriteLine(
                                 $"\rHashed: {(path.Length + 8 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth)}");
@@ -250,122 +286,174 @@ paths           paths to process files for
                             if (config.Verbose)
                             {
                                 Console.WriteLine(
-                                    $"  Processed {(double)totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round(((double)totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds):F2}MB/s");
+                                    $"  Processed {(double) totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round(((double) totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds):F2}MB/s");
                             }
+                        }
 
-                            var result =
-                                await client.SearchForFile(totalBytes, hash, pathBuilder.FileMask, pathBuilder.AnimeMask);
+                        var result =
+                            await client.SearchForFile(totalBytes, hash, pathBuilder.FileMask, pathBuilder.AnimeMask);
 
-                            if (!result.FileFound)
+                        if (!result.FileFound)
+                        {
+                            Console.WriteLine($"No file found for {filename}".Truncate(Console.WindowWidth));
+                            Console.WriteLine();
+                            fileImportStatus.Status = ImportStatus.NoFileFound;
+                            FileImportUtils.UpdateImportedFiles(importedFiles);
+                            continue;
+                        }
+
+                        Console.WriteLine($"File found for {filename}");
+
+                        if (config.Verbose)
+                        {
+                            Console.WriteLine($"  Anime: {result.AnimeInfo.RomajiName}");
+                            Console.WriteLine(
+                                $"  Episode: {result.AnimeInfo.EpisodeNumber:##} {result.AnimeInfo.EpisodeName}");
+                            Console.WriteLine($"  CRC32: {result.FileInfo.Crc32Hash.ToHexString()}");
+                            Console.WriteLine($"  Group: {result.AnimeInfo.GroupShortName}");
+                        }
+
+                        string extension = Path.GetExtension(filename);
+
+                        // Trailing dot is there to prevent Path.ChangeExtension from screwing with the path if it has been ellipsized or has ellipsis in it
+                        string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo,
+                            PlatformUtils.MaxPathLength - extension.Length);
+
+                        string destinationFilename = destinationPath + extension;
+                        string destinationDirectory = Path.GetDirectoryName(destinationPath);
+
+                        if (!config.Debug && !Directory.Exists(destinationDirectory))
+                        {
+                            try
                             {
-                                Console.WriteLine($"No file found for {filename}".Truncate(Console.WindowWidth));
+                                Directory.CreateDirectory(destinationDirectory);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine(
+                                    "An unknown error occurred while trying to created the directory. Please make sure the program has access to the target directory: " +
+                                    ex.Message);
                                 Console.WriteLine();
+                                fileImportStatus.Status = ImportStatus.Error;
+                                fileImportStatus.Message = ex.Message;
+                                fileImportStatus.Attempts++;
+                                FileImportUtils.UpdateImportedFiles(importedFiles);
                                 continue;
                             }
+                        }
 
-                            Console.WriteLine($"File found for {filename}");
-
-                            if (config.Verbose)
-                            {
-                                Console.WriteLine($"  Anime: {result.AnimeInfo.RomajiName}");
-                                Console.WriteLine(
-                                    $"  Episode: {result.AnimeInfo.EpisodeNumber:##} {result.AnimeInfo.EpisodeName}");
-                                Console.WriteLine($"  CRC32: {result.FileInfo.Crc32Hash.ToHexString()}");
-                                Console.WriteLine($"  Group: {result.AnimeInfo.GroupShortName}");
-                            }
-
-                            string extension = Path.GetExtension(filename);
-
-                            // Trailing dot is there to prevent Path.ChangeExtension from screwing with the path if it has been ellipsized or has ellipsis in it
-                            string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo, PlatformUtils.MaxPathLength - extension.Length) + ".";
-
-                            string destinationFilename = Path.ChangeExtension(destinationPath, extension);
-
-                            string destinationDirectory = Path.GetDirectoryName(destinationPath);
-
-                            if (!config.Debug && !Directory.Exists(destinationDirectory))
+                        if (File.Exists(destinationFilename))
+                        {
+                            fileImportStatus.Status = ImportStatus.Imported;
+                            fileImportStatus.Message = destinationFilename;
+                            fileImportStatus.Attempts++;
+                            FileImportUtils.UpdateImportedFiles(importedFiles);
+                            Console.WriteLine(
+                                $"Destination file \"{destinationFilename}\" already exists. Skipping...");
+                        }
+                        else if (config.Copy)
+                        {
+                            if (!config.Debug)
                             {
                                 try
                                 {
-                                    Directory.CreateDirectory(destinationDirectory);
+                                    if (config.Verbose)
+                                    {
+                                        Console.WriteLine($"Destination Path: {destinationFilename}");
+                                    }
+
+                                    File.Copy(path, destinationFilename);
                                 }
-                                catch (Exception ex)
+                                catch (UnauthorizedAccessException ex)
                                 {
-                                    Console.WriteLine("An unknown error occurred while trying to created the directory. Please make sure the program has access to the target directory: " + ex.Message);
+                                    Console.WriteLine(
+                                        "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
+                                    Console.WriteLine();
+                                    fileImportStatus.Status = ImportStatus.Error;
+                                    fileImportStatus.Message = ex.Message;
+                                    fileImportStatus.Attempts++;
+                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    continue;
+                                }
+                                catch (PathTooLongException ex)
+                                {
+                                    Console.WriteLine(
+                                        "Filename too long. Yell at Lorathas to fix path length checking if this keeps occurring.");
+                                    Console.WriteLine();
+                                    fileImportStatus.Status = ImportStatus.Error;
+                                    fileImportStatus.Message = ex.Message;
+                                    fileImportStatus.Attempts++;
+                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    continue;
+                                }
+                                catch (IOException ex)
+                                {
+                                    Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
+                                    Console.WriteLine();
+                                    fileImportStatus.Status = ImportStatus.Error;
+                                    fileImportStatus.Message = ex.Message;
+                                    fileImportStatus.Attempts++;
+                                    FileImportUtils.UpdateImportedFiles(importedFiles);
                                     continue;
                                 }
                             }
 
-                            if (File.Exists(destinationFilename))
-                            {
-                                Console.WriteLine($"Destination file \"{destinationFilename}\" already exists. Skipping...");
-                            }
-                            else if (config.Copy)
-                            {
-                                if (!config.Debug)
-                                {
-                                    try
-                                    {
-                                        if (config.Verbose)
-                                        {
-                                            Console.WriteLine($"Destination Path: {destinationFilename}");
-                                        }
-
-                                        File.Copy(path, destinationFilename);
-                                    }
-                                    catch (UnauthorizedAccessException)
-                                    {
-                                        Console.WriteLine(
-                                            "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
-                                        continue;
-                                    }
-                                    catch (PathTooLongException)
-                                    {
-                                        Console.WriteLine(
-                                            "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
-                                        continue;
-                                    }
-                                    catch (IOException ex)
-                                    {
-                                        Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
-                                        continue;
-                                    }
-                                }
-
-                                Console.WriteLine($"Copied {filename} to {destinationFilename}");
-                            }
-                            else
-                            {
-                                if (!config.Debug)
-                                {
-                                    try
-                                    {
-                                        File.Move(path, destinationFilename);
-                                    }
-                                    catch (UnauthorizedAccessException)
-                                    {
-                                        Console.WriteLine(
-                                            "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
-                                        continue;
-                                    }
-                                    catch (PathTooLongException)
-                                    {
-                                        Console.WriteLine(
-                                            "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
-                                        continue;
-                                    }
-                                    catch (IOException ex)
-                                    {
-                                        Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
-                                        continue;
-                                    }
-                                }
-
-                                Console.WriteLine($"Moved {filename} to {destinationFilename}");
-                            }
-
-                            Console.WriteLine();
+                            fileImportStatus.Status = ImportStatus.Imported;
+                            fileImportStatus.Message = destinationFilename;
+                            fileImportStatus.Attempts++;
+                            FileImportUtils.UpdateImportedFiles(importedFiles);
+                            Console.WriteLine($"Copied {filename} to {destinationFilename}");
                         }
+                        else
+                        {
+                            if (!config.Debug)
+                            {
+                                try
+                                {
+                                    File.Move(path, destinationFilename);
+                                }
+                                catch (UnauthorizedAccessException ex)
+                                {
+                                    Console.WriteLine(
+                                        "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
+                                    Console.WriteLine();
+                                    fileImportStatus.Status = ImportStatus.Error;
+                                    fileImportStatus.Message = ex.Message;
+                                    fileImportStatus.Attempts++;
+                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    continue;
+                                }
+                                catch (PathTooLongException ex)
+                                {
+                                    Console.WriteLine(
+                                        "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
+                                    Console.WriteLine();
+                                    fileImportStatus.Status = ImportStatus.Error;
+                                    fileImportStatus.Message = ex.Message;
+                                    fileImportStatus.Attempts++;
+                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    continue;
+                                }
+                                catch (IOException ex)
+                                {
+                                    Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
+                                    Console.WriteLine();
+                                    fileImportStatus.Status = ImportStatus.Error;
+                                    fileImportStatus.Message = ex.Message;
+                                    fileImportStatus.Attempts++;
+                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    continue;
+                                }
+                            }
+
+                            fileImportStatus.Status = ImportStatus.Imported;
+                            fileImportStatus.Message = destinationFilename;
+                            fileImportStatus.Attempts++;
+                            FileImportUtils.UpdateImportedFiles(importedFiles);
+                            Console.WriteLine($"Moved {filename} to {destinationFilename}");
+                        }
+
+                        Console.WriteLine();
                     }
                     catch (Exception ex)
                     {
@@ -387,7 +475,7 @@ paths           paths to process files for
             {
                 if (Directory.Exists(path))
                 {
-                    AddPathsToQueue(Directory.GetFiles(path), queue);
+                    AddPathsToQueue(Directory.GetFiles(path).Concat(Directory.GetDirectories(path)), queue);
                 }
                 else if (SupportedFileExtensions.Contains(Path.GetExtension(path)) && File.Exists(path))
                 {

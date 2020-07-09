@@ -12,6 +12,8 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -26,15 +28,43 @@ namespace AniSort.Core.Exceptions
             new Regex(InvalidPathRegexString, RegexOptions.Compiled);
         private static readonly Regex InvalidRootPathRegex = new Regex(InvalidRootPathRegexString, RegexOptions.Compiled);
         private static readonly Regex WhitespaceRegex = new Regex("\\s{2,}", RegexOptions.Compiled);
+        private static readonly Regex EllipsisRegex = new Regex("\\.{3}", RegexOptions.Compiled);
+
+        private static readonly IReadOnlyList<Tuple<Regex, string>> RootCleaners = new List<Tuple<Regex, string>>
+        {
+            new Tuple<Regex, string>(WhitespaceRegex, " "),
+            new Tuple<Regex, string>(InvalidRootPathRegex, "_")
+        };
+
+        private static readonly IReadOnlyList<Tuple<Regex, string>> PathCleaners = new List<Tuple<Regex, string>>
+        {
+            new Tuple<Regex, string>(WhitespaceRegex, " "),
+            new Tuple<Regex, string>(InvalidPathRegex, "_"),
+            new Tuple<Regex, string>(EllipsisRegex, "_")
+        };
 
         public static string CleanPath(this string path)
         {
-            return WhitespaceRegex.Replace(InvalidPathRegex.Replace(path, "_"), " ");
+            string temp = path;
+
+            foreach (var cleaner in PathCleaners)
+            {
+                temp = cleaner.Item1.Replace(temp, cleaner.Item2);
+            }
+
+            return temp;
         }
 
         public static string CleanRootPath(this string path)
         {
-            return WhitespaceRegex.Replace(InvalidRootPathRegex.Replace(path, "_"), " ");
+            string temp = path;
+
+            foreach (var cleaner in RootCleaners)
+            {
+                temp = cleaner.Item1.Replace(temp, cleaner.Item2);
+            }
+
+            return temp;
         }
     }
 }
