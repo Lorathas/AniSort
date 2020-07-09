@@ -475,7 +475,7 @@ paths           paths to process files for
             {
                 if (Directory.Exists(path))
                 {
-                    AddPathsToQueue(Directory.GetFiles(path), queue);
+                    AddPathsToQueue(Directory.GetFiles(path).Concat(Directory.GetDirectories(path)), queue);
                 }
                 else if (SupportedFileExtensions.Contains(Path.GetExtension(path)) && File.Exists(path))
                 {
