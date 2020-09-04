@@ -130,8 +130,7 @@ namespace AniDbSharp
 
             if (!task.IsCompleted)
             {
-                Console.WriteLine("AniDB refused to respond to request. Please wait a day and try again.");
-                Environment.Exit(1);
+                throw new AniDbConnectionRefusedException("AniDB refused to respond to request. Please wait a day and try again.");
             }
 
             var result = task.Result;

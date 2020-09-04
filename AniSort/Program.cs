@@ -34,7 +34,14 @@ using AniSort.Core.IO;
 using AniSort.Core.Models;
 using AniSort.Core.Utils;
 using AniSort.Extensions;
+using AniSort.Helpers;
 using CsvHelper;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NLog;
+using NLog.Extensions.Logging;
+using NLog.Fluent;
+using LogLevel = NLog.LogLevel;
 
 namespace AniSort
 {
@@ -61,13 +68,17 @@ paths           paths to process files for
             ".mxf", ".nsv", ".f4v", ".f4p", ".f4a", ".f4b"
         };
 
+        private static ILogger<Program> logger;
+
+        private static FileImportUtils fileImportUtils;
+
+        private static IServiceProvider serviceProvider;
+
         private static List<FileImportStatus> importedFiles;
 
         static void Main(string[] args)
         {
             AppPaths.Initialize();
-
-            importedFiles = FileImportUtils.LoadImportedFiles();
 
             var config = new Config();
 
@@ -117,7 +128,8 @@ paths           paths to process files for
                     {
                         if (!File.Exists(configFilePath))
                         {
-                            Console.WriteLine($"File does not exist for path: {configFilePath}");
+                            logger.LogCritical("File does not exist for path: {ConfigFilePath}", configFilePath);
+                            Environment.Exit(1);
                         }
 
                         using var fs = File.OpenRead(configFilePath);
@@ -125,7 +137,7 @@ paths           paths to process files for
                     }
                     catch (XmlException ex)
                     {
-                        Console.WriteLine($"Invalid XML config file: {ex.Message}");
+                        logger.LogCritical(ex, "An error occured when parsing XML of config file at {ConfigFilePath}", configFilePath);
                         Environment.Exit(0);
                     }
 
@@ -142,6 +154,11 @@ paths           paths to process files for
                 PrintUsageAndExit();
             }
 
+            InitializeLogging(config);
+            InitializeDependencyInjection(config);
+
+            importedFiles = fileImportUtils.LoadImportedFiles();
+
             try
             {
                 var task = RunAsync(config);
@@ -149,9 +166,10 @@ paths           paths to process files for
             }
             catch (AggregateException ex)
             {
+                using var logScope = logger.BeginScope("Aggregate exception occurred while executing sorter functionality");
                 ex.Handle((iex) =>
                 {
-                    Console.WriteLine(iex.Message);
+                    logger.LogError(ex, "An unhandled error occurred while executing sorter functionality");
                     return false;
                 });
             }
@@ -159,7 +177,15 @@ paths           paths to process files for
 
         private static void PrintUsageAndExit()
         {
-            Console.Write(UsageText);
+            if (EnvironmentHelpers.IsConsolePresent)
+            {
+                Console.Write(UsageText);
+            }
+            else
+            {
+                logger.LogCritical("Incorrect call of program. Check usage and run again.");
+            }
+
             Environment.Exit(0);
         }
 
@@ -191,16 +217,23 @@ paths           paths to process files for
             }
             catch (InvalidFormatPathException ex)
             {
-                Console.WriteLine(ex.Message);
+                logger.LogCritical(ex, "Invalid path format found in config");
                 Environment.Exit(0);
             }
 
             if (config.Verbose)
             {
-                Console.WriteLine("Config setup to write to following directories for files:");
-                Console.WriteLine($"  TV:     {Path.Combine(config.Destination.Path, config.Destination.TvPath)}");
-                Console.WriteLine($"  Movies: {Path.Combine(config.Destination.Path, config.Destination.MoviePath)}");
-                Console.WriteLine($"Path builder base path: {pathBuilder.Root}");
+                if (EnvironmentHelpers.IsConsolePresent)
+                {
+                    Console.WriteLine();
+                }
+
+                using (var scope = logger.BeginScope("Config setup to write to following directories for files:"))
+                {
+                    logger.LogTrace("TV:     {TvPath}", Path.Combine(config.Destination.Path, config.Destination.TvPath));
+                    logger.LogTrace("Movies: {MoviePath}", Path.Combine(config.Destination.Path, config.Destination.MoviePath));
+                    logger.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilder.Root);
+                }
             }
 
             var client = new AniDbClient(ApiClientName, ApiClientVersion, config.AniDb.Username, config.AniDb.Password);
@@ -212,13 +245,13 @@ paths           paths to process files for
 
                 if (!auth.Success)
                 {
-                    Console.WriteLine("Invalid auth credentials");
+                    logger.LogCritical("Invalid auth credentials. Unable to connect to AniDb");
                     Environment.Exit(0);
                 }
 
                 if (auth.HasNewVersion)
                 {
-                    Console.WriteLine("A new version of the software is available. Please download it when possible");
+                    logger.LogWarning("A new version of the software is available. Please download it when possible");
                 }
 
                 while (fileQueue.TryDequeue(out string path))
@@ -237,8 +270,12 @@ paths           paths to process files for
 
                         if (fileImportStatus.Status == ImportStatus.Imported)
                         {
-                            Console.WriteLine($"File \"{path}\" has already been imported. Skipping...");
-                            Console.WriteLine();
+                            logger.LogInformation("File \"{FilePath}\" has already been imported. Skipping...", path);
+                            if (EnvironmentHelpers.IsConsolePresent)
+                            {
+                                Console.WriteLine();
+                            }
+
                             continue;
                         }
 
@@ -249,15 +286,18 @@ paths           paths to process files for
                             hash = fileImportStatus.Hash;
                             totalBytes = fileImportStatus.FileLength;
 
-                            Console.WriteLine($"File \"{path}\" already hashed. Skipping hashing process...");
+                            logger.LogInformation("File \"{FilePath}\" already hashed. Skipping hashing process...", path);
                         }
                         else
                         {
                             await using var fs = new BufferedStream(File.OpenRead(path));
                             fileImportStatus.FileLength = totalBytes = fs.Length;
 
-                            hashProgressBar = new ConsoleProgressBar(totalBytes, 40, postfixMessage: $"hashing: {path}",
-                                postfixMessageShort: $"hashing: {filename}");
+                            if (EnvironmentHelpers.IsConsolePresent)
+                            {
+                                hashProgressBar = new ConsoleProgressBar(totalBytes, 40, postfixMessage: $"hashing: {path}",
+                                    postfixMessageShort: $"hashing: {filename}");
+                            }
 
                             var sw = Stopwatch.StartNew();
 
@@ -265,7 +305,7 @@ paths           paths to process files for
 
                             while (!hashTask.IsCompleted)
                             {
-                                hashProgressBar.WriteNextFrame();
+                                hashProgressBar?.WriteNextFrame();
 
                                 Thread.Sleep(TimeSpan.FromMilliseconds(100));
                             }
@@ -278,15 +318,19 @@ paths           paths to process files for
 
                             sw.Stop();
 
+                            if (EnvironmentHelpers.IsConsolePresent)
+                            {
+                                Console.Write("\r");
+                            }
 
-                            Console.WriteLine(
-                                $"\rHashed: {(path.Length + 8 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth)}");
-                            Console.WriteLine($"  eD2k hash: {hash.ToHexString()}");
+                            logger.LogInformation("Hashed: {TruncatedFilename}", (path.Length + 8 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth));
+                            logger.LogDebug("  eD2k hash: {HashInHex}", hash.ToHexString());
 
                             if (config.Verbose)
                             {
-                                Console.WriteLine(
-                                    $"  Processed {(double) totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round(((double) totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds):F2}MB/s");
+                                logger.LogTrace(
+                                    "  Processed {SizeInMB:###,###,##0.00}MB in {ElapsedTime} at a rate of {HashRate:F2}MB/s", (double) totalBytes / 1024 / 1024, sw.Elapsed,
+                                    Math.Round(((double) totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds));
                             }
                         }
 
@@ -295,22 +339,32 @@ paths           paths to process files for
 
                         if (!result.FileFound)
                         {
-                            Console.WriteLine($"No file found for {filename}".Truncate(Console.WindowWidth));
-                            Console.WriteLine();
+                            if (EnvironmentHelpers.IsConsolePresent)
+                            {
+                                logger.LogWarning($"No file found for {filename}".Truncate(Console.WindowWidth));
+                            }
+                            else
+                            {logger.LogWarning("No file found for {FilePath}", filename);
+                            }
+
+                            if (EnvironmentHelpers.IsConsolePresent)
+                            {
+                                Console.WriteLine();
+                            }
+
                             fileImportStatus.Status = ImportStatus.NoFileFound;
-                            FileImportUtils.UpdateImportedFiles(importedFiles);
+                            fileImportUtils.UpdateImportedFiles(importedFiles);
                             continue;
                         }
 
-                        Console.WriteLine($"File found for {filename}");
+                        logger.LogInformation($"File found for {filename}");
 
                         if (config.Verbose)
                         {
-                            Console.WriteLine($"  Anime: {result.AnimeInfo.RomajiName}");
-                            Console.WriteLine(
-                                $"  Episode: {result.AnimeInfo.EpisodeNumber:##} {result.AnimeInfo.EpisodeName}");
-                            Console.WriteLine($"  CRC32: {result.FileInfo.Crc32Hash.ToHexString()}");
-                            Console.WriteLine($"  Group: {result.AnimeInfo.GroupShortName}");
+                            logger.LogTrace("  Anime: {AnimeNameInRomaji}", result.AnimeInfo.RomajiName);
+                            logger.LogTrace("  Episode: {EpisodeNumber:##} {EpisodeName}", result.AnimeInfo.EpisodeNumber, result.AnimeInfo.EpisodeName);
+                            logger.LogTrace("  CRC32: {Crc32Hash}", result.FileInfo.Crc32Hash.ToHexString());
+                            logger.LogTrace("  Group: {SubGroupName}", result.AnimeInfo.GroupShortName);
                         }
 
                         string extension = Path.GetExtension(filename);
@@ -330,14 +384,17 @@ paths           paths to process files for
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine(
-                                    "An unknown error occurred while trying to created the directory. Please make sure the program has access to the target directory: " +
-                                    ex.Message);
-                                Console.WriteLine();
+                                logger.LogError(ex,
+                                    "An unknown error occurred while trying to created the directory. Please make sure the program has access to the target directory.");
+                                if (EnvironmentHelpers.IsConsolePresent)
+                                {
+                                    Console.WriteLine();
+                                }
+
                                 fileImportStatus.Status = ImportStatus.Error;
                                 fileImportStatus.Message = ex.Message;
                                 fileImportStatus.Attempts++;
-                                FileImportUtils.UpdateImportedFiles(importedFiles);
+                                fileImportUtils.UpdateImportedFiles(importedFiles);
                                 continue;
                             }
                         }
@@ -347,9 +404,8 @@ paths           paths to process files for
                             fileImportStatus.Status = ImportStatus.Imported;
                             fileImportStatus.Message = destinationFilename;
                             fileImportStatus.Attempts++;
-                            FileImportUtils.UpdateImportedFiles(importedFiles);
-                            Console.WriteLine(
-                                $"Destination file \"{destinationFilename}\" already exists. Skipping...");
+                            fileImportUtils.UpdateImportedFiles(importedFiles);
+                            logger.LogInformation("Destination file \"{DestinationFilename}\" already exists. Skipping...", destinationFilename);
                         }
                         else if (config.Copy)
                         {
@@ -359,41 +415,52 @@ paths           paths to process files for
                                 {
                                     if (config.Verbose)
                                     {
-                                        Console.WriteLine($"Destination Path: {destinationFilename}");
+                                        logger.LogTrace("Destination Path: {DestinationFilename}", destinationFilename);
                                     }
 
                                     File.Copy(path, destinationFilename);
                                 }
                                 catch (UnauthorizedAccessException ex)
                                 {
-                                    Console.WriteLine(
-                                        "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
-                                    Console.WriteLine();
+                                    logger.LogError("You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
+                                    if (EnvironmentHelpers.IsConsolePresent)
+                                    {
+                                        Console.WriteLine();
+                                    }
+
                                     fileImportStatus.Status = ImportStatus.Error;
                                     fileImportStatus.Message = ex.Message;
                                     fileImportStatus.Attempts++;
-                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    fileImportUtils.UpdateImportedFiles(importedFiles);
                                     continue;
                                 }
                                 catch (PathTooLongException ex)
                                 {
-                                    Console.WriteLine(
+                                    logger.LogError(
                                         "Filename too long. Yell at Lorathas to fix path length checking if this keeps occurring.");
-                                    Console.WriteLine();
+                                    if (EnvironmentHelpers.IsConsolePresent)
+                                    {
+                                        Console.WriteLine();
+                                    }
+
                                     fileImportStatus.Status = ImportStatus.Error;
                                     fileImportStatus.Message = ex.Message;
                                     fileImportStatus.Attempts++;
-                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    fileImportUtils.UpdateImportedFiles(importedFiles);
                                     continue;
                                 }
                                 catch (IOException ex)
                                 {
-                                    Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
-                                    Console.WriteLine();
+                                    logger.LogError(ex, "An unhandled I/O error has occurred");
+                                    if (EnvironmentHelpers.IsConsolePresent)
+                                    {
+                                        Console.WriteLine();
+                                    }
+
                                     fileImportStatus.Status = ImportStatus.Error;
                                     fileImportStatus.Message = ex.Message;
                                     fileImportStatus.Attempts++;
-                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    fileImportUtils.UpdateImportedFiles(importedFiles);
                                     continue;
                                 }
                             }
@@ -401,8 +468,8 @@ paths           paths to process files for
                             fileImportStatus.Status = ImportStatus.Imported;
                             fileImportStatus.Message = destinationFilename;
                             fileImportStatus.Attempts++;
-                            FileImportUtils.UpdateImportedFiles(importedFiles);
-                            Console.WriteLine($"Copied {filename} to {destinationFilename}");
+                            fileImportUtils.UpdateImportedFiles(importedFiles);
+                            logger.LogInformation("Copied {SourceFilePath} to {DestinationFilePath}", filename, destinationFilename);
                         }
                         else
                         {
@@ -414,34 +481,46 @@ paths           paths to process files for
                                 }
                                 catch (UnauthorizedAccessException ex)
                                 {
-                                    Console.WriteLine(
+                                    logger.LogError(ex,
                                         "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
-                                    Console.WriteLine();
+                                    if (EnvironmentHelpers.IsConsolePresent)
+                                    {
+                                        Console.WriteLine();
+                                    }
+
                                     fileImportStatus.Status = ImportStatus.Error;
                                     fileImportStatus.Message = ex.Message;
                                     fileImportStatus.Attempts++;
-                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    fileImportUtils.UpdateImportedFiles(importedFiles);
                                     continue;
                                 }
                                 catch (PathTooLongException ex)
                                 {
-                                    Console.WriteLine(
+                                    logger.LogError(ex,
                                         "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
-                                    Console.WriteLine();
+                                    if (EnvironmentHelpers.IsConsolePresent)
+                                    {
+                                        Console.WriteLine();
+                                    }
+
                                     fileImportStatus.Status = ImportStatus.Error;
                                     fileImportStatus.Message = ex.Message;
                                     fileImportStatus.Attempts++;
-                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    fileImportUtils.UpdateImportedFiles(importedFiles);
                                     continue;
                                 }
                                 catch (IOException ex)
                                 {
-                                    Console.WriteLine($"An unhandled I/O error has occurred: {ex.Message}");
-                                    Console.WriteLine();
+                                    logger.LogError(ex, "An unhandled I/O error has occurred");
+                                    if (EnvironmentHelpers.IsConsolePresent)
+                                    {
+                                        Console.WriteLine();
+                                    }
+
                                     fileImportStatus.Status = ImportStatus.Error;
                                     fileImportStatus.Message = ex.Message;
                                     fileImportStatus.Attempts++;
-                                    FileImportUtils.UpdateImportedFiles(importedFiles);
+                                    fileImportUtils.UpdateImportedFiles(importedFiles);
                                     continue;
                                 }
                             }
@@ -449,15 +528,18 @@ paths           paths to process files for
                             fileImportStatus.Status = ImportStatus.Imported;
                             fileImportStatus.Message = destinationFilename;
                             fileImportStatus.Attempts++;
-                            FileImportUtils.UpdateImportedFiles(importedFiles);
-                            Console.WriteLine($"Moved {filename} to {destinationFilename}");
+                            fileImportUtils.UpdateImportedFiles(importedFiles);
+                            logger.LogInformation("Moved {SourceFilePath} to {DestinationFilePath}", filename, destinationFilename);
                         }
 
-                        Console.WriteLine();
+                        if (EnvironmentHelpers.IsConsolePresent)
+                        {
+                            Console.WriteLine();
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"An unknown error has occurred: {ex.Message}");
+                        logger.LogError(ex, "An unknown error has occurred");
                     }
                 }
             }
@@ -466,7 +548,7 @@ paths           paths to process files for
                 client.Dispose();
             }
 
-            Console.WriteLine("Finished processing all files. Exiting...");
+            logger.LogInformation("Finished processing all files. Exiting...");
         }
 
         private static void AddPathsToQueue(IEnumerable<string> paths, Queue<string> queue)
@@ -528,21 +610,82 @@ paths           paths to process files for
 
                     sw.Stop();
 
-                    Console.WriteLine(
-                        $"\rHashed: {(path.Length + 8 > Console.WindowWidth ? Path.GetFileName(path) : path).Truncate(Console.WindowWidth)}");
-                    Console.WriteLine($"  eD2k hash: {hash.ToHexString()}");
-
-                    if (config.Verbose)
+                    if (EnvironmentHelpers.IsConsolePresent)
                     {
-                        Console.WriteLine(
-                            $"  Processed {(double) totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round(((double) totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds):F2}MB/s");
+                        logger.LogInformation(
+                            $"\rHashed: {(path.Length + 8 > Console.WindowWidth ? Path.GetFileName(path) : path).Truncate(Console.WindowWidth)}");
+                    }
+                    else
+                    {
+                        logger.LogInformation("Hashed: {FilePath}", path);
                     }
 
-                    Console.WriteLine();
+                    logger.LogTrace($"  eD2k hash: {hash.ToHexString()}");
+
+                    logger.LogTrace(
+                        $"  Processed {(double) totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round(((double) totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds):F2}MB/s");
+
+                    if (EnvironmentHelpers.IsConsolePresent)
+                    {
+                        Console.WriteLine();
+                    }
                 }
             }
 
-            Console.WriteLine("Finished hashing all files. Exiting...");
+            logger.LogInformation("Finished hashing all files. Exiting...");
+        }
+
+        private static void InitializeLogging(Config aniSortConfig)
+        {
+            var config = new NLog.Config.LoggingConfiguration();
+
+            var fileLog = new NLog.Targets.FileTarget("fileLog")
+            {
+                FileName = Path.Combine(AppPaths.DataPath, "anisort.log")
+            };
+            var errorFileLog = new NLog.Targets.FileTarget("errorFileLog")
+            {
+                FileName = Path.Combine(AppPaths.DataPath, "anisort.err.log")
+            };
+
+            var fileAndConsoleMinLevel = LogLevel.Info;
+
+            if (aniSortConfig.Verbose)
+            {
+                fileAndConsoleMinLevel = LogLevel.Trace;
+            }
+            else if (aniSortConfig.Debug)
+            {
+                fileAndConsoleMinLevel = LogLevel.Debug;
+            }
+
+            config.AddRule(fileAndConsoleMinLevel, LogLevel.Warn, fileLog);
+            config.AddRule(LogLevel.Error, LogLevel.Fatal, errorFileLog);
+
+            if (EnvironmentHelpers.IsConsolePresent)
+            {
+                var consoleLog = new NLog.Targets.ConsoleTarget("consoleLog");
+                config.AddRule(fileAndConsoleMinLevel, LogLevel.Fatal, consoleLog);
+            }
+
+            LogManager.Configuration = config;
+        }
+
+        private static void InitializeDependencyInjection(Config config)
+        {
+            serviceProvider = new ServiceCollection()
+                .AddSingleton(config)
+                .AddSingleton(typeof(FileImportUtils))
+                .AddLogging(b =>
+                {
+                    b.ClearProviders();
+                    b.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
+                    b.AddNLog();
+                })
+                .BuildServiceProvider();
+
+            logger = serviceProvider.GetService<ILogger<Program>>();
+            fileImportUtils = serviceProvider.GetService<FileImportUtils>();
         }
     }
 }

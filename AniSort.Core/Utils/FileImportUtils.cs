@@ -6,12 +6,20 @@ using System.Linq;
 using System.Text;
 using AniSort.Core.Models;
 using CsvHelper;
+using Microsoft.Extensions.Logging;
 
 namespace AniSort.Core.Utils
 {
-    public static class FileImportUtils
+    public class FileImportUtils
     {
-        public static List<FileImportStatus> LoadImportedFiles()
+        private ILogger<FileImportUtils> logger;
+
+        public FileImportUtils(ILogger<FileImportUtils> logger)
+        {
+            this.logger = logger;
+        }
+
+        public List<FileImportStatus> LoadImportedFiles()
         {
             List<FileImportStatus> importedFiles;
 
@@ -26,7 +34,7 @@ namespace AniSort.Core.Utils
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    logger.LogError(ex, "An error occurred when trying to read from existing files CSV");
                     importedFiles = new List<FileImportStatus>();
                 }
             }
@@ -38,7 +46,7 @@ namespace AniSort.Core.Utils
             return importedFiles;
         }
 
-        public static void UpdateImportedFiles(List<FileImportStatus> importedFiles)
+        public void UpdateImportedFiles(List<FileImportStatus> importedFiles)
         {
             try
             {
@@ -49,7 +57,7 @@ namespace AniSort.Core.Utils
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                logger.LogError(ex, "An error occurred when trying to write to existing files CSV");
             }
         }
     }
