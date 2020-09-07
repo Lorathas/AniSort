@@ -41,6 +41,7 @@ using Microsoft.Extensions.Logging;
 using NLog;
 using NLog.Extensions.Logging;
 using NLog.Fluent;
+using NLog.Layouts;
 using LogLevel = NLog.LogLevel;
 
 namespace AniSort
@@ -183,6 +184,7 @@ paths           paths to process files for
             }
             else
             {
+                // Is this even critical? It is a fail condition for the program...
                 logger.LogCritical("Incorrect call of program. Check usage and run again.");
             }
 
@@ -539,7 +541,7 @@ paths           paths to process files for
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "An unknown error has occurred");
+                        logger.LogError(ex, ex.Message);
                     }
                 }
             }
@@ -645,7 +647,8 @@ paths           paths to process files for
             };
             var errorFileLog = new NLog.Targets.FileTarget("errorFileLog")
             {
-                FileName = Path.Combine(AppPaths.DataPath, "anisort.err.log")
+                FileName = Path.Combine(AppPaths.DataPath, "anisort.err.log"),
+                Layout = new SimpleLayout("${longdate}|${level:uppercase=true}|${logger}|${message}|${exception:format=StackTrace}")
             };
 
             var fileAndConsoleMinLevel = LogLevel.Info;

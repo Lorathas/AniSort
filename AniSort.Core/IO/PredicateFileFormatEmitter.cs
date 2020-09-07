@@ -61,6 +61,11 @@ namespace AniSort.Core.IO
             {
                 string built = $"{prefix}{predicateResult}{suffix}";
 
+                if (built.Length - trimLength < 0)
+                {
+                    return string.Empty;
+                }
+                
                 return built.Substring(0, built.Length - trimLength);
             }
             else
