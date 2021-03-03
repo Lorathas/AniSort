@@ -270,7 +270,7 @@ paths           paths to process files for
 
                         if (fileImportStatus.Status == ImportStatus.Imported)
                         {
-                            logger.LogInformation("File \"{FilePath}\" has already been imported. Skipping...", path);
+                            logger.LogDebug("File \"{FilePath}\" has already been imported. Skipping...", path);
                             if (EnvironmentHelpers.IsConsolePresent)
                             {
                                 Console.WriteLine();
@@ -286,7 +286,7 @@ paths           paths to process files for
                             hash = fileImportStatus.Hash;
                             totalBytes = fileImportStatus.FileLength;
 
-                            logger.LogInformation("File \"{FilePath}\" already hashed. Skipping hashing process...", path);
+                            logger.LogDebug("File \"{FilePath}\" already hashed. Skipping hashing process...", path);
                         }
                         else
                         {
@@ -416,7 +416,7 @@ paths           paths to process files for
                             fileImportStatus.Message = destinationFilename;
                             fileImportStatus.Attempts++;
                             fileImportUtils.UpdateImportedFiles(importedFiles);
-                            logger.LogInformation("Destination file \"{DestinationFilename}\" already exists. Skipping...", destinationFilename);
+                            logger.LogDebug("Destination file \"{DestinationFilename}\" already exists. Skipping...", destinationFilename);
                         }
                         else if (config.Copy)
                         {
