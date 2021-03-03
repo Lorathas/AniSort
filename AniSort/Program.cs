@@ -47,8 +47,9 @@ paths           paths to process files for
 -u  --username  anidb username
 -p  --password  anidb password
 -h  --hash      hash files and output hashes to console
--d  --debug     enable debug mode to leave files intact and to output suggested actions
--v  --verbose   enable verbose logging";
+-D  --debug     enable debug mode to leave files intact and to output suggested actions
+-v  --verbose   enable verbose logging
+-d  --defragment";
 
         private const string ApiClientName = "anidbapiclient";
 
@@ -71,7 +72,8 @@ paths           paths to process files for
 
             var titleDumpTask = AniDbUtils.UpdateAnimeTitlesDumpIfNeededAsync();
             titleDumpTask.Wait();
-            
+
+            Mode? mode = null;
 
             var config = new Config();
 
@@ -79,7 +81,7 @@ paths           paths to process files for
             {
                 string arg = args[idx];
 
-                if (string.Equals(arg, "-d") || string.Equals(arg, "--debug"))
+                if (string.Equals(arg, "-D") || string.Equals(arg, "--debug"))
                 {
                     config.Debug = true;
                 }
@@ -135,6 +137,10 @@ paths           paths to process files for
 
                     break;
                 }
+                else if (arg == "-d" || arg == "--defragment")
+                {
+                    mode = Mode.Defragment;
+                }
                 else
                 {
                     config.Sources.Add(arg);
@@ -148,7 +154,11 @@ paths           paths to process files for
 
             try
             {
-                var task = RunAsync(config);
+                if (mode == null)
+                {
+                    mode = config.Mode;
+                }
+                var task = RunAsync(mode.Value, config);
                 task.Wait();
             }
             catch (AggregateException ex)
@@ -167,15 +177,18 @@ paths           paths to process files for
             Environment.Exit(0);
         }
 
-        private static async Task RunAsync(Config config)
+        private static async Task RunAsync(Mode mode, Config config)
         {
-            switch (config.Mode)
+            switch (mode)
             {
                 case Mode.Normal:
                     await RunNormalAsync(config);
                     break;
                 case Mode.Hash:
                     RunHashes(config);
+                    break;
+                case Mode.Defragment:
+                    await RunDefragmentAsync(config);
                     break;
             }
         }
@@ -547,6 +560,11 @@ paths           paths to process files for
             }
 
             Console.WriteLine("Finished hashing all files. Exiting...");
+        }
+
+        private static async Task RunDefragmentAsync(Config config)
+        {
+            
         }
     }
 }

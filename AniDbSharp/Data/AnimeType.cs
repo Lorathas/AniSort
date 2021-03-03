@@ -14,6 +14,9 @@
 
 namespace AniDbSharp.Data
 {
+    /// <summary>
+    /// Anime type enum based on values returned from AniDb
+    /// </summary>
     public enum AnimeType : byte
     {
         Sequel = 1,

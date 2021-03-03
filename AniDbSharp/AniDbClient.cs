@@ -56,8 +56,10 @@ namespace AniDbSharp
         /// <summary>
         /// Constructor with username and password
         /// </summary>
-        /// <param name="username"></param>
-        /// <param name="password"></param>
+        /// <param name="clientVersion">Version of the client</param>
+        /// <param name="username">Username</param>
+        /// <param name="password">Password</param>
+        /// <param name="clientName">Name of the client</param>
         public AniDbClient([NotNull] string clientName, int clientVersion, [NotNull] string username, [NotNull] string password) : this(clientName, clientVersion)
         {
             if (string.IsNullOrWhiteSpace(username))

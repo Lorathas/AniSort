@@ -45,6 +45,12 @@ namespace AniDbSharp.Data
             };
         }
 
+        /// <summary>
+        /// Parse anime bytes from hex string
+        /// </summary>
+        /// <param name="hex"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public static FileAnimeMask FromHexString(string hex)
         {
             byte[] bytes = hex.HexStringToBytes();
