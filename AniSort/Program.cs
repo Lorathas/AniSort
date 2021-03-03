@@ -15,17 +15,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.IO.Enumeration;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
 using AniDbSharp;
-using AniDbSharp.Data;
 using AniSort.Core;
 using AniSort.Core.Crypto;
 using AniSort.Core.Exceptions;
@@ -35,18 +31,18 @@ using AniSort.Core.Models;
 using AniSort.Core.Utils;
 using AniSort.Extensions;
 using AniSort.Helpers;
-using CsvHelper;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog;
+using NLog.Config;
 using NLog.Extensions.Logging;
-using NLog.Fluent;
 using NLog.Layouts;
+using NLog.Targets;
 using LogLevel = NLog.LogLevel;
 
 namespace AniSort
 {
-    class Program
+    internal class Program
     {
         private const string UsageText =
             @"Usage: anisort.exe [-d | --debug] [-v | --verbose] [-h | --hash] <-u username> <-p password> <paths...>
@@ -77,15 +73,17 @@ paths           paths to process files for
 
         private static List<FileImportStatus> importedFiles;
 
-        static void Main(string[] args)
+        private static ConsoleProgressBar hashProgressBar;
+
+        private static void Main(string[] args)
         {
             AppPaths.Initialize();
 
             var config = new Config();
 
-            for (int idx = 0; idx < args.Length; idx++)
+            for (var idx = 0; idx < args.Length; idx++)
             {
-                string arg = args[idx];
+                var arg = args[idx];
 
                 if (string.Equals(arg, "-d") || string.Equals(arg, "--debug"))
                 {
@@ -121,7 +119,7 @@ paths           paths to process files for
                 }
                 else if (string.Equals(arg, "-c") || string.Equals(arg, "--config"))
                 {
-                    string configFilePath = args[idx + 1];
+                    var configFilePath = args[idx + 1];
 
                     var serializer = new XmlSerializer(typeof(Config));
 
@@ -168,7 +166,7 @@ paths           paths to process files for
             catch (AggregateException ex)
             {
                 using var logScope = logger.BeginScope("Aggregate exception occurred while executing sorter functionality");
-                ex.Handle((iex) =>
+                ex.Handle(iex =>
                 {
                     logger.LogError(ex, "An unhandled error occurred while executing sorter functionality");
                     return false;
@@ -256,11 +254,11 @@ paths           paths to process files for
                     logger.LogWarning("A new version of the software is available. Please download it when possible");
                 }
 
-                while (fileQueue.TryDequeue(out string path))
+                while (fileQueue.TryDequeue(out var path))
                 {
                     try
                     {
-                        string filename = Path.GetFileName(path);
+                        var filename = Path.GetFileName(path);
 
                         var fileImportStatus = importedFiles.FirstOrDefault(i => i.FilePath == path);
 
@@ -307,7 +305,10 @@ paths           paths to process files for
 
                             while (!hashTask.IsCompleted)
                             {
-                                hashProgressBar?.WriteNextFrame();
+                                if (EnvironmentHelpers.IsConsolePresent)
+                                {
+                                    hashProgressBar?.WriteNextFrame();
+                                }
 
                                 Thread.Sleep(TimeSpan.FromMilliseconds(100));
                             }
@@ -325,14 +326,21 @@ paths           paths to process files for
                                 Console.Write("\r");
                             }
 
-                            logger.LogInformation("Hashed: {TruncatedFilename}", (path.Length + 8 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth));
+                            if (EnvironmentHelpers.IsConsolePresent)
+                            {
+                                logger.LogInformation("Hashed: {TruncatedFilename}", (path.Length + 8 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth));
+                            }
+                            else
+                            {
+                                logger.LogInformation("Hashed: {Filename}", path);
+                            }
                             logger.LogDebug("  eD2k hash: {HashInHex}", hash.ToHexString());
 
                             if (config.Verbose)
                             {
                                 logger.LogTrace(
                                     "  Processed {SizeInMB:###,###,##0.00}MB in {ElapsedTime} at a rate of {HashRate:F2}MB/s", (double) totalBytes / 1024 / 1024, sw.Elapsed,
-                                    Math.Round(((double) totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds));
+                                    Math.Round((double) totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds));
                             }
                         }
 
@@ -346,7 +354,8 @@ paths           paths to process files for
                                 logger.LogWarning($"No file found for {filename}".Truncate(Console.WindowWidth));
                             }
                             else
-                            {logger.LogWarning("No file found for {FilePath}", filename);
+                            {
+                                logger.LogWarning("No file found for {FilePath}", filename);
                             }
 
                             if (EnvironmentHelpers.IsConsolePresent)
@@ -369,14 +378,14 @@ paths           paths to process files for
                             logger.LogTrace("  Group: {SubGroupName}", result.AnimeInfo.GroupShortName);
                         }
 
-                        string extension = Path.GetExtension(filename);
+                        var extension = Path.GetExtension(filename);
 
                         // Trailing dot is there to prevent Path.ChangeExtension from screwing with the path if it has been ellipsized or has ellipsis in it
-                        string destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo,
+                        var destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo,
                             PlatformUtils.MaxPathLength - extension.Length);
 
-                        string destinationFilename = destinationPath + extension;
-                        string destinationDirectory = Path.GetDirectoryName(destinationPath);
+                        var destinationFilename = destinationPath + extension;
+                        var destinationDirectory = Path.GetDirectoryName(destinationPath);
 
                         if (!config.Debug && !Directory.Exists(destinationDirectory))
                         {
@@ -555,7 +564,7 @@ paths           paths to process files for
 
         private static void AddPathsToQueue(IEnumerable<string> paths, Queue<string> queue)
         {
-            foreach (string path in paths)
+            foreach (var path in paths)
             {
                 if (Directory.Exists(path))
                 {
@@ -567,8 +576,6 @@ paths           paths to process files for
                 }
             }
         }
-
-        private static ConsoleProgressBar hashProgressBar = null;
 
         private static void OnProgressUpdate(long bytesProcessed)
         {
@@ -584,11 +591,11 @@ paths           paths to process files for
 
             AddPathsToQueue(config.Sources, fileQueue);
 
-            while (fileQueue.TryDequeue(out string path))
+            while (fileQueue.TryDequeue(out var path))
             {
                 using (var fs = new BufferedStream(File.OpenRead(path)))
                 {
-                    long totalBytes = fs.Length;
+                    var totalBytes = fs.Length;
 
                     hashProgressBar = new ConsoleProgressBar(totalBytes, 40, postfixMessage: $"hashing: {path}",
                         postfixMessageShort: $"hashing: {Path.GetFileName(path)}");
@@ -599,14 +606,17 @@ paths           paths to process files for
 
                     while (!hashTask.IsCompleted)
                     {
-                        hashProgressBar.WriteNextFrame();
+                        if (EnvironmentHelpers.IsConsolePresent)
+                        {
+                            hashProgressBar?.WriteNextFrame();
+                        }
 
                         Thread.Sleep(TimeSpan.FromMilliseconds(100));
                     }
 
                     hashTask.Wait();
 
-                    byte[] hash = hashTask.Result;
+                    var hash = hashTask.Result;
 
                     hashProgressBar = null;
 
@@ -625,7 +635,7 @@ paths           paths to process files for
                     logger.LogTrace($"  eD2k hash: {hash.ToHexString()}");
 
                     logger.LogTrace(
-                        $"  Processed {(double) totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round(((double) totalBytes / 1024 / 1024) / sw.Elapsed.TotalSeconds):F2}MB/s");
+                        $"  Processed {(double) totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round((double) totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds):F2}MB/s");
 
                     if (EnvironmentHelpers.IsConsolePresent)
                     {
@@ -639,13 +649,13 @@ paths           paths to process files for
 
         private static void InitializeLogging(Config aniSortConfig)
         {
-            var config = new NLog.Config.LoggingConfiguration();
+            var config = new LoggingConfiguration();
 
-            var fileLog = new NLog.Targets.FileTarget("fileLog")
+            var fileLog = new FileTarget("fileLog")
             {
                 FileName = Path.Combine(AppPaths.DataPath, "anisort.log")
             };
-            var errorFileLog = new NLog.Targets.FileTarget("errorFileLog")
+            var errorFileLog = new FileTarget("errorFileLog")
             {
                 FileName = Path.Combine(AppPaths.DataPath, "anisort.err.log"),
                 Layout = new SimpleLayout("${longdate}|${level:uppercase=true}|${logger}|${message}|${exception:format=StackTrace}")
@@ -667,7 +677,7 @@ paths           paths to process files for
 
             if (EnvironmentHelpers.IsConsolePresent)
             {
-                var consoleLog = new NLog.Targets.ConsoleTarget("consoleLog");
+                var consoleLog = new ConsoleTarget("consoleLog");
                 config.AddRule(fileAndConsoleMinLevel, LogLevel.Fatal, consoleLog);
             }
 
