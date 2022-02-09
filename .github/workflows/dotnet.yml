@@ -22,7 +22,7 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
       
-  Test:
+  AniSort_Core_Tests:
     needs: Build
     runs-on: ubuntu-latest
     
@@ -35,8 +35,12 @@ jobs:
         project_path: Anisort.CoreTests
         report_name: AniSort.Core Tests
         no_build: true
+  AniDbSharp_Tests:
+    needs: Build
+    runs-on: ubuntu-latest
+    steps:
     - name: AniDbSharp Tests
-      uses: zyborg/dotnet-tests-repot@v1.4.4
+      uses: zyborg/dotnet-tests-report@v1.4.4
       with:
         project_path: AniDbSharpTests
         report_name: AniDbSharp Tests
