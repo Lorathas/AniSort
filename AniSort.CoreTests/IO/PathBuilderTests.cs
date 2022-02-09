@@ -16,10 +16,12 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using AniSort.Core.IO;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using AniDbSharp.Data;
 using AniDbSharp.Extensions;
 using AniSort.Core.Utils;
+using FileInfo = AniDbSharp.Data.FileInfo;
 
 namespace AniSort.Core.IO.Tests
 {
@@ -73,7 +75,7 @@ namespace AniSort.Core.IO.Tests
 
             string path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
 
-            Assert.AreEqual("testRoot\\tv\\Ghost in the Shell_ Stand Alone Complex 2nd GIG\\test", path, true);
+            Assert.AreEqual($"testRoot{Path.PathSeparator}tv{Path.PathSeparator}Ghost in the Shell_ Stand Alone Complex 2nd GIG{Path.PathSeparator}test", path, true);
 
             builder = PathBuilder.Compile("testRoot", "tv", "movie",
                 "{animeRomaji}\\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...}[{groupShort}][{resolution}][{videoCodec}][{crc32}]");
