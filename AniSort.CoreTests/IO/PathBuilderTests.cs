@@ -68,14 +68,14 @@ namespace AniSort.Core.IO.Tests
                 Type = "TV Series",
             };
 
-            var builder = PathBuilder.Compile("testRoot", "tv", "movie", "{animeEnglish}\\test");
+            var builder = PathBuilder.Compile("testRoot", "tv", "movie", $"{{animeEnglish}}{Path.DirectorySeparatorChar}test");
 
             Assert.IsTrue(builder.AnimeMask.SecondByteFlags.HasFlag(FileAnimeMaskSecondByte.EnglishName));
             Assert.IsTrue(builder.AnimeMask.FirstByteFlags.HasFlag(FileAnimeMaskFirstByte.Type));
 
             string path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
 
-            Assert.AreEqual(Path.Combine("testRoot", "tv", "Ghost in the Shell_ Stand Alone Complex 2nd GIG", "test"), path, true);
+            Assert.AreEqual($"testRoot{Path.PathSeparator}tv{Path.DirectorySeparatorChar}Ghost in the Shell_ Stand Alone Complex 2nd GIG{Path.DirectorySeparatorChar}test", path, true);
 
             builder = PathBuilder.Compile("testRoot", "tv", "movie",
                 "{animeRomaji}\\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...}[{groupShort}][{resolution}][{videoCodec}][{crc32}]");
