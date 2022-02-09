@@ -78,7 +78,7 @@ namespace AniSort.Core.IO.Tests
             Assert.AreEqual($"testRoot{Path.DirectorySeparatorChar}tv{Path.DirectorySeparatorChar}Ghost in the Shell_ Stand Alone Complex 2nd GIG{Path.DirectorySeparatorChar}test", path, true);
 
             builder = PathBuilder.Compile("testRoot", "tv", "movie",
-                "{animeRomaji}\\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...}[{groupShort}][{resolution}][{videoCodec}][{crc32}]");
+                $"{{animeRomaji}}{Path.DirectorySeparatorChar}{{animeRomaji}} - {{episodeNumber}}{{'v'fileVersion}} - {{episodeEnglish...}}[{{groupShort}}][{{resolution}}][{{videoCodec}}][{{crc32}}]");
 
             Assert.IsTrue(builder.FileMask.FirstByteFlags.HasFlag(FileMaskFirstByte.State));
             Assert.IsTrue(builder.FileMask.SecondByteFlags.HasFlag(FileMaskSecondByte.Crc32));
@@ -95,12 +95,12 @@ namespace AniSort.Core.IO.Tests
             path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
 
             Assert.AreEqual(
-                "testRoot\\tv\\Koukaku Kidoutai S.A.C. 2nd GIG\\Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night Cruise[Hi10][1280x688][h264][D7083952]",
+                $"testRoot{Path.DirectorySeparatorChar}tv{Path.DirectorySeparatorChar}Koukaku Kidoutai S.A.C. 2nd GIG{Path.DirectorySeparatorChar}Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night Cruise[Hi10][1280x688][h264][D7083952]",
                 path);
 
             path = builder.BuildPath(fileInfo, animeInfo, 127);
 
-            Assert.AreEqual("testRoot\\tv\\Koukaku Kidoutai S.A.C. 2nd GIG\\Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night C...[Hi10][1280x688][h264][D7083952]",
+            Assert.AreEqual($"testRoot{Path.DirectorySeparatorChar}tv{Path.DirectorySeparatorChar}Koukaku Kidoutai S.A.C. 2nd GIG{Path.DirectorySeparatorChar}Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night C...[Hi10][1280x688][h264][D7083952]",
                 path);
 
             animeInfo.EpisodeName = "Night Cruise...";
@@ -108,7 +108,7 @@ namespace AniSort.Core.IO.Tests
             path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
 
             Assert.AreEqual(
-                "testRoot\\tv\\Koukaku Kidoutai S.A.C. 2nd GIG\\Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night Cruise_[Hi10][1280x688][h264][D7083952]",
+                $"testRoot{Path.DirectorySeparatorChar}tv{Path.DirectorySeparatorChar}Koukaku Kidoutai S.A.C. 2nd GIG{Path.DirectorySeparatorChar}Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 - Night Cruise_[Hi10][1280x688][h264][D7083952]",
                 path);
         }
     }
