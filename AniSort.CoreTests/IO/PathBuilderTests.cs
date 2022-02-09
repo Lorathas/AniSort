@@ -75,7 +75,7 @@ namespace AniSort.Core.IO.Tests
 
             string path = builder.BuildPath(fileInfo, animeInfo, PlatformUtils.MaxPathLength);
 
-            Assert.AreEqual($"testRoot{Path.PathSeparator}tv{Path.PathSeparator}Ghost in the Shell_ Stand Alone Complex 2nd GIG{Path.PathSeparator}test", path, true);
+            Assert.AreEqual($"testRoot{Path.DirectorySeparatorChar}tv{Path.DirectorySeparatorChar}Ghost in the Shell_ Stand Alone Complex 2nd GIG{Path.DirectorySeparatorChar}test", path, true);
 
             builder = PathBuilder.Compile("testRoot", "tv", "movie",
                 "{animeRomaji}\\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...}[{groupShort}][{resolution}][{videoCodec}][{crc32}]");
