@@ -23,10 +23,21 @@ jobs:
       run: dotnet build --no-restore
       
   Test:
+    needs: Build
     runs-on: ubuntu-latest
     
     steps:
-    - name: Test
-      run: dotnet test --verbosity normal
-    - name: Test Results
-      run: zyborg/dotnet-tests-report@v1.4.4
+#    - name: Test
+#      run: dotnet test --verbosity normal
+    - name: Anisort.Core Tests
+      uses: zyborg/dotnet-tests-report@v1.4.4
+      with:
+        project_path: Anisort.CoreTests
+        report_name: AniSort.Core Tests
+        no_build: true
+    - name: AniDbSharp Tests
+      uses: zyborg/dotnet-tests-repot@v1.4.4
+      with:
+        project_path: AniDbSharpTests
+        report_name: AniDbSharp Tests
+        no_build: true
