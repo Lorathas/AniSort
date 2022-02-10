@@ -31,6 +31,10 @@ jobs:
 #      run: dotnet test --verbosity normal
     - name: Export Working Directory
       run: pwd
+    - name: List Working Directory
+      run: ls
+    - name: List Parent Directory
+      run: ls ..\
     - name: Anisort.Core Tests
       uses: zyborg/dotnet-tests-report@v1.4.4
       with:
