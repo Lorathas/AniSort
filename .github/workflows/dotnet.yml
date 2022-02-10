@@ -29,6 +29,8 @@ jobs:
     steps:
 #    - name: Test
 #      run: dotnet test --verbosity normal
+    - name: Export Working Directory
+      run: pwd
     - name: Anisort.Core Tests
       uses: zyborg/dotnet-tests-report@v1.4.4
       with:
