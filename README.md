@@ -1,4 +1,4 @@
-# AniSort
+# AniSort [![.NET](https://github.com/Lorathas/AniSort/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Lorathas/AniSort/actions/workflows/dotnet.yml)
 AniSort is a command line program for organizing files that uses the AniDB UDP API for fetching info for a file.
 
 The solution is split into the three following projects.  
