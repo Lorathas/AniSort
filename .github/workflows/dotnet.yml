@@ -22,24 +22,24 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
       
-  AniSort_Core_Tests:
+  Test:
     needs: Build
     runs-on: ubuntu-latest
     
     steps:
-#    - name: Test
-#      run: dotnet test --verbosity normal
-    - name: Anisort.Core Tests
-      uses: zyborg/dotnet-tests-report@v1.4.4
-      with:
-        project_path: Anisort.CoreTests
-        report_name: AniSort.Core Tests
-  AniDbSharp_Tests:
-    needs: Build
+    - name: Test
+      run: dotnet test --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+    
+  Report:
+    needs: Test
     runs-on: ubuntu-latest
+    
     steps:
-    - name: AniDbSharp Tests
-      uses: zyborg/dotnet-tests-report@v1.4.4
-      with:
-        project_path: AniDbSharpTests
-        report_name: AniDbSharp Tests
+      - name: Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: AniSort Tests
+          path: test-results.xml
+          reporter: dotnet-trx
+    
