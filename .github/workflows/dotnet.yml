@@ -27,14 +27,14 @@ jobs:
       uses: dorny/test-reporter@v1
       if: success() || failure()
       with:
-        name: AniSort Tests
+        name: AniDbSharp Unit Tests
         path: AniDbSharpTest/TestResults/test-results.trx
         reporter: dotnet-trx
     - name: Report AniSort.Core Unit Tests
       uses: dorny/test-reporter@v1
       if: success() || failure()
       with:
-        name: AniSort Tests
+        name: AniSort.Core Unit Tests
         path: AniSort.CoreTests/TestResults/test-results.trx
         reporter: dotnet-trx
     
