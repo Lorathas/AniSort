@@ -29,16 +29,10 @@ jobs:
     steps:
 #    - name: Test
 #      run: dotnet test --verbosity normal
-    - name: Export Working Directory
-      run: pwd
-    - name: List Working Directory
-      run: echo $(ls)
-    - name: List Parent Directory
-      run: echo $(ls ..\)
     - name: Anisort.Core Tests
       uses: zyborg/dotnet-tests-report@v1.4.4
       with:
-        project_path: Anisort.CoreTests
+        project_path: ..\Anisort.CoreTests
         report_name: AniSort.Core Tests
         no_build: true
   AniDbSharp_Tests:
@@ -48,6 +42,6 @@ jobs:
     - name: AniDbSharp Tests
       uses: zyborg/dotnet-tests-report@v1.4.4
       with:
-        project_path: AniDbSharpTests
+        project_path: ..\AniDbSharpTests
         report_name: AniDbSharp Tests
         no_build: true
