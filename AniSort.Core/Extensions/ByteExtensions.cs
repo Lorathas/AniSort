@@ -20,6 +20,11 @@ namespace AniSort.Core.Extensions
     {
         public static string ToHexString(this byte[] bytes)
         {
+            if (bytes == null)
+            {
+                return string.Empty;
+            }
+            
             return BitConverter.ToString(bytes).Replace("-", string.Empty);
         }
     }
