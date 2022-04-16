@@ -57,6 +57,11 @@ namespace AniSort.Core
         /// </summary>
         public static string DatabasePath => Path.Combine(DataPath, "anisort.sqlite3");
 
+        /// <summary>
+        /// Path to the anime info file
+        /// </summary>
+        public static string AnimeInfoFilePath => Path.Combine(DataPath, "anime-info.json");
+
         public static void Initialize()
         {
             if (!Directory.Exists(DataPath))

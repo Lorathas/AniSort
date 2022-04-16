@@ -24,6 +24,7 @@ using System.Xml.Serialization;
 using AniDbSharp;
 using AniSort.Core;
 using AniSort.Core.Crypto;
+using AniSort.Core.Data;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
 using AniSort.Core.IO;
@@ -148,13 +149,24 @@ paths           paths to process files for
                 }
             }
 
-            if (!config.IsValid)
+            if (!config?.IsValid ?? false)
             {
                 PrintUsageAndExit();
             }
 
+            var animeFileStore = new AnimeFileStore();
+
+            if (File.Exists(AppPaths.AnimeInfoFilePath))
+            {
+                animeFileStore.InitializeAsync();
+            }
+            else
+            {
+                animeFileStore.Save();
+            }
+
             InitializeLogging(config);
-            InitializeDependencyInjection(config);
+            InitializeDependencyInjection(config, animeFileStore);
 
             importedFiles = fileImportUtils.LoadImportedFiles();
 
@@ -684,11 +696,15 @@ paths           paths to process files for
             LogManager.Configuration = config;
         }
 
-        private static void InitializeDependencyInjection(Config config)
+        private static void InitializeDependencyInjection(Config config, AnimeFileStore animeFileStore)
         {
             serviceProvider = new ServiceCollection()
                 .AddSingleton(config)
                 .AddSingleton(typeof(FileImportUtils))
+                .AddSingleton(animeFileStore)
+                .AddTransient<IAnimeRepository, LocalAnimeRepository>()
+                .AddTransient<IEpisodeRepository, LocalEpisodeRepository>()
+                .AddTransient<IFileRepository, LocalFileRepository>()
                 .AddLogging(b =>
                 {
                     b.ClearProviders();
@@ -698,6 +714,7 @@ paths           paths to process files for
                 .BuildServiceProvider();
 
             logger = serviceProvider.GetService<ILogger<Program>>();
+            animeFileStore.Logger = serviceProvider.GetService<ILogger<AnimeFileStore>>();
             fileImportUtils = serviceProvider.GetService<FileImportUtils>();
         }
     }
