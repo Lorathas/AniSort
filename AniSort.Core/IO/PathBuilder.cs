@@ -20,6 +20,7 @@ using System.Linq;
 using System.Text;
 using AniDbSharp.Data;
 using AniSort.Core.Exceptions;
+using AniSort.Core.Models;
 using FileInfo = AniDbSharp.Data.FileInfo;
 
 namespace AniSort.Core.IO
@@ -62,17 +63,24 @@ namespace AniSort.Core.IO
             AnimeMask = animeMask ?? throw new ArgumentNullException(nameof(animeMask));
         }
 
-        public string BuildPath(FileInfo fileInfo, FileAnimeInfo animeInfo, int maxLength)
+        public string BuildPath(FileInfo fileInfo, FileAnimeInfo animeInfo, int maxLength, VideoResolution resolution = null)
         {
+            var overrides = new Dictionary<string, string>();
+
+            if (resolution != null)
+            {
+                overrides["resolution"] = $"{resolution.Width}x{resolution.Height}";
+            }
+            
             var builder = new StringBuilder();
 
             foreach (var emitter in emitters)
             {
-                builder.Append(emitter.Emit(fileInfo, animeInfo).CleanPath());
+                builder.Append(emitter.Emit(fileInfo, animeInfo, overrides).CleanPath());
             }
 
             string cleanedRoot = Root.CleanRootPath();
-            string cleanedAnimePath = animeTypeEmitter.Emit(fileInfo, animeInfo).CleanPath();
+            string cleanedAnimePath = animeTypeEmitter.Emit(fileInfo, animeInfo, overrides).CleanPath();
 
             string path = Path.Combine(cleanedRoot, cleanedAnimePath, builder.ToString());
 
@@ -85,15 +93,15 @@ namespace AniSort.Core.IO
                 {
                     var emitter = emitters[idx];
 
-                    if (emitter is PredicateFileFormatEmitter predicateEmitter && predicateEmitter.Ellipsize)
+                    if (emitter is PredicateFileFormatEmitter { Ellipsize: true } predicateEmitter)
                     {
-                        string emitted = predicateEmitter.Emit(fileInfo, animeInfo, overExtension + 3).CleanPath() + "...";
+                        string emitted = predicateEmitter.Emit(fileInfo, animeInfo, overrides, overExtension + 3).CleanPath() + "...";
 
                         builder.Append(new string(emitted.Reverse().ToArray()));
                     }
                     else
                     {
-                        builder.Append(new string(emitter.Emit(fileInfo, animeInfo).CleanPath().Reverse().ToArray()));
+                        builder.Append(new string(emitter.Emit(fileInfo, animeInfo, overrides).CleanPath().Reverse().ToArray()));
                     }
                 }
 
@@ -106,7 +114,7 @@ namespace AniSort.Core.IO
         }
 
         public static PathBuilder Compile([NotNull] string root, [NotNull] string tvPath, [NotNull] string moviePath,
-            [NotNull] string format, FileMask fileMaskOverrides = null, FileAnimeMask animeMaskOverrides = null)
+            [NotNull] string format, FileMask fileMaskOverrides = null, FileAnimeMask animeMaskOverrides = null, Dictionary<string, string> overrides = null)
         {
             if (string.IsNullOrWhiteSpace(root))
             {
@@ -130,7 +138,7 @@ namespace AniSort.Core.IO
 
             var (emitters, fileMask, animeMask) = FileFormatParser.Parse(format, fileMaskOverrides, animeMaskOverrides);
 
-            return new PathBuilder(root, new AnimeTypeFileFormatEmitter(tvPath, moviePath), emitters, fileMask,
+            return new PathBuilder(root, new AnimeTypeFileFormatEmitter(tvPath, moviePath, overrides), emitters, fileMask,
                 new FileAnimeMask(animeMask.FirstByteFlags | FileAnimeMaskFirstByte.Type, animeMask.SecondByteFlags,
                     animeMask.ThirdByteFlags, animeMask.FourthByteFlags));
         }

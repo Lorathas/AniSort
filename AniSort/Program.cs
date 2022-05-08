@@ -33,6 +33,7 @@ using AniSort.Core.Models;
 using AniSort.Core.Utils;
 using AniSort.Extensions;
 using AniSort.Helpers;
+using FFMpegCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog;
@@ -405,11 +406,20 @@ paths           paths to process files for
                         animeRepository.MergeSert(anime);
                         await animeRepository.SaveChangesAsync();
 
+                        var resolution = result.FileInfo.VideoResolution.ParseVideoResolution();
+
+                        if (!result.FileInfo.HasResolution)
+                        {
+                            var mediaInfo = await FFProbe.AnalyseAsync(path);
+
+                            resolution = new VideoResolution(mediaInfo.PrimaryVideoStream.Width, mediaInfo.PrimaryVideoStream.Height);
+                        }
+
                         var extension = Path.GetExtension(filename);
 
                         // Trailing dot is there to prevent Path.ChangeExtension from screwing with the path if it has been ellipsized or has ellipsis in it
                         var destinationPath = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo,
-                            PlatformUtils.MaxPathLength - extension.Length);
+                            PlatformUtils.MaxPathLength - extension.Length, resolution);
 
                         var destinationFilename = destinationPath + extension;
                         var destinationDirectory = Path.GetDirectoryName(destinationPath);

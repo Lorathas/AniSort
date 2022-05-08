@@ -108,10 +108,10 @@ public static class FileResultExtensions
         return anime with { Episodes = new List<EpisodeInfo>{ episode with { Files = new List<FileInfo> { file }} } };
     }
 
-    private static VideoResolution ParseVideoResolution([NotNull] string videoResolution)
+    public static VideoResolution ParseVideoResolution([NotNull] this string videoResolution)
     {
         var match = ResolutionRegex.Match(videoResolution);
         
-        return new VideoResolution(int.Parse(match.Groups["width"].Value), int.Parse(match.Groups["height"].Value));
+        return match.Success ? new VideoResolution(int.Parse(match.Groups["width"].Value), int.Parse(match.Groups["height"].Value)) : default;
     }
 }

@@ -32,26 +32,26 @@ namespace AniSort.Core.IO
 
         private static readonly Dictionary<string, Func<string, string, bool, PredicateFileFormatEmitter>>
             VariableFormatters
-                = new Dictionary<string, Func<string, string, bool, PredicateFileFormatEmitter>>
+                = new()
                 {
                     {
                         "animeEnglish",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => a.EnglishName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => a.EnglishName, prefix, suffix, ellipsize)
                     },
                     {
                         "animeRomaji",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => a.RomajiName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => a.RomajiName, prefix, suffix, ellipsize)
                     },
                     {
                         "animeKanji",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => a.KanjiName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => a.KanjiName, prefix, suffix, ellipsize)
                     },
                     {
                         "episodeNumber",
-                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a) =>
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a, _) =>
                         {
                             int paddingDigits = 6;
                             for (int idx = 2; idx < 6; idx++)
@@ -84,7 +84,7 @@ namespace AniSort.Core.IO
                     },
                     {
                         "fileVersion",
-                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a) =>
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a, _) =>
                         {
                             if (f.State == null)
                             {
@@ -116,59 +116,59 @@ namespace AniSort.Core.IO
                     {
                         "episodeEnglish",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => a.EpisodeName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => a.EpisodeName, prefix, suffix, ellipsize)
                     },
                     {
                         "episodeRomaji",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => a.EpisodeRomajiName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => a.EpisodeRomajiName, prefix, suffix, ellipsize)
                     },
                     {
                         "episodeKanji",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => a.EpisodeKanjiName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => a.EpisodeKanjiName, prefix, suffix, ellipsize)
                     },
                     {
                         "group",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => a.GroupName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => a.GroupName, prefix, suffix, ellipsize)
                     },
                     {
                         "groupShort",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => a.GroupShortName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => a.GroupShortName, prefix, suffix, ellipsize)
                     },
                     {
                         "resolution",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => f.VideoResolution, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, r) => r.TryGetValue("resolution", out var res) ? res : f.VideoResolution, prefix, suffix, ellipsize)
                     },
                     {
                         "videoCodec",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => f.VideoCodec, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, a, _) => f.VideoCodec, prefix, suffix, ellipsize)
                     },
                     {
                         "crc32",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => f.Crc32Hash.ToHexString(), prefix, suffix,
+                            new PredicateFileFormatEmitter((f, a, _) => f.Crc32Hash.ToHexString(), prefix, suffix,
                                 ellipsize)
                     },
                     {
                         "ed2k",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => f.Ed2kHash.ToHexString(), prefix, suffix,
+                            new PredicateFileFormatEmitter((f, a, _) => f.Ed2kHash.ToHexString(), prefix, suffix,
                                 ellipsize)
                     },
                     {
                         "md5",
-                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a) => f.Md5Hash.ToHexString(),
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a, _) => f.Md5Hash.ToHexString(),
                             prefix, suffix, ellipsize)
                     },
                     {
                         "sha1",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a) => f.Sha1Hash.ToHexString(), prefix, suffix,
+                            new PredicateFileFormatEmitter((f, a, _) => f.Sha1Hash.ToHexString(), prefix, suffix,
                                 ellipsize)
                     },
                 };

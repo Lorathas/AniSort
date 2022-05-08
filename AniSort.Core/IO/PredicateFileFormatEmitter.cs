@@ -13,6 +13,7 @@
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using AniDbSharp.Data;
 
 namespace AniSort.Core.IO
@@ -22,7 +23,7 @@ namespace AniSort.Core.IO
     /// </summary>
     class PredicateFileFormatEmitter : IFileFormatEmitter
     {
-        private readonly Func<FileInfo, FileAnimeInfo, string> predicate;
+        private readonly Func<FileInfo, FileAnimeInfo, Dictionary<string, string>, string> predicate;
 
         private readonly string prefix;
 
@@ -30,7 +31,7 @@ namespace AniSort.Core.IO
 
         public bool Ellipsize { get; }
 
-        public PredicateFileFormatEmitter(Func<FileInfo, FileAnimeInfo, string> predicate, string prefix = null, string suffix = null, bool ellipsize = false)
+        public PredicateFileFormatEmitter(Func<FileInfo, FileAnimeInfo, Dictionary<string, string>, string> predicate, string prefix = null, string suffix = null, bool ellipsize = false)
         {
             this.predicate = predicate;
             this.prefix = prefix ?? string.Empty;
@@ -39,9 +40,9 @@ namespace AniSort.Core.IO
         }
 
         /// <inheritdoc />
-        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo)
+        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, Dictionary<string, string> overrides)
         {
-            string predicateResult = predicate(fileInfo, animeInfo);
+            string predicateResult = predicate(fileInfo, animeInfo, overrides);
 
             if (!string.IsNullOrWhiteSpace(predicateResult))
             {
@@ -53,9 +54,9 @@ namespace AniSort.Core.IO
             }
         }
 
-        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, int trimLength)
+        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, Dictionary<string, string> overrides, int trimLength)
         {
-            string predicateResult = predicate(fileInfo, animeInfo);
+            string predicateResult = predicate(fileInfo, animeInfo, overrides);
 
             if (!string.IsNullOrWhiteSpace(predicateResult))
             {

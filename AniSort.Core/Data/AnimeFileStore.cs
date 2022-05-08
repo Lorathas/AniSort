@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,11 @@ namespace AniSort.Core.Data;
 
 public class AnimeFileStore
 {
+    private static JsonSerializerOptions serializerOptions = new JsonSerializerOptions
+    {
+        WriteIndented = true
+    };
+    
     public ConcurrentDictionary<int, AnimeInfo> Anime { get; private set; } = new();
     public ConcurrentDictionary<byte[], FileInfo> Files { get; private set; } = new();
     public SemaphoreSlim WriteLock { get; } = new(1, 1);
@@ -119,7 +125,7 @@ public class AnimeFileStore
         var stopwatch = Stopwatch.StartNew();
         
         using var fs = File.OpenWrite(AppPaths.AnimeInfoFilePath);
-        JsonSerializer.Serialize(fs, Anime);
+        JsonSerializer.Serialize(fs, Anime, serializerOptions);
         
         Logger.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
     }
@@ -130,7 +136,7 @@ public class AnimeFileStore
         var stopwatch = Stopwatch.StartNew();
         
         await using var fs = File.OpenWrite(AppPaths.AnimeInfoFilePath);
-        await JsonSerializer.SerializeAsync(fs, Anime);
+        await JsonSerializer.SerializeAsync(fs, Anime, serializerOptions);
         
         Logger.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
     }

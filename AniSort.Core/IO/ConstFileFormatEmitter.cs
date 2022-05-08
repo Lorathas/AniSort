@@ -12,6 +12,7 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+using System.Collections.Generic;
 using AniDbSharp.Data;
 
 namespace AniSort.Core.IO
@@ -29,7 +30,7 @@ namespace AniSort.Core.IO
         }
 
         /// <inheritdoc />
-        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo)
+        public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, Dictionary<string, string> overrides)
         {
             return value;
         }
