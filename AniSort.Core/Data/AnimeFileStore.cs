@@ -14,14 +14,14 @@ namespace AniSort.Core.Data;
 
 public class AnimeFileStore
 {
-    private static JsonSerializerOptions serializerOptions = new JsonSerializerOptions
+    private static readonly JsonSerializerOptions SerializerOptions = new JsonSerializerOptions
     {
         WriteIndented = true
     };
     
     public ConcurrentDictionary<int, AnimeInfo> Anime { get; private set; } = new();
     public ConcurrentDictionary<byte[], FileInfo> Files { get; private set; } = new();
-    public SemaphoreSlim WriteLock { get; } = new(1, 1);
+    public static SemaphoreSlim WriteLock { get; } = new(1, 1);
 
     private bool initialized = false;
     
@@ -121,23 +121,42 @@ public class AnimeFileStore
 
     public void Save()
     {
-        Logger.LogTrace("Writing anime file store to disk");
-        var stopwatch = Stopwatch.StartNew();
-        
-        using var fs = File.OpenWrite(AppPaths.AnimeInfoFilePath);
-        JsonSerializer.Serialize(fs, Anime, serializerOptions);
-        
-        Logger.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
+        WriteLock.Wait();
+
+        try
+        {
+
+            Logger.LogTrace("Writing anime file store to disk");
+            var stopwatch = Stopwatch.StartNew();
+
+            using var fs = File.OpenWrite(AppPaths.AnimeInfoFilePath);
+            JsonSerializer.Serialize(fs, Anime, SerializerOptions);
+
+            Logger.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
+        }
+        finally
+        {
+            WriteLock.Release();
+        }
     }
 
     public async Task SaveAsync()
     {
-        Logger.LogTrace("Writing anime file store to disk");
-        var stopwatch = Stopwatch.StartNew();
-        
-        await using var fs = File.OpenWrite(AppPaths.AnimeInfoFilePath);
-        await JsonSerializer.SerializeAsync(fs, Anime, serializerOptions);
-        
-        Logger.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
+        await WriteLock.WaitAsync();
+
+        try
+        {
+            Logger.LogTrace("Writing anime file store to disk");
+            var stopwatch = Stopwatch.StartNew();
+
+            await using var fs = File.OpenWrite(AppPaths.AnimeInfoFilePath);
+            await JsonSerializer.SerializeAsync(fs, Anime, SerializerOptions);
+
+            Logger.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
+        }
+        finally
+        {
+            WriteLock.Release();
+        }
     }
 }
