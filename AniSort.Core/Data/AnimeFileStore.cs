@@ -21,7 +21,7 @@ public class AnimeFileStore
     
     public ConcurrentDictionary<int, AnimeInfo> Anime { get; private set; } = new();
     public ConcurrentDictionary<byte[], FileInfo> Files { get; private set; } = new();
-    public static SemaphoreSlim WriteLock { get; } = new(1, 1);
+    public SemaphoreSlim WriteLock { get; } = new(1, 1);
 
     private bool initialized = false;
     
