@@ -91,7 +91,7 @@ namespace AniDbSharp.Data.Tests
             Assert.AreEqual("high", fileResult.FileInfo.Quality);
             Assert.AreEqual("DTV", fileResult.FileInfo.Source);
             Assert.AreEqual("Vorbis (Ogg Vorbis)", fileResult.FileInfo.AudioCodecList);
-            Assert.AreEqual(104, fileResult.FileInfo.AudioBitrateList);
+            Assert.AreEqual("104", fileResult.FileInfo.AudioBitrateList);
             Assert.AreEqual("H264|AVC", fileResult.FileInfo.VideoCodec);
             Assert.AreEqual(800, fileResult.FileInfo.VideoBitrate);
             Assert.AreEqual("704x400", fileResult.FileInfo.VideoResolution);
