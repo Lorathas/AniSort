@@ -17,20 +17,14 @@ using AniDbSharp.Extensions;
 
 namespace AniDbSharp.Data
 {
-    public class FileAnimeMask
+    public record FileAnimeMask(
+        FileAnimeMaskFirstByte FirstByteFlags,
+        FileAnimeMaskSecondByte SecondByteFlags,
+        FileAnimeMaskThirdByte ThirdByteFlags,
+        FileAnimeMaskFourthByte FourthByteFlags)
     {
-        public FileAnimeMaskFirstByte FirstByteFlags { get; }
-        public FileAnimeMaskSecondByte SecondByteFlags { get; }
-        public FileAnimeMaskThirdByte ThirdByteFlags { get; }
-        public FileAnimeMaskFourthByte FourthByteFlags { get; }
-
-        public FileAnimeMask(FileAnimeMaskFirstByte firstByteFlags, FileAnimeMaskSecondByte secondByteFlags,
-            FileAnimeMaskThirdByte thirdByteFlags, FileAnimeMaskFourthByte fourthByteFlags)
+        public FileAnimeMask() : this(0, 0, 0, 0)
         {
-            FirstByteFlags = firstByteFlags;
-            SecondByteFlags = secondByteFlags;
-            ThirdByteFlags = thirdByteFlags;
-            FourthByteFlags = fourthByteFlags;
         }
 
         /// <summary>

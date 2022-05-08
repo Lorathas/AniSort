@@ -62,6 +62,30 @@ public class LocalFileRepository : IFileRepository
     }
 
     /// <inheritdoc />
+    public FileInfo GetByHash(byte[] hash)
+    {
+        return animeFileStore.Files.TryGetValue(hash, out var file) ? file : null;
+    }
+
+    /// <inheritdoc />
+    public Task<FileInfo> GetByHashAsync(byte[] hash)
+    {
+        return Task.FromResult(animeFileStore.Files.TryGetValue(hash, out var file) ? file : null);
+    }
+
+    /// <inheritdoc />
+    public bool ExistsForHash(byte[] hash)
+    {
+        return animeFileStore.Files.ContainsKey(hash);
+    }
+
+    /// <inheritdoc />
+    public Task<bool> ExistsForHashAsync(byte[] hash)
+    {
+        return Task.FromResult(animeFileStore.Files.ContainsKey(hash));
+    }
+
+    /// <inheritdoc />
     public void Upsert(FileInfo entity)
     {
         if (!animeFileStore.Anime.TryGetValue(entity.AnimeId, out var anime))

@@ -38,7 +38,7 @@ namespace AniSort.Core.IO.Tests
                 State = FileState.CrcOk | FileState.IsVersion2,
                 AniDbFilename = "[Hi10] Koukaku Kidoutai S.A.C. 2nd GIG - 02v2 [D7083952].mkv",
                 AnimeId = 1176,
-                AudioBitrateList = 166,
+                AudioBitrateList = "166",
                 AudioCodecList = "Ogg (vorbis)",
                 Crc32Hash = "D7083952".HexStringToBytes(),
                 Description = "",

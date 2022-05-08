@@ -24,13 +24,13 @@ using AniDbSharp.Exceptions;
 
 namespace AniDbSharp
 {
-    public class AniDbClient : IDisposable
+    public class AniDbClient : IDisposable, IAsyncDisposable
     {
         private const int ClientPort = 32569;
         private const int ServerPort = 9000;
         private const string Endpoint = "api.anidb.net";
         private const string SupportedApiVersion = "3";
-        private static readonly List<string> UnauthWhitelist = new List<string> { "PING", "ENCRYPT", "ENCODING", "AUTH", "VERSION" };
+        private static readonly List<string> UnauthWhitelist = new() { "PING", "ENCRYPT", "ENCODING", "AUTH", "VERSION" };
         private static readonly TimeSpan RequestCooldownTime = TimeSpan.FromSeconds(4);
 
         private readonly string username;
@@ -40,14 +40,14 @@ namespace AniDbSharp
 
         private bool isConnected;
         private bool isAuthenticated;
-        private string sessionToken;
+        private string? sessionToken;
         private DateTime lastRequestTime = DateTime.MinValue;
-        private UdpClient udpClient;
+        private UdpClient? udpClient;
 
         /// <summary>
         /// Empty constructor
         /// </summary>
-        public AniDbClient([NotNull] string clientName, int clientVersion)
+        public AniDbClient(string clientName, int clientVersion)
         {
             this.clientName = clientName;
             this.clientVersion = clientVersion;
@@ -56,9 +56,11 @@ namespace AniDbSharp
         /// <summary>
         /// Constructor with username and password
         /// </summary>
-        /// <param name="username"></param>
-        /// <param name="password"></param>
-        public AniDbClient([NotNull] string clientName, int clientVersion, [NotNull] string username, [NotNull] string password) : this(clientName, clientVersion)
+        /// <param name="clientName">Name of the client</param>
+        /// <param name="clientVersion">Version of the client</param>
+        /// <param name="username">Username to login with</param>
+        /// <param name="password">Password to login with</param>
+        public AniDbClient(string clientName, int clientVersion, string username, string password) : this(clientName, clientVersion)
         {
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -74,7 +76,7 @@ namespace AniDbSharp
             this.password = password;
         }
 
-        public async Task<AniDbResponse> SendCommandAsync([NotNull] string command, ParamBuilder parameters = null)
+        public async Task<AniDbResponse> SendCommandAsync(string command, ParamBuilder? parameters = null)
         {
             // Wait if the last request has been sent too recently to avoid API rate limiting
             var now = DateTime.Now;
@@ -148,7 +150,7 @@ namespace AniDbSharp
                     throw new AniDbException($"Invalid response code \"{parsedResponseCode}\". Please check response code enum to ensure the value exists");
                 }
 
-                responseStatus = (CommandStatus) parsedResponseCode;
+                responseStatus = (CommandStatus)parsedResponseCode;
             }
             else
             {
@@ -188,7 +190,7 @@ namespace AniDbSharp
             return response;
         }
 
-        private AniDbResponse SendCommandIgnoreWarnings([NotNull] string command, ParamBuilder parameters = null)
+        private AniDbResponse SendCommandIgnoreWarnings([NotNull] string command, ParamBuilder? parameters = null)
         {
             if (string.IsNullOrWhiteSpace(command))
             {
@@ -359,21 +361,32 @@ namespace AniDbSharp
             catch (Exception ex)
             {
                 isConnected = false;
-                udpClient.Dispose();
+                udpClient?.Dispose();
                 udpClient = null;
 
-                throw ex;
+                throw;
             }
         }
 
-        /// <summary>
-        /// Dispose of resources as needed
-        /// </summary>
+        /// <inheritdoc />
         public void Dispose()
         {
             if (isConnected && isAuthenticated && udpClient != null)
             {
                 var task = LogoutAsync();
+                task.Wait();
+            }
+            udpClient?.Dispose();
+            udpClient = null;
+            isConnected = false;
+        }
+
+        /// <inheritdoc />
+        public async ValueTask DisposeAsync()
+        {
+            if (isConnected && isAuthenticated && udpClient != null)
+            {
+                await LogoutAsync();
             }
             udpClient?.Dispose();
             udpClient = null;

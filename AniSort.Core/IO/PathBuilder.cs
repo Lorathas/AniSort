@@ -55,26 +55,11 @@ namespace AniSort.Core.IO
                 throw new ArgumentNullException(nameof(root));
             }
 
-            if (animeTypeEmitter == null)
-            {
-                throw new ArgumentNullException(nameof(animeTypeEmitter));
-            }
-
-            if (fileMask == null)
-            {
-                throw new ArgumentNullException(nameof(fileMask));
-            }
-
-            if (animeMask == null)
-            {
-                throw new ArgumentNullException(nameof(animeMask));
-            }
-
             this.Root = root;
-            this.animeTypeEmitter = animeTypeEmitter;
+            this.animeTypeEmitter = animeTypeEmitter ?? throw new ArgumentNullException(nameof(animeTypeEmitter));
             this.emitters = emitters;
-            FileMask = fileMask;
-            AnimeMask = animeMask;
+            FileMask = fileMask ?? throw new ArgumentNullException(nameof(fileMask));
+            AnimeMask = animeMask ?? throw new ArgumentNullException(nameof(animeMask));
         }
 
         public string BuildPath(FileInfo fileInfo, FileAnimeInfo animeInfo, int maxLength)
@@ -121,7 +106,7 @@ namespace AniSort.Core.IO
         }
 
         public static PathBuilder Compile([NotNull] string root, [NotNull] string tvPath, [NotNull] string moviePath,
-            [NotNull] string format)
+            [NotNull] string format, FileMask fileMaskOverrides = null, FileAnimeMask animeMaskOverrides = null)
         {
             if (string.IsNullOrWhiteSpace(root))
             {
@@ -143,7 +128,7 @@ namespace AniSort.Core.IO
                 throw new ArgumentNullException(nameof(format));
             }
 
-            var (emitters, fileMask, animeMask) = FileFormatParser.Parse(format);
+            var (emitters, fileMask, animeMask) = FileFormatParser.Parse(format, fileMaskOverrides, animeMaskOverrides);
 
             return new PathBuilder(root, new AnimeTypeFileFormatEmitter(tvPath, moviePath), emitters, fileMask,
                 new FileAnimeMask(animeMask.FirstByteFlags | FileAnimeMaskFirstByte.Type, animeMask.SecondByteFlags,

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using AniSort.Core.Models;
 using CsvHelper;
 using Microsoft.Extensions.Logging;
@@ -54,6 +55,21 @@ namespace AniSort.Core.Utils
                 using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
 
                 csv.WriteRecords(importedFiles);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred when trying to write to existing files CSV");
+            }
+        }
+        
+        public async Task UpdateImportedFilesAsync(List<FileImportStatus> importedFiles)
+        {
+            try
+            {
+                await using var writer = new StreamWriter(AppPaths.CheckedFilesPath);
+                await using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
+
+                await csv.WriteRecordsAsync(importedFiles);
             }
             catch (Exception ex)
             {

@@ -85,6 +85,7 @@ namespace AniDbSharp
         Calendar = 297,
         NoSuchFile = 320,
         MultipleFilesFound = 322,
+        NoSuchEpisode = 340,
         LoginFailed = 500,
         LoginFirst = 501,
         AccessDenied = 502,

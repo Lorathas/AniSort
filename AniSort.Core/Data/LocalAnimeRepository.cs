@@ -1,7 +1,10 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AniSort.Core.Models;
+using FileInfo = AniSort.Core.Models.FileInfo;
 
 namespace AniSort.Core.Data;
 
@@ -78,5 +81,20 @@ public class LocalAnimeRepository : IAnimeRepository
     public async Task SaveChangesAsync()
     {
         await animeFileStore.SaveAsync();
+    }
+
+    /// <inheritdoc />
+    public void MergeSert(AnimeInfo animeInfo)
+    {
+        if (animeFileStore.Anime.TryGetValue(animeInfo.Id, out var existing))
+        {
+            var merged = animeInfo.MergeWith(existing);
+
+            animeFileStore.Anime[animeInfo.Id] = merged;
+        }
+        else
+        {
+            animeFileStore.Anime[animeInfo.Id] = animeInfo;
+        }
     }
 }

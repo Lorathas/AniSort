@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
 using AniDbSharp;
+using AniDbSharp.Data;
 using AniSort.Core;
 using AniSort.Core.Crypto;
 using AniSort.Core.Data;
@@ -75,6 +76,12 @@ paths           paths to process files for
         private static List<FileImportStatus> importedFiles;
 
         private static ConsoleProgressBar hashProgressBar;
+
+        private static IAnimeRepository animeRepository;
+
+        private static IEpisodeRepository episodeRepository;
+
+        private static IFileRepository fileRepository;
 
         private static void Main(string[] args)
         {
@@ -133,7 +140,7 @@ paths           paths to process files for
                         }
 
                         using var fs = File.OpenRead(configFilePath);
-                        config = (Config) serializer.Deserialize(fs);
+                        config = (Config)serializer.Deserialize(fs);
                     }
                     catch (XmlException ex)
                     {
@@ -195,7 +202,7 @@ paths           paths to process files for
             else
             {
                 // Is this even critical? It is a fail condition for the program...
-                logger.LogCritical("Incorrect call of program. Check usage and run again.");
+                logger.LogCritical("Incorrect call of program. Check usage and run again");
             }
 
             Environment.Exit(0);
@@ -224,8 +231,12 @@ paths           paths to process files for
 
             try
             {
-                pathBuilder = PathBuilder.Compile(config.Destination.Path, config.Destination.TvPath,
-                    config.Destination.MoviePath, config.Destination.Format);
+                pathBuilder = PathBuilder.Compile(
+                    config.Destination.NewFilePath, 
+                    config.Destination.TvPath,
+                    config.Destination.MoviePath,
+                    config.Destination.Format,
+                    new FileMask { FirstByteFlags = FileMaskFirstByte.AnimeId | FileMaskFirstByte.GroupId | FileMaskFirstByte.EpisodeId });
             }
             catch (InvalidFormatPathException ex)
             {
@@ -240,10 +251,10 @@ paths           paths to process files for
                     Console.WriteLine();
                 }
 
-                using (var scope = logger.BeginScope("Config setup to write to following directories for files:"))
+                using (logger.BeginScope("Config setup to write to following directories for files:"))
                 {
-                    logger.LogTrace("TV:     {TvPath}", Path.Combine(config.Destination.Path, config.Destination.TvPath));
-                    logger.LogTrace("Movies: {MoviePath}", Path.Combine(config.Destination.Path, config.Destination.MoviePath));
+                    logger.LogTrace("TV:     {TvPath}", Path.Combine(config.Destination.NewFilePath, config.Destination.TvPath));
+                    logger.LogTrace("Movies: {MoviePath}", Path.Combine(config.Destination.NewFilePath, config.Destination.MoviePath));
                     logger.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilder.Root);
                 }
             }
@@ -280,7 +291,7 @@ paths           paths to process files for
                             importedFiles.Add(fileImportStatus);
                         }
 
-                        if (fileImportStatus.Status == ImportStatus.Imported)
+                        if (fileImportStatus.Status == ImportStatus.Imported && await fileRepository.ExistsForHashAsync(fileImportStatus.Hash))
                         {
                             logger.LogDebug("File \"{FilePath}\" has already been imported. Skipping...", path);
                             if (EnvironmentHelpers.IsConsolePresent)
@@ -351,13 +362,12 @@ paths           paths to process files for
                             if (config.Verbose)
                             {
                                 logger.LogTrace(
-                                    "  Processed {SizeInMB:###,###,##0.00}MB in {ElapsedTime} at a rate of {HashRate:F2}MB/s", (double) totalBytes / 1024 / 1024, sw.Elapsed,
-                                    Math.Round((double) totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds));
+                                    "  Processed {SizeInMB:###,###,##0.00}MB in {ElapsedTime} at a rate of {HashRate:F2}MB/s", (double)totalBytes / 1024 / 1024, sw.Elapsed,
+                                    Math.Round((double)totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds));
                             }
                         }
 
-                        var result =
-                            await client.SearchForFile(totalBytes, hash, pathBuilder.FileMask, pathBuilder.AnimeMask);
+                        var result = await client.SearchForFile(totalBytes, hash, pathBuilder.FileMask, pathBuilder.AnimeMask);
 
                         if (!result.FileFound)
                         {
@@ -376,7 +386,7 @@ paths           paths to process files for
                             }
 
                             fileImportStatus.Status = ImportStatus.NoFileFound;
-                            fileImportUtils.UpdateImportedFiles(importedFiles);
+                            await fileImportUtils.UpdateImportedFilesAsync(importedFiles);
                             continue;
                         }
 
@@ -389,6 +399,11 @@ paths           paths to process files for
                             logger.LogTrace("  CRC32: {Crc32Hash}", result.FileInfo.Crc32Hash.ToHexString());
                             logger.LogTrace("  Group: {SubGroupName}", result.AnimeInfo.GroupShortName);
                         }
+
+                        var anime = result.ToAnimeInfo();
+
+                        animeRepository.MergeSert(anime);
+                        await animeRepository.SaveChangesAsync();
 
                         var extension = Path.GetExtension(filename);
 
@@ -424,7 +439,7 @@ paths           paths to process files for
 
                         if (File.Exists(destinationFilename))
                         {
-                            fileImportStatus.Status = ImportStatus.Imported;
+                            fileImportStatus.Status = result.FileInfo.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
                             fileImportStatus.Message = destinationFilename;
                             fileImportStatus.Attempts++;
                             fileImportUtils.UpdateImportedFiles(importedFiles);
@@ -488,7 +503,7 @@ paths           paths to process files for
                                 }
                             }
 
-                            fileImportStatus.Status = ImportStatus.Imported;
+                            fileImportStatus.Status = result.FileInfo.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
                             fileImportStatus.Message = destinationFilename;
                             fileImportStatus.Attempts++;
                             fileImportUtils.UpdateImportedFiles(importedFiles);
@@ -647,7 +662,7 @@ paths           paths to process files for
                     logger.LogTrace($"  eD2k hash: {hash.ToHexString()}");
 
                     logger.LogTrace(
-                        $"  Processed {(double) totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round((double) totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds):F2}MB/s");
+                        $"  Processed {(double)totalBytes / 1024 / 1024:###,###,##0.00}MB in {sw.Elapsed} at a rate of {Math.Round((double)totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds):F2}MB/s");
 
                     if (EnvironmentHelpers.IsConsolePresent)
                     {
@@ -716,6 +731,9 @@ paths           paths to process files for
             logger = serviceProvider.GetService<ILogger<Program>>();
             animeFileStore.Logger = serviceProvider.GetService<ILogger<AnimeFileStore>>();
             fileImportUtils = serviceProvider.GetService<FileImportUtils>();
+            animeRepository = serviceProvider.GetService<IAnimeRepository>();
+            episodeRepository = serviceProvider.GetService<IEpisodeRepository>();
+            fileRepository = serviceProvider.GetService<IFileRepository>();
         }
     }
 }

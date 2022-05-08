@@ -15,7 +15,7 @@
 using System.Collections.Generic;
 using System.Xml.Serialization;
 
-namespace AniSort
+namespace AniSort.Core
 {
     [XmlRoot("Config", IsNullable = false)]
     public class Config
@@ -54,7 +54,13 @@ namespace AniSort
     public class DestinationConfig
     {
         [XmlElement(IsNullable = false)]
-        public string Path { get; set; }
+        public List<string> Paths { get; set; }
+        
+        [XmlElement(IsNullable = false)]
+        public string NewFilePath { get; set; }
+
+        [XmlElement]
+        public bool FragmentSeries { get; set; } = true;
 
         [XmlElement(IsNullable = false)]
         public string Format { get; set; }

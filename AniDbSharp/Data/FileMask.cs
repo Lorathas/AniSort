@@ -17,22 +17,16 @@ using AniDbSharp.Extensions;
 
 namespace AniDbSharp.Data
 {
-    public class FileMask
+    public record FileMask(
+        FileMaskFirstByte FirstByteFlags,
+        FileMaskSecondByte SecondByteFlags,
+        FileMaskThirdByte ThirdByteFlags,
+        FileMaskFourthByte FourthByteFlags,
+        FileMaskFifthByte FifthByteFlags)
     {
-        public FileMaskFirstByte FirstByteFlags { get; }
-        public FileMaskSecondByte SecondByteFlags { get; }
-        public FileMaskThirdByte ThirdByteFlags { get; }
-        public FileMaskFourthByte FourthByteFlags { get; }
-        public FileMaskFifthByte FifthByteFlags { get; }
 
-        public FileMask(FileMaskFirstByte firstByteFlags, FileMaskSecondByte secondByteFlags,
-            FileMaskThirdByte thirdByteFlags, FileMaskFourthByte fourthByteFlags, FileMaskFifthByte fifthByteFlags)
+        public FileMask() : this(0, 0, 0, 0, 0)
         {
-            FirstByteFlags = firstByteFlags;
-            SecondByteFlags = secondByteFlags;
-            ThirdByteFlags = thirdByteFlags;
-            FourthByteFlags = fourthByteFlags;
-            FifthByteFlags = fifthByteFlags;
         }
 
         /// <summary>
@@ -43,8 +37,8 @@ namespace AniDbSharp.Data
         {
             return new[]
             {
-                (byte) FirstByteFlags, (byte) SecondByteFlags, (byte) ThirdByteFlags, (byte) FourthByteFlags,
-                (byte) FifthByteFlags
+                (byte)FirstByteFlags, (byte)SecondByteFlags, (byte)ThirdByteFlags, (byte)FourthByteFlags,
+                (byte)FifthByteFlags
             };
         }
 
@@ -52,32 +46,32 @@ namespace AniDbSharp.Data
         {
             byte[] bytes = hex.HexStringToBytes();
 
-            if (bytes.Length > 5 || bytes.Length <= 0)
+            if (bytes.Length is > 5 or <= 0)
             {
                 throw new Exception("Invalid hex string result");
             }
             else if (bytes.Length == 5)
             {
-                return new FileMask((FileMaskFirstByte) bytes[0], (FileMaskSecondByte) bytes[1],
-                    (FileMaskThirdByte) bytes[2], (FileMaskFourthByte) bytes[3], (FileMaskFifthByte) bytes[4]);
+                return new FileMask((FileMaskFirstByte)bytes[0], (FileMaskSecondByte)bytes[1],
+                    (FileMaskThirdByte)bytes[2], (FileMaskFourthByte)bytes[3], (FileMaskFifthByte)bytes[4]);
             }
             else if (bytes.Length == 4)
             {
-                return new FileMask((FileMaskFirstByte) bytes[0], (FileMaskSecondByte) bytes[1],
-                    (FileMaskThirdByte) bytes[2], (FileMaskFourthByte) bytes[3], 0);
+                return new FileMask((FileMaskFirstByte)bytes[0], (FileMaskSecondByte)bytes[1],
+                    (FileMaskThirdByte)bytes[2], (FileMaskFourthByte)bytes[3], 0);
             }
             else if (bytes.Length == 3)
             {
-                return new FileMask((FileMaskFirstByte) bytes[0], (FileMaskSecondByte) bytes[1],
-                    (FileMaskThirdByte) bytes[2], 0, 0);
+                return new FileMask((FileMaskFirstByte)bytes[0], (FileMaskSecondByte)bytes[1],
+                    (FileMaskThirdByte)bytes[2], 0, 0);
             }
             else if (bytes.Length == 2)
             {
-                return new FileMask((FileMaskFirstByte) bytes[0], (FileMaskSecondByte) bytes[1], 0, 0, 0);
+                return new FileMask((FileMaskFirstByte)bytes[0], (FileMaskSecondByte)bytes[1], 0, 0, 0);
             }
             else
             {
-                return new FileMask((FileMaskFirstByte) bytes[0], 0, 0, 0, 0);
+                return new FileMask((FileMaskFirstByte)bytes[0], 0, 0, 0, 0);
             }
         }
     }

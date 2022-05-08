@@ -295,22 +295,24 @@ namespace AniSort.Core.IO
             };
 
         internal static (IReadOnlyList<IFileFormatEmitter> Emitters, FileMask FileMask, FileAnimeMask AnimeMask) Parse(
-            [NotNull] string format)
+            [NotNull] string format,
+            FileMask fileMaskOverrides = null,
+            FileAnimeMask animeMaskOverrides = null)
         {
             if (string.IsNullOrWhiteSpace(format))
             {
                 throw new ArgumentNullException(nameof(format));
             }
 
-            FileMaskFirstByte fb0 = 0;
-            FileMaskSecondByte fb1 = 0;
-            FileMaskThirdByte fb2 = 0;
-            FileMaskFourthByte fb3 = 0;
-            FileMaskFifthByte fb4 = 0;
-            FileAnimeMaskFirstByte ab0 = 0;
-            FileAnimeMaskSecondByte ab1 = 0;
-            FileAnimeMaskThirdByte ab2 = 0;
-            FileAnimeMaskFourthByte ab3 = 0;
+            FileMaskFirstByte fb0 = fileMaskOverrides?.FirstByteFlags ?? 0;
+            FileMaskSecondByte fb1 = fileMaskOverrides?.SecondByteFlags ?? 0;
+            FileMaskThirdByte fb2 = fileMaskOverrides?.ThirdByteFlags ?? 0;
+            FileMaskFourthByte fb3 = fileMaskOverrides?.FourthByteFlags ?? 0;
+            FileMaskFifthByte fb4 = fileMaskOverrides?.FifthByteFlags ?? 0;
+            FileAnimeMaskFirstByte ab0 = animeMaskOverrides?.FirstByteFlags ?? 0;
+            FileAnimeMaskSecondByte ab1 = animeMaskOverrides?.SecondByteFlags ?? 0;;
+            FileAnimeMaskThirdByte ab2 = animeMaskOverrides?.ThirdByteFlags ?? 0;;
+            FileAnimeMaskFourthByte ab3 = animeMaskOverrides?.FourthByteFlags ?? 0;;
 
             var mode = FileFormatParserMode.Constant;
 

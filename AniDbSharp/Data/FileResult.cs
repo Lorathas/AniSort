@@ -63,7 +63,7 @@ namespace AniDbSharp.Data
             ParseAndAssignValuesForEnum(AnimeInfo, animeMask.FourthByteFlags, values, ref vdx);
         }
 
-        private static readonly string[] HashProperties = new[] {"Ed2k", "Crc32", "Sha1", "Md5"};
+        private static readonly string[] HashProperties = {"Ed2k", "Crc32", "Sha1", "Md5"};
 
         private static void ParseAndAssignValuesForEnum<TEnum>(object target, TEnum flags, string[] values, ref int valuesIndex) where TEnum : Enum
         {

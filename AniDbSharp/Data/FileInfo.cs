@@ -38,7 +38,7 @@ namespace AniDbSharp.Data
         public string Quality { get; set; }
         public string Source { get; set; }
         public string AudioCodecList { get; set; }
-        public int? AudioBitrateList { get; set; }
+        public string AudioBitrateList { get; set; }
         public string VideoCodec { get; set; }
         public int? VideoBitrate { get; set; }
         public string VideoResolution { get; set; }
@@ -58,5 +58,7 @@ namespace AniDbSharp.Data
         public int? MyListStorage { get; set; }
         public int? MyListSource { get; set; }
         public int? MyListOther { get; set; }
+
+        public bool HasResolution => !string.IsNullOrWhiteSpace(VideoResolution) && VideoResolution != "0x0";
     }
 }

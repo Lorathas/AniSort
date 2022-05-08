@@ -5,6 +5,7 @@
         NotYetImported,
         Imported,
         Error,
-        NoFileFound
+        NoFileFound,
+        ImportedMissingData
     }
 }
