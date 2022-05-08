@@ -49,7 +49,7 @@ public class AnimeFileStore
         WriteLock.Wait();
         try
         {
-            Logger.LogTrace("Initializing anime file store");
+            Logger?.LogTrace("Initializing anime file store");
 
             var stopwatch = Stopwatch.StartNew();
             
@@ -65,13 +65,19 @@ public class AnimeFileStore
                     for (int jdx = 0; jdx < episode.Files.Count; jdx++)
                     {
                         var file = episode.Files[jdx] with { Episode = episode };
+
+                        if (file.Ed2kHash == null)
+                        {
+                            continue;
+                        }
+                        
                         Files[file.Ed2kHash] = file;
                     }
                 }
             }
             stopwatch.Stop();
             
-            Logger.LogTrace("Initialized anime file store in {ElapsedTime}", stopwatch.Elapsed);
+            Logger?.LogTrace("Initialized anime file store in {ElapsedTime}", stopwatch.Elapsed);
         }
         finally
         {
@@ -89,7 +95,7 @@ public class AnimeFileStore
         await WriteLock.WaitAsync();
         try
         {
-            Logger.LogTrace("Initializing anime file store");
+            Logger?.LogTrace("Initializing anime file store");
 
             var stopwatch = Stopwatch.StartNew();
             
@@ -105,13 +111,19 @@ public class AnimeFileStore
                     for (int jdx = 0; jdx < episode.Files.Count; jdx++)
                     {
                         var file = episode.Files[jdx] with { Episode = episode };
+
+                        if (file.Ed2kHash == null)
+                        {
+                            continue;
+                        }
+                        
                         Files[file.Ed2kHash] = file;
                     }
                 }
             }
             stopwatch.Stop();
             
-            Logger.LogTrace("Initialized anime file store in {ElapsedTime}", stopwatch.Elapsed);
+            Logger?.LogTrace("Initialized anime file store in {ElapsedTime}", stopwatch.Elapsed);
         }
         finally
         {
@@ -126,13 +138,14 @@ public class AnimeFileStore
         try
         {
 
-            Logger.LogTrace("Writing anime file store to disk");
+            Logger?.LogTrace("Writing anime file store to disk");
             var stopwatch = Stopwatch.StartNew();
 
             using var fs = File.OpenWrite(AppPaths.AnimeInfoFilePath);
             JsonSerializer.Serialize(fs, Anime, SerializerOptions);
+            fs.Flush();
 
-            Logger.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
+            Logger?.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
         }
         finally
         {
@@ -146,13 +159,14 @@ public class AnimeFileStore
 
         try
         {
-            Logger.LogTrace("Writing anime file store to disk");
+            Logger?.LogTrace("Writing anime file store to disk");
             var stopwatch = Stopwatch.StartNew();
 
-            await using var fs = File.OpenWrite(AppPaths.AnimeInfoFilePath);
+            await using var fs = File.Open(AppPaths.AnimeInfoFilePath, File.Exists(AppPaths.AnimeInfoFilePath) ? FileMode.Truncate : FileMode.Create);
             await JsonSerializer.SerializeAsync(fs, Anime, SerializerOptions);
+            await fs.FlushAsync();
 
-            Logger.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
+            Logger?.LogTrace("Wrote anime file store to disk in {ElapsedTime}", stopwatch.Elapsed);
         }
         finally
         {

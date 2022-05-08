@@ -166,7 +166,7 @@ paths           paths to process files for
 
             if (File.Exists(AppPaths.AnimeInfoFilePath))
             {
-                animeFileStore.InitializeAsync();
+                animeFileStore.Initialize();
             }
             else
             {
@@ -237,7 +237,7 @@ paths           paths to process files for
                     config.Destination.TvPath,
                     config.Destination.MoviePath,
                     config.Destination.Format,
-                    new FileMask { FirstByteFlags = FileMaskFirstByte.AnimeId | FileMaskFirstByte.GroupId | FileMaskFirstByte.EpisodeId });
+                    new FileMask { FirstByteFlags = FileMaskFirstByte.AnimeId | FileMaskFirstByte.GroupId | FileMaskFirstByte.EpisodeId, SecondByteFlags = FileMaskSecondByte.Ed2k });
             }
             catch (InvalidFormatPathException ex)
             {

@@ -32,6 +32,7 @@ namespace AniDbSharp
         private const string SupportedApiVersion = "3";
         private static readonly List<string> UnauthWhitelist = new() { "PING", "ENCRYPT", "ENCODING", "AUTH", "VERSION" };
         private static readonly TimeSpan RequestCooldownTime = TimeSpan.FromSeconds(4);
+        private static readonly SemaphoreSlim ApiLock = new(1, 1);
 
         private readonly string username;
         private readonly string password;
@@ -78,116 +79,119 @@ namespace AniDbSharp
 
         public async Task<AniDbResponse> SendCommandAsync(string command, ParamBuilder? parameters = null)
         {
-            // Wait if the last request has been sent too recently to avoid API rate limiting
-            var now = DateTime.Now;
+            await ApiLock.WaitAsync();
 
-            var timeSinceLastRequest = now - lastRequestTime;
-
-            if (timeSinceLastRequest < RequestCooldownTime)
+            try
             {
-                var timeToWait = RequestCooldownTime - timeSinceLastRequest;
-
-                Thread.Sleep(timeToWait);
-            }
-
-            if (!isConnected || udpClient == null)
-            {
-                throw new AniDbConnectionException("AniDbClient is not connected yet. Make sure to call .Connect() and that it successfully connects before trying to execute any commands.");
-            }
-
-            if (string.IsNullOrWhiteSpace(command))
-            {
-                throw new ArgumentNullException(nameof(command));
-            }
-
-            command = command.ToUpperInvariant();
-
-            if (!UnauthWhitelist.Contains(command) && !isAuthenticated)
-            {
-                throw new AniDbException($"Command \"{command}\" requires the client to be authenticated.");
-            }
-
-            if (parameters == null)
-            {
-                parameters = new ParamBuilder();
-            }
-
-            if (isAuthenticated)
-            {
-                parameters.Add("s", sessionToken);
-            }
-
-            byte[] bytes = Encoding.ASCII.GetBytes($"{command} {parameters}");
-
-            if (bytes.Length > 1400)
-            {
-                throw new AniDbException("Request size greater than 1,400 bytes. Please ensure that you are formatting the request correctly.");
-            }
-
-            await udpClient.SendAsync(bytes, bytes.Length);
-
-            var task = udpClient.ReceiveAsync();
-
-            task.Wait(TimeSpan.FromSeconds(30));
-
-            if (!task.IsCompleted)
-            {
-                throw new AniDbConnectionRefusedException("AniDB refused to respond to request. Please wait a day and try again.");
-            }
-
-            var result = task.Result;
-
-            string data = Encoding.ASCII.GetString(result.Buffer);
-
-            string rawResponseCode = data.Substring(0, 3);
-
-            CommandStatus responseStatus;
-
-            if (int.TryParse(rawResponseCode, out int parsedResponseCode))
-            {
-                if (!Enum.IsDefined(typeof(CommandStatus), parsedResponseCode))
+                if (!isConnected || udpClient == null)
                 {
-                    throw new AniDbException($"Invalid response code \"{parsedResponseCode}\". Please check response code enum to ensure the value exists");
+                    throw new AniDbConnectionException("AniDbClient is not connected yet. Make sure to call .Connect() and that it successfully connects before trying to execute any commands.");
                 }
 
-                responseStatus = (CommandStatus)parsedResponseCode;
-            }
-            else
-            {
-                throw new AniDbConnectionException($"Received invalid response from server: \"{data}\"");
-            }
-
-            string message = data.Substring(4);
-            var body = new List<string>();
-
-            if (message.Contains('\n'))
-            {
-                string[] lines = message.Split('\n');
-
-                if (lines.Length > 0)
+                if (string.IsNullOrWhiteSpace(command))
                 {
-                    message = lines[0];
+                    throw new ArgumentNullException(nameof(command));
                 }
 
-                if (lines.Length > 1)
+                command = command.ToUpperInvariant();
+
+                if (!UnauthWhitelist.Contains(command) && !isAuthenticated)
                 {
-                    for (int idx = 1; idx < lines.Length; idx++)
+                    throw new AniDbException($"Command \"{command}\" requires the client to be authenticated.");
+                }
+
+                if (parameters == null)
+                {
+                    parameters = new ParamBuilder();
+                }
+
+                if (isAuthenticated)
+                {
+                    parameters.Add("s", sessionToken);
+                }
+
+                byte[] bytes = Encoding.ASCII.GetBytes($"{command} {parameters}");
+
+                if (bytes.Length > 1400)
+                {
+                    throw new AniDbException("Request size greater than 1,400 bytes. Please ensure that you are formatting the request correctly.");
+                }
+
+                await udpClient.SendAsync(bytes, bytes.Length);
+
+                var task = udpClient.ReceiveAsync();
+
+                task.Wait(TimeSpan.FromSeconds(30));
+
+                if (!task.IsCompleted)
+                {
+                    throw new AniDbConnectionRefusedException("AniDB refused to respond to request. Please wait a day and try again.");
+                }
+
+                var result = task.Result;
+
+                string data = Encoding.ASCII.GetString(result.Buffer);
+
+                string rawResponseCode = data.Substring(0, 3);
+
+                CommandStatus responseStatus;
+
+                if (int.TryParse(rawResponseCode, out int parsedResponseCode))
+                {
+                    if (!Enum.IsDefined(typeof(CommandStatus), parsedResponseCode))
                     {
-                        if (!string.IsNullOrWhiteSpace(lines[idx]))
+                        throw new AniDbException($"Invalid response code \"{parsedResponseCode}\". Please check response code enum to ensure the value exists");
+                    }
+
+                    responseStatus = (CommandStatus)parsedResponseCode;
+                }
+                else
+                {
+                    throw new AniDbConnectionException($"Received invalid response from server: \"{data}\"");
+                }
+
+                string message = data.Substring(4);
+                var body = new List<string>();
+
+                if (message.Contains('\n'))
+                {
+                    string[] lines = message.Split('\n');
+
+                    if (lines.Length > 0)
+                    {
+                        message = lines[0];
+                    }
+
+                    if (lines.Length > 1)
+                    {
+                        for (int idx = 1; idx < lines.Length; idx++)
                         {
-                            body.Add(lines[idx]);
+                            if (!string.IsNullOrWhiteSpace(lines[idx]))
+                            {
+                                body.Add(lines[idx]);
+                            }
                         }
                     }
                 }
+
+                var response = new AniDbResponse(responseStatus, message, body.ToArray());
+
+                ThrowForGlobalErrors(response);
+
+                lastRequestTime = DateTime.Now;
+
+                return response;
             }
-
-            var response = new AniDbResponse(responseStatus, message, body.ToArray());
-
-            ThrowForGlobalErrors(response);
-
-            lastRequestTime = DateTime.Now;
-
-            return response;
+            finally
+            {
+#pragma warning disable CS4014
+                Task.Run(async () =>
+#pragma warning restore CS4014
+                {
+                    await Task.Delay(RequestCooldownTime);
+                    ApiLock.Release();
+                });
+            }
         }
 
         private AniDbResponse SendCommandIgnoreWarnings([NotNull] string command, ParamBuilder? parameters = null)
