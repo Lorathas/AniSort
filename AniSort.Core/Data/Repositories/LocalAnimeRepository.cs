@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using AniSort.Core.Data.Repositories;
 using AniSort.Core.Models;
 using FileInfo = AniSort.Core.Models.FileInfo;
 

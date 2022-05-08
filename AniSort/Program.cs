@@ -26,6 +26,7 @@ using AniDbSharp.Data;
 using AniSort.Core;
 using AniSort.Core.Crypto;
 using AniSort.Core.Data;
+using AniSort.Core.Data.Repositories;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
 using AniSort.Core.IO;
@@ -34,6 +35,7 @@ using AniSort.Core.Utils;
 using AniSort.Extensions;
 using AniSort.Helpers;
 using FFMpegCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog;
@@ -83,6 +85,8 @@ paths           paths to process files for
         private static IEpisodeRepository episodeRepository;
 
         private static IFileRepository fileRepository;
+
+        private static AniSortContext context;
 
         private static void Main(string[] args)
         {
@@ -730,6 +734,7 @@ paths           paths to process files for
                 .AddTransient<IAnimeRepository, LocalAnimeRepository>()
                 .AddTransient<IEpisodeRepository, LocalEpisodeRepository>()
                 .AddTransient<IFileRepository, LocalFileRepository>()
+                .AddDbContext<AniSortContext>(builder => builder.UseSqlite($"Data Source={AppPaths.DatabasePath}"))
                 .AddLogging(b =>
                 {
                     b.ClearProviders();
@@ -744,6 +749,7 @@ paths           paths to process files for
             animeRepository = serviceProvider.GetService<IAnimeRepository>();
             episodeRepository = serviceProvider.GetService<IEpisodeRepository>();
             fileRepository = serviceProvider.GetService<IFileRepository>();
+            context = serviceProvider.GetService<AniSortContext>();
         }
     }
 }

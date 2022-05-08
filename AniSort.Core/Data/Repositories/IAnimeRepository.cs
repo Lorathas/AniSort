@@ -1,7 +1,6 @@
-﻿using System.Threading.Tasks;
-using AniSort.Core.Models;
+﻿using AniSort.Core.Models;
 
-namespace AniSort.Core.Data;
+namespace AniSort.Core.Data.Repositories;
 
 public interface IAnimeRepository : IRepository<AnimeInfo, int>
 {

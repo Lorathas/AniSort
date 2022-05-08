@@ -11,7 +11,7 @@ public record AnimeInfo(
     int HighestEpisodeNumber,
     int Year,
     string Type,
-    List<RelatedAnime> RelatedAnimeIdList,
+    List<RelatedAnimeInfo> RelatedAnimeIdList,
     List<string> Categories,
     string RomajiName,
     string KanjiName,
