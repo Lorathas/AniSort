@@ -1,14 +1,13 @@
 ﻿using System.Threading.Tasks;
-using AniSort.Core.Models;
 
-namespace AniSort.Core.Data;
+namespace AniSort.Core.Data.Repositories;
 
 public interface IRepository<TEntity, in TKey>
 {
     TEntity GetById(TKey key);
     Task<TEntity> GetByIdAsync(TKey key);
-    void Upsert(TEntity entity);
-    Task UpsertAsync(TEntity entity);
+    void Add(TEntity entity);
+    Task AddAsync(TEntity entity);
     void Remove(TKey key);
     Task RemoveAsync(TKey key);
     void Remove(TEntity entity);

@@ -1,17 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AniSort.Core.Data.Repositories;
 using AniSort.Core.Models;
 
-namespace AniSort.Core.Data;
+namespace AniSort.Core.Data.FileStore;
 
-public class LocalEpisodeRepository : IEpisodeRepository
+public class LocalFileEpisodeRepository : IFileEpisodeRepository
 {
     private readonly AnimeFileStore animeFileStore;
 
-    public LocalEpisodeRepository(AnimeFileStore animeFileStore)
+    public LocalFileEpisodeRepository(AnimeFileStore animeFileStore)
     {
         this.animeFileStore = animeFileStore;
     }
@@ -37,6 +35,18 @@ public class LocalEpisodeRepository : IEpisodeRepository
     public Task<EpisodeInfo> GetByIdAsync(int key)
     {
         return Task.FromResult(GetById(key));
+    }
+
+    /// <inheritdoc />
+    public void Add(EpisodeInfo entity)
+    {
+        // Leave empty, shouldn't be used
+    }
+
+    /// <inheritdoc />
+    public async Task AddAsync(EpisodeInfo entity)
+    {
+        // Leave empty, shouldn't be used
     }
 
     /// <inheritdoc />

@@ -6,6 +6,7 @@
         Imported,
         Error,
         NoFileFound,
-        ImportedMissingData
+        ImportedMissingData,
+        Hashed
     }
 }

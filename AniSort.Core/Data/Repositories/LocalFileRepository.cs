@@ -1,255 +1,75 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using AniSort.Core.Data.Repositories;
-using AniSort.Core.Models;
+using Microsoft.EntityFrameworkCore;
 
-namespace AniSort.Core.Data;
+namespace AniSort.Core.Data.Repositories;
 
-public class LocalFileRepository : IFileRepository
+public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContext>, ILocalFileRepository
 {
-    private readonly AnimeFileStore animeFileStore;
-
-    public LocalFileRepository(AnimeFileStore animeFileStore)
+    /// <inheritdoc />
+    public LocalFileRepository(AniSortContext context) : base(context)
     {
-        this.animeFileStore = animeFileStore;
     }
 
     /// <inheritdoc />
-    public FileInfo GetById(int key)
+    public LocalFile GetForEd2kHash(byte[] hash)
     {
-        foreach (var (_, anime) in animeFileStore.Anime)
-        {
-            foreach (var episode in anime.Episodes)
-            {
-                foreach (var file in episode.Files)
-                {
-                    if (file.Id == key)
-                    {
-                        return file;
-                    }
-                }
-            }
-        }
-
-        return null;
+        return Set.FirstOrDefault(f => f.Ed2kHash == hash);
     }
 
     /// <inheritdoc />
-    public Task<FileInfo> GetByIdAsync(int key)
+    public async Task<LocalFile> GetForEd2kHashAsync(byte[] hash)
     {
-        return Task.FromResult(GetById(key));
+        return await Set.FirstOrDefaultAsync(f => f.Ed2kHash == hash);
     }
 
     /// <inheritdoc />
-    public FileInfo GetByEpisode(int id, int animeId, int episodeId)
+    public bool ExistsForEd2kHash(byte[] hash)
     {
-        if (!animeFileStore.Anime.TryGetValue(animeId, out var anime))
-        {
-            return default;
-        }
-
-        var episode = anime.Episodes.FirstOrDefault(x => x.Id == episodeId);
-
-        return episode?.Files.FirstOrDefault(x => x.Id == id);
+        return Set.Any(f => f.Ed2kHash == hash);
     }
 
     /// <inheritdoc />
-    public Task<FileInfo> GetByEpisodeAsync(int id, int animeId, int episodeId)
+    public async Task<bool> ExistsForEd2kHashAsync(byte[] hash)
     {
-        return Task.FromResult(GetByEpisode(id, animeId, episodeId));
+        return await Set.AnyAsync(f => f.Ed2kHash == hash);
     }
 
     /// <inheritdoc />
-    public FileInfo GetByHash(byte[] hash)
+    public LocalFile GetForPath(string path)
     {
-        return animeFileStore.Files.TryGetValue(hash, out var file) ? file : null;
+        return Set.FirstOrDefault(f => f.Path == path);
     }
 
     /// <inheritdoc />
-    public Task<FileInfo> GetByHashAsync(byte[] hash)
+    public async Task<LocalFile> GetForPathAsync(string path)
     {
-        return Task.FromResult(animeFileStore.Files.TryGetValue(hash, out var file) ? file : null);
+        return await Set.FirstOrDefaultAsync(f => f.Path == path);
     }
 
     /// <inheritdoc />
-    public bool ExistsForHash(byte[] hash)
+    public bool ExistsForPath(string path)
     {
-        return animeFileStore.Files.ContainsKey(hash);
+        return Set.Any(f => f.Path == path);
     }
 
     /// <inheritdoc />
-    public Task<bool> ExistsForHashAsync(byte[] hash)
+    public async Task<bool> ExistsForPathAsync(string path)
     {
-        return Task.FromResult(animeFileStore.Files.ContainsKey(hash));
+        return await Set.AnyAsync(f => f.Path == path);
     }
 
     /// <inheritdoc />
-    public void Upsert(FileInfo entity)
+    public IEnumerable<LocalFile> GetWithoutResolution()
     {
-        if (!animeFileStore.Anime.TryGetValue(entity.AnimeId, out var anime))
-        {
-            throw new KeyNotFoundException($"No anime found for id {entity.AnimeId}");
-        }
-
-        var episode = anime.Episodes.FirstOrDefault(x => x.Id == entity.EpisodeId);
-
-        if (episode == default)
-        {
-            throw new KeyNotFoundException($"No episode found for id {entity.EpisodeId} in anime {entity.AnimeId}");
-        }
-
-        int index = episode.Files.FindIndex(x => x.Id == entity.Id);
-
-        animeFileStore.WriteLock.Wait();
-        try
-        {
-            entity = entity with { Episode = episode };
-            if (index == -1)
-            {
-                episode.Files.Add(entity);
-            }
-            else
-            {
-                episode.Files[index] = entity;
-            }
-            
-        }
-        finally
-        {
-            animeFileStore.WriteLock.Release();
-        }
+        return Set.Where(f => f.Path.Contains("[0x0]"));
     }
 
     /// <inheritdoc />
-    public async Task UpsertAsync(FileInfo entity)
+    public IAsyncEnumerable<LocalFile> GetWithoutResolutionAsync()
     {
-        throw new System.NotImplementedException();
-    }
-
-    /// <inheritdoc />
-    public void Remove(int key)
-    {
-        animeFileStore.WriteLock.Wait();
-        try
-        {
-            foreach (var (_, anime) in animeFileStore.Anime)
-            {
-                foreach (var episode in anime.Episodes)
-                {
-                    foreach (var file in episode.Files)
-                    {
-                        if (file.Id == key)
-                        {
-                            episode.Files.Remove(file);
-                            animeFileStore.Files.TryRemove(file.Ed2kHash, out _);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        finally
-        {
-            animeFileStore.WriteLock.Release();
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task RemoveAsync(int key)
-    {
-        await animeFileStore.WriteLock.WaitAsync();
-        try
-        {
-            foreach (var (_, anime) in animeFileStore.Anime)
-            {
-                foreach (var episode in anime.Episodes)
-                {
-                    foreach (var file in episode.Files)
-                    {
-                        if (file.Id == key)
-                        {
-                            episode.Files.Remove(file);
-                            animeFileStore.Files.TryRemove(file.Ed2kHash, out _);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        finally
-        {
-            animeFileStore.WriteLock.Release();
-        }
-    }
-
-    /// <inheritdoc />
-    public void Remove(FileInfo entity)
-    {
-        animeFileStore.WriteLock.Wait();
-        try
-        {
-            if (animeFileStore.Anime.TryGetValue(entity.AnimeId, out var anime))
-            {
-                var episode = anime.Episodes.FirstOrDefault(x => x.Id == entity.EpisodeId);
-
-                if (episode != default)
-                {
-                    int index = episode.Files.FindIndex(x => x.Id == entity.Id);
-
-                    if (index != -1)
-                    {
-                        episode.Files.RemoveAt(index);
-                    }
-                }
-            }
-            animeFileStore.Files.TryRemove(entity.Ed2kHash, out _);
-        }
-        finally
-        {
-            animeFileStore.WriteLock.Release();
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task RemoveAsync(FileInfo entity)
-    {
-        await animeFileStore.WriteLock.WaitAsync();
-        try
-        {
-            if (animeFileStore.Anime.TryGetValue(entity.AnimeId, out var anime))
-            {
-                var episode = anime.Episodes.FirstOrDefault(x => x.Id == entity.EpisodeId);
-
-                if (episode != default)
-                {
-                    int index = episode.Files.FindIndex(x => x.Id == entity.Id);
-
-                    if (index != -1)
-                    {
-                        episode.Files.RemoveAt(index);
-                    }
-                }
-            }
-            animeFileStore.Files.TryRemove(entity.Ed2kHash, out _);
-        }
-        finally
-        {
-            animeFileStore.WriteLock.Release();
-        }
-    }
-
-    /// <inheritdoc />
-    public void SaveChanges()
-    {
-        animeFileStore.Save();
-    }
-
-    /// <inheritdoc />
-    public async Task SaveChangesAsync()
-    {
-        await animeFileStore.SaveAsync();
+        return Set.Where(f => f.Path.Contains("[0x0]")).AsAsyncEnumerable();
     }
 }

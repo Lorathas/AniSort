@@ -6,5 +6,6 @@ public enum FileActionType
     Search,
     Copy,
     Move,
-    Delete
+    Delete,
+    Copied
 }

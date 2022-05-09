@@ -1,19 +1,13 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
-using AniSort.Core.Data.Repositories;
+﻿using System.Threading.Tasks;
 using AniSort.Core.Models;
-using FileInfo = AniSort.Core.Models.FileInfo;
 
-namespace AniSort.Core.Data;
+namespace AniSort.Core.Data.FileStore;
 
-public class LocalAnimeRepository : IAnimeRepository
+public class LocalFileAnimeRepository : IFileAnimeRepository
 {
     private readonly AnimeFileStore animeFileStore;
 
-    public LocalAnimeRepository(AnimeFileStore animeFileStore)
+    public LocalFileAnimeRepository(AnimeFileStore animeFileStore)
     {
         this.animeFileStore = animeFileStore;
     }
@@ -28,6 +22,18 @@ public class LocalAnimeRepository : IAnimeRepository
     public Task<AnimeInfo> GetByIdAsync(int key)
     {
         return Task.FromResult(GetById(key));
+    }
+
+    /// <inheritdoc />
+    public void Add(AnimeInfo entity)
+    {
+        // Leave empty, shouldn't be used
+    }
+
+    /// <inheritdoc />
+    public async Task AddAsync(AnimeInfo entity)
+    {
+        // Leave empty, shouldn't be used
     }
 
     /// <inheritdoc />

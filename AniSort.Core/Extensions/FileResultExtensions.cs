@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 using AniDbSharp.Data;
+using AniSort.Core.Data;
 using AniSort.Core.Models;
 using FileInfo = AniSort.Core.Models.FileInfo;
 
