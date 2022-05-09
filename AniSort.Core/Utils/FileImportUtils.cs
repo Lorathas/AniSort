@@ -22,7 +22,7 @@ namespace AniSort.Core.Utils
 
         public List<FileImportStatus> LoadImportedFiles()
         {
-            List<FileImportStatus> importedFiles;
+            List<FileImportStatus> importedFiles = null;
 
             if (File.Exists(AppPaths.CheckedFilesPath))
             {
@@ -38,10 +38,6 @@ namespace AniSort.Core.Utils
                     logger.LogError(ex, "An error occurred when trying to read from existing files CSV");
                     importedFiles = new List<FileImportStatus>();
                 }
-            }
-            else
-            {
-                importedFiles = new List<FileImportStatus>();
             }
 
             return importedFiles;
