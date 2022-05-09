@@ -1,17 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AniSort.Core.Models;
 
-namespace AniSort.Core.Data;
+namespace AniSort.Core.Data.FileStore;
 
-public class LocalFileRepository : IFileRepository
+public class LocalFileFileRepository : IFileFileRepository
 {
     private readonly AnimeFileStore animeFileStore;
 
-    public LocalFileRepository(AnimeFileStore animeFileStore)
+    public LocalFileFileRepository(AnimeFileStore animeFileStore)
     {
         this.animeFileStore = animeFileStore;
     }
@@ -40,6 +38,19 @@ public class LocalFileRepository : IFileRepository
     public Task<FileInfo> GetByIdAsync(int key)
     {
         return Task.FromResult(GetById(key));
+    }
+
+    /// <inheritdoc />
+    public void Add(FileInfo entity)
+    {
+        // Leave empty, shouldn't be used
+    }
+
+    /// <inheritdoc />
+    public Task AddAsync(FileInfo entity)
+    {
+        // Leave empty, shouldn't be used
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -84,8 +95,7 @@ public class LocalFileRepository : IFileRepository
     {
         return Task.FromResult(animeFileStore.Files.ContainsKey(hash));
     }
-
-    /// <inheritdoc />
+    
     public void Upsert(FileInfo entity)
     {
         if (!animeFileStore.Anime.TryGetValue(entity.AnimeId, out var anime))
@@ -121,11 +131,41 @@ public class LocalFileRepository : IFileRepository
             animeFileStore.WriteLock.Release();
         }
     }
-
-    /// <inheritdoc />
+    
     public async Task UpsertAsync(FileInfo entity)
     {
-        throw new System.NotImplementedException();
+        if (!animeFileStore.Anime.TryGetValue(entity.AnimeId, out var anime))
+        {
+            throw new KeyNotFoundException($"No anime found for id {entity.AnimeId}");
+        }
+
+        var episode = anime.Episodes.FirstOrDefault(x => x.Id == entity.EpisodeId);
+
+        if (episode == default)
+        {
+            throw new KeyNotFoundException($"No episode found for id {entity.EpisodeId} in anime {entity.AnimeId}");
+        }
+
+        int index = episode.Files.FindIndex(x => x.Id == entity.Id);
+
+        await animeFileStore.WriteLock.WaitAsync();
+        try
+        {
+            entity = entity with { Episode = episode };
+            if (index == -1)
+            {
+                episode.Files.Add(entity);
+            }
+            else
+            {
+                episode.Files[index] = entity;
+            }
+            
+        }
+        finally
+        {
+            animeFileStore.WriteLock.Release();
+        }
     }
 
     /// <inheritdoc />

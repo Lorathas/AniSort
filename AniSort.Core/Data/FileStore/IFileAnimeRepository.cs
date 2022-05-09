@@ -1,9 +1,9 @@
-﻿using System.Threading.Tasks;
+﻿using AniSort.Core.Data.Repositories;
 using AniSort.Core.Models;
 
-namespace AniSort.Core.Data;
+namespace AniSort.Core.Data.FileStore;
 
-public interface IAnimeRepository : IRepository<AnimeInfo, int>
+public interface IFileAnimeRepository : IRepository<AnimeInfo, int>
 {
     /// <summary>
     /// Merge or Insert anime into repository

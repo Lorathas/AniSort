@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 using AniDbSharp.Data;
+using AniSort.Core.Data;
 using AniSort.Core.Models;
 using FileInfo = AniSort.Core.Models.FileInfo;
 
@@ -40,9 +41,9 @@ public static class FileResultExtensions
                     ? result.AnimeInfo.RelatedAnimeIdList.Split(',')
                         .Select(int.Parse)
                         .Zip(result.AnimeInfo.RelatedAnimeIdType.Split(','))
-                        .Select(pair => new RelatedAnime(pair.First, pair.Second))
+                        .Select(pair => new RelatedAnimeInfo(pair.First, pair.Second))
                         .ToList()
-                    : new List<RelatedAnime>(),
+                    : new List<RelatedAnimeInfo>(),
                 result.AnimeInfo.CategoryList?.Split(',').ToList() ?? new List<string>(),
                 result.AnimeInfo.RomajiName,
                 result.AnimeInfo.KanjiName,
