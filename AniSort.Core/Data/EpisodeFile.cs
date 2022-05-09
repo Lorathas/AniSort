@@ -25,8 +25,9 @@ public class EpisodeFile
     public string VideoColorDepth { get; set; }
     public string Quality { get; set; }
     public string Source { get; set; }
-    public virtual ICollection<AudioCodec> AudioCodecs { get; set; }
+    public virtual ICollection<AudioCodec> AudioCodecs { get; set; } = new List<AudioCodec>();
     public string VideoCodec { get; set; }
+    public int VideoBitrate { get; set; }
     public int VideoWidth { get; set; }
     public int VideoHeight { get; set; }
     public string FileType { get; set; }
@@ -36,8 +37,8 @@ public class EpisodeFile
     public string Description { get; set; }
     public DateTime AiredDate { get; set; }
     public string AniDbFilename { get; set; }
-    
-    public virtual ICollection<LocalFile> LocalFiles { get; set; }
+
+    public virtual ICollection<LocalFile> LocalFiles { get; set; } = new List<LocalFile>();
 
     public VideoResolution Resolution
     {

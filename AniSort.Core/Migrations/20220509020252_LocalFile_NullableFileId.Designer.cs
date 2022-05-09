@@ -3,6 +3,7 @@ using System;
 using AniSort.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AniSort.Core.Migrations
 {
     [DbContext(typeof(AniSortContext))]
-    partial class AniSortContextModelSnapshot : ModelSnapshot
+    [Migration("20220509020252_LocalFile_NullableFileId")]
+    partial class LocalFile_NullableFileId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "6.0.4");
@@ -75,9 +77,9 @@ namespace AniSort.Core.Migrations
 
             modelBuilder.Entity("AniSort.Core.Data.AudioCodec", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("FileId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Bitrate")
                         .HasColumnType("INTEGER");
@@ -85,12 +87,12 @@ namespace AniSort.Core.Migrations
                     b.Property<string>("Codec")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("FileId")
+                    b.Property<int>("FileId1")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("Id");
+                    b.HasKey("FileId");
 
-                    b.HasIndex("FileId");
+                    b.HasIndex("FileId1");
 
                     b.ToTable("AudioCodecs");
                 });
@@ -383,7 +385,7 @@ namespace AniSort.Core.Migrations
                 {
                     b.HasOne("AniSort.Core.Data.EpisodeFile", "File")
                         .WithMany("AudioCodecs")
-                        .HasForeignKey("FileId")
+                        .HasForeignKey("FileId1")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

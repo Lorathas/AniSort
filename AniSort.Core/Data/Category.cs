@@ -10,5 +10,5 @@ public class Category
     [Key]
     public Guid Id { get; set; }
     public string Value { get; set; }
-    public virtual ICollection<AnimeCategory> Anime { get; set; }
+    public virtual ICollection<AnimeCategory> Anime { get; set; } = new List<AnimeCategory>();
 }

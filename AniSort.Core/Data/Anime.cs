@@ -13,15 +13,21 @@ public class Anime
     public int HighestEpisodeNumber { get; set; }
     public int Year { get; set; }
     public string Type { get; set; }
-    public virtual ICollection<RelatedAnime> ChildrenAnime { get; set; }
-    public virtual ICollection<RelatedAnime> ParentAnime { get; set; }
-    public virtual ICollection<AnimeCategory> Categories { get; set; }
+    public virtual ICollection<RelatedAnime> ChildrenAnime { get; set; } = new List<RelatedAnime>();
+    public virtual ICollection<RelatedAnime> ParentAnime { get; set; } = new List<RelatedAnime>();
+    public virtual ICollection<AnimeCategory> Categories { get; set; } = new List<AnimeCategory>();
     public string RomajiName { get; set; }
     public string KanjiName { get; set; }
     public string EnglishName { get; set; }
     public string? OtherName { get; set; }
-    public virtual ICollection<Synonym> Synonyms { get; set; }
-    public virtual ICollection<Episode> Episodes { get; set; }
-    public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public virtual ICollection<Synonym> Synonyms { get; set; } = new List<Synonym>();
+    public virtual ICollection<Episode> Episodes { get; set; } = new List<Episode>();
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        return $"{Id} {RomajiName ?? EnglishName ?? KanjiName ?? OtherName}";
+    }
 }

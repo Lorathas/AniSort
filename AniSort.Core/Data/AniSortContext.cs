@@ -1,6 +1,8 @@
 ﻿using AniDbSharp.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.Extensions.Logging;
 
 namespace AniSort.Core.Data;
 
@@ -31,6 +33,8 @@ public class AniSortContext : DbContext
     public DbSet<AudioCodec> AudioCodecs { get; set; }
     
     public DbSet<ReleaseGroup> ReleaseGroups { get; set; }
+    
+    public DbSet<LocalFile> LocalFiles { get; set; }
     
     public DbSet<FileAction> FileActions { get; set; }
 
@@ -74,5 +78,14 @@ public class AniSortContext : DbContext
         modelBuilder.Entity<FileAction>()
             .Property(e => e.Type)
             .HasConversion(new EnumToStringConverter<FileActionType>());
+    }
+
+    /// <inheritdoc />
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder
+            .EnableDetailedErrors()
+            .ConfigureWarnings(c => c
+                .Default(WarningBehavior.Ignore));
     }
 }

@@ -3,6 +3,7 @@ using System;
 using AniSort.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AniSort.Core.Migrations
 {
     [DbContext(typeof(AniSortContext))]
-    partial class AniSortContextModelSnapshot : ModelSnapshot
+    [Migration("20220509004003_LocalFile_Length")]
+    partial class LocalFile_Length
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "6.0.4");
@@ -75,9 +77,9 @@ namespace AniSort.Core.Migrations
 
             modelBuilder.Entity("AniSort.Core.Data.AudioCodec", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("FileId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Bitrate")
                         .HasColumnType("INTEGER");
@@ -85,12 +87,12 @@ namespace AniSort.Core.Migrations
                     b.Property<string>("Codec")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("FileId")
+                    b.Property<int>("FileId1")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("Id");
+                    b.HasKey("FileId");
 
-                    b.HasIndex("FileId");
+                    b.HasIndex("FileId1");
 
                     b.ToTable("AudioCodecs");
                 });
@@ -278,7 +280,7 @@ namespace AniSort.Core.Migrations
                     b.Property<byte[]>("Ed2kHash")
                         .HasColumnType("BLOB");
 
-                    b.Property<int?>("EpisodeFileId")
+                    b.Property<int>("EpisodeFileId")
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("FileLength")
@@ -287,9 +289,6 @@ namespace AniSort.Core.Migrations
                     b.Property<string>("Path")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
-
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -297,7 +296,7 @@ namespace AniSort.Core.Migrations
 
                     b.HasIndex("EpisodeFileId");
 
-                    b.ToTable("LocalFiles");
+                    b.ToTable("LocalFile");
                 });
 
             modelBuilder.Entity("AniSort.Core.Data.RelatedAnime", b =>
@@ -383,7 +382,7 @@ namespace AniSort.Core.Migrations
                 {
                     b.HasOne("AniSort.Core.Data.EpisodeFile", "File")
                         .WithMany("AudioCodecs")
-                        .HasForeignKey("FileId")
+                        .HasForeignKey("FileId1")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -435,7 +434,9 @@ namespace AniSort.Core.Migrations
                 {
                     b.HasOne("AniSort.Core.Data.EpisodeFile", "EpisodeFile")
                         .WithMany("LocalFiles")
-                        .HasForeignKey("EpisodeFileId");
+                        .HasForeignKey("EpisodeFileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("EpisodeFile");
                 });

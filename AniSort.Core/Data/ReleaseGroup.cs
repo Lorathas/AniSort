@@ -9,5 +9,7 @@ public class ReleaseGroup
     public int Id { get; set; }
     public string Name { get; set; }
     public string ShortName { get; set; }
-    public virtual ICollection<EpisodeFile> Files { get; set; }
+    public virtual ICollection<EpisodeFile> Files { get; set; } = new List<EpisodeFile>();
+    
+    public const int UnknownId = 2147483647;
 }

@@ -16,5 +16,11 @@ public class Episode
     public string KanjiName { get; set; }
     public int? Rating { get; set; }
     public int? VoteCount { get; set; }
-    public virtual ICollection<EpisodeFile> Files { get; set; }
+    public virtual ICollection<EpisodeFile> Files { get; set; } = new List<EpisodeFile>();
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        return $"{Number} {EnglishName ?? RomajiName ?? KanjiName}";
+    }
 }
