@@ -18,6 +18,7 @@ namespace AniSort.Core
     {
         Normal,
         Hash,
-        Defragment
+        Defragment,
+        
     }
 }

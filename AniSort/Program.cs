@@ -31,6 +31,7 @@ using AniSort.Core.Data.Repositories;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
 using AniSort.Core.IO;
+using AniSort.Core.MaintenanceTasks;
 using AniSort.Core.Models;
 using AniSort.Core.Utils;
 using AniSort.Extensions;
@@ -601,6 +602,33 @@ paths           paths to process files for
                             }
                         }
 
+                        if (config.AniDb.MaxFileSearchRetries.HasValue && localFile.FileActions.Count(a => a.Type == FileActionType.Search) >= config.AniDb.MaxFileSearchRetries)
+                        {
+                            if (EnvironmentHelpers.IsConsolePresent)
+                            {
+                                logger.LogDebug("File {TruncatedFilename} has hit the retry limit, skipping", (path.Length + 40 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth));
+                            }
+                            else
+                            {
+                                logger.LogDebug("File {Filename} has hit the retry limit, skipping", path);
+                            }
+                            continue;
+                        }
+
+                        if (config.AniDb.FileSearchCooldown != TimeSpan.Zero &&
+                            localFile.FileActions.Any(a => a.Type == FileActionType.Search && a.UpdatedAt.Add(config.AniDb.FileSearchCooldown) < DateTimeOffset.Now))
+                        {
+                            if (EnvironmentHelpers.IsConsolePresent)
+                            {
+                                logger.LogDebug("File {TruncatedFilename} is still cooling down from last search, skipping", (path.Length + 49 + 5 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth));
+                            }
+                            else
+                            {
+                                logger.LogDebug("File {Filename} is still cooling down from last search, skipping", path);
+                            }
+                            continue;
+                        }
+                        
                         var searchAction = new FileAction { Type = FileActionType.Search, Success = false };
                         localFile.FileActions.Add(searchAction);
                         await localFileRepository.SaveChangesAsync();
@@ -694,7 +722,7 @@ paths           paths to process files for
                         {
                             localFile.Status = result.FileInfo.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
                             localFile.UpdatedAt = DateTimeOffset.Now;
-                            localFile.FileActions.Add(new FileAction { Type = FileActionType.Copied, Success = true, Info = "File already exists, skipping" });
+                            localFile.FileActions.Add(new FileAction { Type = FileActionType.Copied, Success = true, Info = $"File already exists at {destinationPath}" });
                             if (!await localFileRepository.ExistsForPathAsync(localFile.Path))
                             {
                                 await localFileRepository.AddAsync(new LocalFile
@@ -880,6 +908,28 @@ paths           paths to process files for
                 await client.DisposeAsync();
             }
 
+            var maintenanceTasks = AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes()).Where(t => typeof(IMaintenanceTask).IsAssignableFrom(t) && !t.IsInterface).ToList();
+
+            if (maintenanceTasks.Count > 0)
+            {
+                logger.LogDebug("Found {MaintenanceTaskCount} maintenance tasks, running", maintenanceTasks.Count);
+                foreach (var type in maintenanceTasks)
+                {
+                    await using var scope = serviceProvider.CreateAsyncScope();
+
+                    var instance = scope.ServiceProvider.GetService(type);
+
+                    if (instance is not IMaintenanceTask maintenanceTaskInstance)
+                    {
+                        continue;
+                    }
+                    
+                    logger.LogInformation("Running Maintenance Task: {Task}", maintenanceTaskInstance.UserFacingName);
+                    await maintenanceTaskInstance.RunAsync();
+                    logger.LogDebug("Maintenance Task Finished: {Task}", maintenanceTaskInstance.UserFacingName);
+                }
+            }
+
             logger.LogInformation("Finished processing all files. Exiting...");
         }
 
@@ -1019,14 +1069,15 @@ paths           paths to process files for
                 .AddTransient<ILocalFileRepository, LocalFileRepository>()
                 .AddTransient<IReleaseGroupRepository, ReleaseGroupRepository>()
                 .AddTransient<ISynonymRepository, SynonymRepository>()
+                .AddTransient<FixUnknownResolutionMaintenanceTask, FixUnknownResolutionMaintenanceTask>()
                 .AddDbContext<AniSortContext>(builder => builder.UseSqlite($"Data Source={AppPaths.DatabasePath}"))
                 .AddLogging(b =>
                 {
                     b.AddFilter((category, logLevel) =>
-                        !category.StartsWith("Microsoft.EntityFrameworkCore")
-                        || logLevel == Microsoft.Extensions.Logging.LogLevel.Critical
-                        || logLevel == Microsoft.Extensions.Logging.LogLevel.Error
-                        || logLevel == Microsoft.Extensions.Logging.LogLevel.Warning);
+                    {
+                        if (!category.StartsWith("Microsoft.EntityFrameworkCore")) return true;
+                        return logLevel is Microsoft.Extensions.Logging.LogLevel.Critical or Microsoft.Extensions.Logging.LogLevel.Error or Microsoft.Extensions.Logging.LogLevel.Warning;
+                    });
                     b.ClearProviders();
                     b.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
                     b.AddNLog();

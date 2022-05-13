@@ -14,11 +14,13 @@
 
 using System.Collections.Generic;
 using AniDbSharp.Data;
+using AniSort.Core.Data;
 
 namespace AniSort.Core.IO
 {
     internal interface IFileFormatEmitter
     {
         string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, Dictionary<string, string> overrides);
+        string Emit(LocalFile file, Dictionary<string, string> overrides);
     }
 }

@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AniSort.Core.Data.Repositories;
 using AniSort.Core.Models;
 
 namespace AniSort.Core.Data.FileStore;
@@ -43,14 +45,49 @@ public class LocalFileFileRepository : IFileFileRepository
     /// <inheritdoc />
     public void Add(FileInfo entity)
     {
-        // Leave empty, shouldn't be used
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    FileInfo IRepository<FileInfo, int>.Add(FileInfo entity)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<FileInfo> IRepository<FileInfo, int>.AddAsync(FileInfo entity)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    FileInfo IRepository<FileInfo, int>.Remove(int key)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<FileInfo> IRepository<FileInfo, int>.RemoveAsync(int key)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    FileInfo IRepository<FileInfo, int>.Remove(FileInfo entity)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<FileInfo> IRepository<FileInfo, int>.RemoveAsync(FileInfo entity)
+    {
+        throw new NotImplementedException();
     }
 
     /// <inheritdoc />
     public Task AddAsync(FileInfo entity)
     {
-        // Leave empty, shouldn't be used
-        return Task.CompletedTask;
+        throw new NotImplementedException();
     }
 
     /// <inheritdoc />
