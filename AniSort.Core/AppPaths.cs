@@ -62,6 +62,12 @@ namespace AniSort.Core
         /// </summary>
         public static string AnimeInfoFilePath => Path.Combine(DataPath, "anime-info.json");
 
+        public static string[] DefaultConfigFilePaths => new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "anisort.xml"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AniSort.xml"),
+        };
+
         public static void Initialize()
         {
             if (!Directory.Exists(DataPath))
