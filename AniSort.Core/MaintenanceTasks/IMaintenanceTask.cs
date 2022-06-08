@@ -6,5 +6,7 @@ public interface IMaintenanceTask
 {
     Task RunAsync();
     
-    string UserFacingName { get; }
+    string Description { get; }
+    
+    string CommandName { get; }
 }

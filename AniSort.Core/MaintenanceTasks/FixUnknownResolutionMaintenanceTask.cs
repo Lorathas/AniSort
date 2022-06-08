@@ -1,10 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
+using AniDbSharp;
 using AniDbSharp.Data;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
+using AniSort.Core.Extensions;
 using AniSort.Core.IO;
 using AniSort.Core.Models;
 using AniSort.Core.Utils;
@@ -15,6 +20,8 @@ namespace AniSort.Core.MaintenanceTasks;
 
 public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
 {
+    private static readonly Regex ResolutionReplacementRegex = new(@"(.*)(\[(0x0)\])(.*)", RegexOptions.Compiled);
+    
     private readonly ILocalFileRepository localFileRepository;
     private readonly ILogger<FixUnknownResolutionMaintenanceTask> logger;
     private readonly Config config;
@@ -143,8 +150,77 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
                 await localFileRepository.SaveChangesAsync();
             }
         }
+
+        try
+        {
+            var flow = BuildProcessingFlow();
+
+            flow.AddPathsToFlow(config.Sources, p => ResolutionReplacementRegex.IsMatch(p));
+            flow.Complete();
+
+            await flow.Completion;
+        }
+        catch (AggregateException ex)
+        {
+            ex.Handle(innerEx =>
+            {
+                logger.LogError(innerEx, "An error occurred while processing files without an resolution in the filename");
+                return true;
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while processing files without an resolution in the filename");
+        }
+    }
+
+    private BufferBlock<string> BuildProcessingFlow()
+    {
+        var inputBuffer = new BufferBlock<string>();
+        var grabInfoBlock = new TransformBlock<string, (string Path, IMediaAnalysis MediaInfo)>(path => (path, FFProbe.Analyse(path)));
+        inputBuffer.LinkTo(grabInfoBlock);
+        var renameBlock = new ActionBlock<(string Path, IMediaAnalysis MediaInfo)>(async info =>
+        {
+            var (path, mediaInfo) = info;
+
+            var localFile = await localFileRepository.GetForPathAsync(path);
+
+            if (localFile == default)
+            {
+                logger.LogDebug("New file {FilePath} found", path);
+                if (!config.Debug)
+                {
+                    localFile = await localFileRepository.AddAsync(new LocalFile { Path = path, Status = ImportStatus.NotYetImported });
+                    await localFileRepository.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                logger.LogDebug("File {FilePath} found with missing resolution", path);
+            }
+
+            string newPath = ResolutionReplacementRegex.Replace(path, $"$1[{mediaInfo.PrimaryVideoStream.Width}x{mediaInfo.PrimaryVideoStream.Height}]$4");
+
+            if (!File.Exists(newPath))
+            {
+                logger.LogInformation("Moving file {OldPath} to {NewPath}", path, newPath);
+                if (!config.Debug)
+                {
+                    File.Move(path, newPath);
+                    localFile.Path = newPath;
+                    await localFileRepository.SaveChangesAsync();
+                }
+                logger.LogDebug("Moved file {OldPath} to {NewPath}", path, newPath);
+            }
+        });
+        grabInfoBlock.LinkTo(renameBlock);
+
+        return inputBuffer;
     }
 
     /// <inheritdoc />
-    public string UserFacingName => "Fix Files with Unknown Resolution";
+    public string Description => "Fix Files with Unknown Resolution";
+
+    /// <inheritdoc />
+    public string CommandName => "resfix";
 }
