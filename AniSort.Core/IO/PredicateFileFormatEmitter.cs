@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Generic;
 using AniDbSharp.Data;
+using AniSort.Core.Data;
 
 namespace AniSort.Core.IO
 {
@@ -23,7 +24,9 @@ namespace AniSort.Core.IO
     /// </summary>
     class PredicateFileFormatEmitter : IFileFormatEmitter
     {
-        private readonly Func<FileInfo, FileAnimeInfo, Dictionary<string, string>, string> predicate;
+        private readonly Func<FileInfo, FileAnimeInfo, Dictionary<string, string>, string> infoPredicate;
+
+        private readonly Func<LocalFile, Dictionary<string, string>, string> localFilePredicate;
 
         private readonly string prefix;
 
@@ -31,18 +34,34 @@ namespace AniSort.Core.IO
 
         public bool Ellipsize { get; }
 
-        public PredicateFileFormatEmitter(Func<FileInfo, FileAnimeInfo, Dictionary<string, string>, string> predicate, string prefix = null, string suffix = null, bool ellipsize = false)
+        public PredicateFileFormatEmitter(Func<FileInfo, FileAnimeInfo, Dictionary<string, string>, string> infoPredicate, Func<LocalFile, Dictionary<string, string>, string> localFilePredicate, string prefix = null, string suffix = null, bool ellipsize = false)
         {
-            this.predicate = predicate;
+            this.infoPredicate = infoPredicate;
             this.prefix = prefix ?? string.Empty;
             this.suffix = suffix ?? string.Empty;
             Ellipsize = ellipsize;
+            this.localFilePredicate = localFilePredicate;
         }
 
         /// <inheritdoc />
         public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, Dictionary<string, string> overrides)
         {
-            string predicateResult = predicate(fileInfo, animeInfo, overrides);
+            string predicateResult = infoPredicate(fileInfo, animeInfo, overrides);
+
+            if (!string.IsNullOrWhiteSpace(predicateResult))
+            {
+                return $"{prefix}{predicateResult}{suffix}";
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+
+        /// <inheritdoc />
+        public string Emit(LocalFile file, Dictionary<string, string> overrides)
+        {
+            string predicateResult = localFilePredicate(file, overrides);
 
             if (!string.IsNullOrWhiteSpace(predicateResult))
             {
@@ -56,7 +75,30 @@ namespace AniSort.Core.IO
 
         public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, Dictionary<string, string> overrides, int trimLength)
         {
-            string predicateResult = predicate(fileInfo, animeInfo, overrides);
+            string predicateResult = infoPredicate(fileInfo, animeInfo, overrides);
+
+            if (!string.IsNullOrWhiteSpace(predicateResult))
+            {
+                string built = $"{prefix}{predicateResult}{suffix}";
+
+                if (built.Length - trimLength < 0)
+                {
+                    return string.Empty;
+                }
+                
+                return built.Substring(0, built.Length - trimLength);
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+        
+        
+
+        public string Emit(LocalFile file, Dictionary<string, string> overrides, int trimLength)
+        {
+            string predicateResult = localFilePredicate(file, overrides);
 
             if (!string.IsNullOrWhiteSpace(predicateResult))
             {

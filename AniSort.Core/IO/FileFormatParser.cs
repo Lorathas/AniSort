@@ -15,7 +15,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Net.NetworkInformation;
 using System.Text;
 using AniDbSharp.Data;
 using AniSort.Core.Exceptions;
@@ -37,21 +36,21 @@ namespace AniSort.Core.IO
                     {
                         "animeEnglish",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => a.EnglishName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((_, a, _) => a.EnglishName, (f, _) => f.EpisodeFile.Episode.Anime.EnglishName, prefix, suffix, ellipsize)
                     },
                     {
                         "animeRomaji",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => a.RomajiName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((_, a, _) => a.RomajiName, (f, _) => f.EpisodeFile.Episode.Anime.RomajiName, prefix, suffix, ellipsize)
                     },
                     {
                         "animeKanji",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => a.KanjiName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((_, a, _) => a.KanjiName, (f, _) => f.EpisodeFile.Episode.Anime.KanjiName, prefix, suffix, ellipsize)
                     },
                     {
                         "episodeNumber",
-                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a, _) =>
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((_, a, _) =>
                         {
                             int paddingDigits = 6;
                             for (int idx = 2; idx < 6; idx++)
@@ -80,11 +79,41 @@ namespace AniSort.Core.IO
                             {
                                 return a.EpisodeNumber;
                             }
-                        }, prefix, suffix, ellipsize)
+                        },
+                            (f, _) =>
+                            {
+                                int paddingDigits = 6;
+                                for (int idx = 2; idx < 6; idx++)
+                                {
+                                    if (Math.Pow(10, idx) > f.EpisodeFile.Episode.Anime.HighestEpisodeNumber)
+                                    {
+                                        paddingDigits = idx;
+                                        break;
+                                    }
+                                }
+
+                                if (f.EpisodeFile.Episode.Number.Length < paddingDigits)
+                                {
+                                    var builder = new StringBuilder();
+
+                                    for (int idx = 0; idx < paddingDigits - f.EpisodeFile.Episode.Number.Length; idx++)
+                                    {
+                                        builder.Append('0');
+                                    }
+
+                                    builder.Append(f.EpisodeFile.Episode.Number);
+
+                                    return builder.ToString();
+                                }
+                                else
+                                {
+                                    return f.EpisodeFile.Episode.Number;
+                                }
+                            }, prefix, suffix, ellipsize)
                     },
                     {
                         "fileVersion",
-                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a, _) =>
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, _, _) =>
                         {
                             if (f.State == null)
                             {
@@ -111,98 +140,121 @@ namespace AniSort.Core.IO
                             {
                                 return null;
                             }
+                        },
+                            (f, _) =>
+                        {
+                            if (f.EpisodeFile.State.HasFlag(FileState.IsVersion5))
+                            {
+                                return "5";
+                            }
+                            else if (f.EpisodeFile.State.HasFlag(FileState.IsVersion4))
+                            {
+                                return "4";
+                            }
+                            else if (f.EpisodeFile.State.HasFlag(FileState.IsVersion3))
+                            {
+                                return "3";
+                            }
+                            else if (f.EpisodeFile.State.HasFlag(FileState.IsVersion2))
+                            {
+                                return "2";
+                            }
+                            else
+                            {
+                                return null;
+                            }
                         }, prefix, suffix, ellipsize)
                     },
                     {
                         "episodeEnglish",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => a.EpisodeName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((_, a, _) => a.EpisodeName, (f, _) => f.EpisodeFile.Episode.EnglishName, prefix, suffix, ellipsize)
                     },
                     {
                         "episodeRomaji",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => a.EpisodeRomajiName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((_, a, _) => a.EpisodeRomajiName, (f, _) => f.EpisodeFile.Episode.RomajiName, prefix, suffix, ellipsize)
                     },
                     {
                         "episodeKanji",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => a.EpisodeKanjiName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((_, a, _) => a.EpisodeKanjiName, (f, _) => f.EpisodeFile.Episode.KanjiName, prefix, suffix, ellipsize)
                     },
                     {
                         "group",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => a.GroupName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((_, a, _) => a.GroupName, (f, _) => f.EpisodeFile.Group.Name, prefix, suffix, ellipsize)
                     },
                     {
                         "groupShort",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => a.GroupShortName, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((_, a, _) => a.GroupShortName, (f, _) => f.EpisodeFile.Group.ShortName, prefix, suffix, ellipsize)
                     },
                     {
                         "resolution",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, r) => r.TryGetValue("resolution", out var res) ? res : f.VideoResolution, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, _, r) => r.TryGetValue("resolution", out var res) ? res : f.VideoResolution, (f, _) => $"{f.EpisodeFile.Resolution.Width}x{f.EpisodeFile.Resolution.Height}", prefix, suffix, ellipsize)
                     },
                     {
                         "videoCodec",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => f.VideoCodec, prefix, suffix, ellipsize)
+                            new PredicateFileFormatEmitter((f, _, _) => f.VideoCodec, (f, _) => f.EpisodeFile.VideoCodec, prefix, suffix, ellipsize)
                     },
                     {
                         "crc32",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => f.Crc32Hash.ToHexString(), prefix, suffix,
+                            new PredicateFileFormatEmitter((f, _, _) => f.Crc32Hash.ToHexString(), (f, _) => f.EpisodeFile.Crc32Hash.ToHexString(), prefix, suffix,
                                 ellipsize)
                     },
                     {
                         "ed2k",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => f.Ed2kHash.ToHexString(), prefix, suffix,
+                            new PredicateFileFormatEmitter((f, _, _) => f.Ed2kHash.ToHexString(), (f, _) => f.Ed2kHash.ToHexString(), prefix, suffix,
                                 ellipsize)
                     },
                     {
                         "md5",
-                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, a, _) => f.Md5Hash.ToHexString(),
-                            prefix, suffix, ellipsize)
+                        (prefix, suffix, ellipsize) => new PredicateFileFormatEmitter((f, _, _) => f.Md5Hash.ToHexString(),
+                            (f, _) => f.EpisodeFile.Md5Hash.ToHexString(), prefix, suffix, ellipsize)
                     },
                     {
                         "sha1",
                         (prefix, suffix, ellipsize) =>
-                            new PredicateFileFormatEmitter((f, a, _) => f.Sha1Hash.ToHexString(), prefix, suffix,
+                            new PredicateFileFormatEmitter((f, _, _) => f.Sha1Hash.ToHexString(), (f, _) => f.EpisodeFile.Sha1Hash.ToHexString(), prefix, suffix,
                                 ellipsize)
                     },
                 };
 
         private static readonly Dictionary<string, FlagModifier> FlagModifiers =
-            new Dictionary<string, FlagModifier>
+            new()
             {
                 {
                     "animeEnglish",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => ab1 |= FileAnimeMaskSecondByte.EnglishName
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => ab1 |= FileAnimeMaskSecondByte.EnglishName
                 },
                 {
                     "animeRomaji",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => ab1 |= FileAnimeMaskSecondByte.RomajiName
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => ab1 |= FileAnimeMaskSecondByte.RomajiName
                 },
                 {
                     "animeKanji",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => ab1 |= FileAnimeMaskSecondByte.KanjiName
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => ab1 |= FileAnimeMaskSecondByte.KanjiName
                 },
                 {
                     "episodeNumber",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) =>
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte ab0,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte ab2,
+                        ref FileAnimeMaskFourthByte _) =>
                     {
                         ab2 |= FileAnimeMaskThirdByte.EpisodeNumber;
                         ab0 |= FileAnimeMaskFirstByte.TotalEpisodes | FileAnimeMaskFirstByte.HighestEpisodeNumber;
@@ -210,87 +262,87 @@ namespace AniSort.Core.IO
                 },
                 {
                     "fileVersion",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => fb0 |= FileMaskFirstByte.State
+                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => fb0 |= FileMaskFirstByte.State
                 },
                 {
                     "episodeEnglish",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => ab2 |= FileAnimeMaskThirdByte.EpisodeName
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte ab2,
+                        ref FileAnimeMaskFourthByte _) => ab2 |= FileAnimeMaskThirdByte.EpisodeName
                 },
                 {
                     "episodeRomaji",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => ab2 |= FileAnimeMaskThirdByte.EpisodeRomajiName
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte ab2,
+                        ref FileAnimeMaskFourthByte _) => ab2 |= FileAnimeMaskThirdByte.EpisodeRomajiName
                 },
                 {
                     "episodeKanji",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => ab2 |= FileAnimeMaskThirdByte.EpisodeKanjiName
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte ab2,
+                        ref FileAnimeMaskFourthByte _) => ab2 |= FileAnimeMaskThirdByte.EpisodeKanjiName
                 },
                 {
                     "group",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
                         ref FileAnimeMaskFourthByte ab3) => ab3 |= FileAnimeMaskFourthByte.GroupName
                 },
                 {
                     "groupShort",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
                         ref FileAnimeMaskFourthByte ab3) => ab3 |= FileAnimeMaskFourthByte.GroupShortName
                 },
                 {
                     "resolution",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => fb2 |= FileMaskThirdByte.VideoResolution
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte fb2,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => fb2 |= FileMaskThirdByte.VideoResolution
                 },
                 {
                     "videoCodec",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => fb2 |= FileMaskThirdByte.VideoCodec
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte _, ref FileMaskThirdByte fb2,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => fb2 |= FileMaskThirdByte.VideoCodec
                 },
                 {
                     "crc32",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => fb1 |= FileMaskSecondByte.Crc32
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte fb1, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => fb1 |= FileMaskSecondByte.Crc32
                 },
                 {
                     "ed2k",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => fb1 |= FileMaskSecondByte.Ed2k
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte fb1, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => fb1 |= FileMaskSecondByte.Ed2k
                 },
                 {
                     "md5",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => fb1 |= FileMaskSecondByte.Md5
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte fb1, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => fb1 |= FileMaskSecondByte.Md5
                 },
                 {
                     "sha1",
-                    (ref FileMaskFirstByte fb0, ref FileMaskSecondByte fb1, ref FileMaskThirdByte fb2,
-                        ref FileMaskFourthByte fb3, ref FileMaskFifthByte fb4, ref FileAnimeMaskFirstByte ab0,
-                        ref FileAnimeMaskSecondByte ab1, ref FileAnimeMaskThirdByte ab2,
-                        ref FileAnimeMaskFourthByte ab3) => fb1 |= FileMaskSecondByte.Sha1
+                    (ref FileMaskFirstByte _, ref FileMaskSecondByte fb1, ref FileMaskThirdByte _,
+                        ref FileMaskFourthByte _, ref FileMaskFifthByte _, ref FileAnimeMaskFirstByte _,
+                        ref FileAnimeMaskSecondByte _, ref FileAnimeMaskThirdByte _,
+                        ref FileAnimeMaskFourthByte _) => fb1 |= FileMaskSecondByte.Sha1
                 },
             };
 
@@ -310,9 +362,9 @@ namespace AniSort.Core.IO
             FileMaskFourthByte fb3 = fileMaskOverrides?.FourthByteFlags ?? 0;
             FileMaskFifthByte fb4 = fileMaskOverrides?.FifthByteFlags ?? 0;
             FileAnimeMaskFirstByte ab0 = animeMaskOverrides?.FirstByteFlags ?? 0;
-            FileAnimeMaskSecondByte ab1 = animeMaskOverrides?.SecondByteFlags ?? 0;;
-            FileAnimeMaskThirdByte ab2 = animeMaskOverrides?.ThirdByteFlags ?? 0;;
-            FileAnimeMaskFourthByte ab3 = animeMaskOverrides?.FourthByteFlags ?? 0;;
+            FileAnimeMaskSecondByte ab1 = animeMaskOverrides?.SecondByteFlags ?? 0;
+            FileAnimeMaskThirdByte ab2 = animeMaskOverrides?.ThirdByteFlags ?? 0;
+            FileAnimeMaskFourthByte ab3 = animeMaskOverrides?.FourthByteFlags ?? 0;
 
             var mode = FileFormatParserMode.Constant;
 

@@ -14,15 +14,43 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     }
 
     /// <inheritdoc />
-    public LocalFile GetForEd2kHash(byte[] hash)
+    public new LocalFile GetById(Guid key)
+    {
+        return Set
+            .Include(f => f.FileActions)
+            .FirstOrDefault(f => f.Id == key);
+    }
+
+    /// <inheritdoc />
+    public new async Task<LocalFile> GetByIdAsync(Guid key)
+    {
+        return await Set
+            .Include(f => f.FileActions)
+            .FirstOrDefaultAsync(f => f.Id == key);
+    }
+
+    /// <inheritdoc />
+    public LocalFile GetFirstForEd2kHash(byte[] hash)
     {
         return Set.FirstOrDefault(f => f.Ed2kHash == hash);
     }
 
     /// <inheritdoc />
-    public async Task<LocalFile> GetForEd2kHashAsync(byte[] hash)
+    public async Task<LocalFile> GetFirstForEd2kHashAsync(byte[] hash)
     {
         return await Set.FirstOrDefaultAsync(f => f.Ed2kHash == hash);
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<LocalFile> GetForEd2kHash(byte[] hash)
+    {
+        return Set.Where(f => f.Ed2kHash == hash);
+    }
+
+    /// <inheritdoc />
+    public IAsyncEnumerable<LocalFile> GetForEd2kHashAsync(byte[] hash)
+    {
+        return Set.Where(f => f.Ed2kHash == hash).AsAsyncEnumerable();
     }
 
     /// <inheritdoc />
@@ -64,12 +92,15 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     /// <inheritdoc />
     public IEnumerable<LocalFile> GetWithoutResolution()
     {
-        return Set.Where(f => f.Path.Contains("[0x0]"));
+        return Set.Where(f => f.Path.Contains("[0x0]"))
+            .Include(f => f.EpisodeFile);
     }
 
     /// <inheritdoc />
     public IAsyncEnumerable<LocalFile> GetWithoutResolutionAsync()
     {
-        return Set.Where(f => f.Path.Contains("[0x0]")).AsAsyncEnumerable();
+        return Set.Where(f => f.Path.Contains("[0x0]"))
+            .Include(f => f.EpisodeFile)
+            .AsAsyncEnumerable();
     }
 }

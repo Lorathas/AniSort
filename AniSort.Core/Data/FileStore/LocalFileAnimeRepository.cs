@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using AniSort.Core.Data.Repositories;
 using AniSort.Core.Models;
 
 namespace AniSort.Core.Data.FileStore;
@@ -22,6 +23,42 @@ public class LocalFileAnimeRepository : IFileAnimeRepository
     public Task<AnimeInfo> GetByIdAsync(int key)
     {
         return Task.FromResult(GetById(key));
+    }
+
+    /// <inheritdoc />
+    AnimeInfo IRepository<AnimeInfo, int>.Add(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<AnimeInfo> IRepository<AnimeInfo, int>.AddAsync(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    AnimeInfo IRepository<AnimeInfo, int>.Remove(int key)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<AnimeInfo> IRepository<AnimeInfo, int>.RemoveAsync(int key)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    AnimeInfo IRepository<AnimeInfo, int>.Remove(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<AnimeInfo> IRepository<AnimeInfo, int>.RemoveAsync(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
     }
 
     /// <inheritdoc />

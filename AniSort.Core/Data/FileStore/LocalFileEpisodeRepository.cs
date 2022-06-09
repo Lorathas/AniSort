@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AniSort.Core.Data.Repositories;
 using AniSort.Core.Models;
 
 namespace AniSort.Core.Data.FileStore;
@@ -35,6 +36,42 @@ public class LocalFileEpisodeRepository : IFileEpisodeRepository
     public Task<EpisodeInfo> GetByIdAsync(int key)
     {
         return Task.FromResult(GetById(key));
+    }
+
+    /// <inheritdoc />
+    EpisodeInfo IRepository<EpisodeInfo, int>.Add(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<EpisodeInfo> IRepository<EpisodeInfo, int>.AddAsync(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    EpisodeInfo IRepository<EpisodeInfo, int>.Remove(int key)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<EpisodeInfo> IRepository<EpisodeInfo, int>.RemoveAsync(int key)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    EpisodeInfo IRepository<EpisodeInfo, int>.Remove(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    async Task<EpisodeInfo> IRepository<EpisodeInfo, int>.RemoveAsync(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
     }
 
     /// <inheritdoc />

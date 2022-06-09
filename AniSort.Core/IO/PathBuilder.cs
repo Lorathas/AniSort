@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using AniDbSharp.Data;
+using AniSort.Core.Data;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Models;
 using FileInfo = AniDbSharp.Data.FileInfo;
@@ -102,6 +103,56 @@ namespace AniSort.Core.IO
                     else
                     {
                         builder.Append(new string(emitter.Emit(fileInfo, animeInfo, overrides).CleanPath().Reverse().ToArray()));
+                    }
+                }
+
+                string built = new string(builder.ToString().Reverse().ToArray());
+
+                path = Path.Combine(cleanedRoot, cleanedAnimePath, built);
+            }
+
+            return path;
+        }
+        
+        public string BuildPath(LocalFile file, int maxLength, VideoResolution resolution = null)
+        {
+            var overrides = new Dictionary<string, string>();
+
+            if (resolution != null)
+            {
+                overrides["resolution"] = $"{resolution.Width}x{resolution.Height}";
+            }
+            
+            var builder = new StringBuilder();
+
+            foreach (var emitter in emitters)
+            {
+                builder.Append(emitter.Emit(file, overrides).CleanPath());
+            }
+
+            string cleanedRoot = Root.CleanRootPath();
+            string cleanedAnimePath = animeTypeEmitter.Emit(file, overrides).CleanPath();
+
+            string path = Path.Combine(cleanedRoot, cleanedAnimePath, builder.ToString());
+
+            if (path.Length > maxLength)
+            {
+                builder.Clear();
+                int overExtension = path.Length - maxLength;
+
+                for (int idx = emitters.Count - 1; idx >= 0; idx--)
+                {
+                    var emitter = emitters[idx];
+
+                    if (emitter is PredicateFileFormatEmitter { Ellipsize: true } predicateEmitter)
+                    {
+                        string emitted = predicateEmitter.Emit(file, overrides, overExtension + 3).CleanPath() + "...";
+
+                        builder.Append(new string(emitted.Reverse().ToArray()));
+                    }
+                    else
+                    {
+                        builder.Append(new string(emitter.Emit(file, overrides).CleanPath().Reverse().ToArray()));
                     }
                 }
 

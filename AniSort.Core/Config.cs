@@ -12,6 +12,7 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+using System;
 using System.Collections.Generic;
 using System.Xml.Serialization;
 
@@ -20,23 +21,50 @@ namespace AniSort.Core
     [XmlRoot("Config", IsNullable = false)]
     public class Config
     {
+        /// <summary>
+        /// The mode/command to run when running
+        /// </summary>
         public Mode Mode { get; set; } = Mode.Normal;
 
+        /// <summary>
+        /// Flag to enable debug mode and cause no changes to the file system
+        /// </summary>
         public bool Debug { get; set; }
 
+        /// <summary>
+        /// Flag to enable verbose logging
+        /// </summary>
         public bool Verbose { get; set; }
 
+        /// <summary>
+        /// Flag to copy files instead of moving them
+        /// </summary>
         public bool Copy { get; set; }
+        
+        /// <summary>
+        /// Perform incremental cleanup when processing files
+        /// </summary>
+        public bool IncrementalCleanup { get; set; }
 
+        /// <summary>
+        /// AniDB config
+        /// </summary>
         [XmlElement(IsNullable = false)]
-        public AniDbConfig AniDb { get; set; } = new AniDbConfig();
+        public AniDbConfig AniDb { get; set; } = new();
 
+        /// <summary>
+        /// Sources to search for files in
+        /// </summary>
         [XmlArray(IsNullable = false), XmlArrayItem("Source")]
-        public List<string> Sources { get; set; } = new List<string>();
+        public List<string> Sources { get; set; } = new();
 
+        /// <summary>
+        /// Config for file destinations
+        /// </summary>
         [XmlElement(IsNullable = false)]
-        public DestinationConfig Destination { get; set; } = new DestinationConfig();
-
+        public DestinationConfig Destination { get; set; } = new();
+        
+        [XmlIgnore]
         public bool IsValid => (Mode == Mode.Normal && !string.IsNullOrWhiteSpace(AniDb?.Username) &&
                                 !string.IsNullOrWhiteSpace(AniDb?.Password)) ||
                                (Mode == Mode.Hash && Sources.Count > 0);
@@ -44,30 +72,70 @@ namespace AniSort.Core
 
     public class AniDbConfig
     {
+        /// <summary>
+        /// Username to login with
+        /// </summary>
         [XmlElement(IsNullable = false)]
         public string Username { get; set; }
 
+        /// <summary>
+        /// Password to login with
+        /// </summary>
         [XmlElement(IsNullable = false)]
         public string Password { get; set; }
+        
+        /// <summary>
+        /// Max file search retries
+        /// </summary>
+        public int? MaxFileSearchRetries { get; set; }
+        
+        /// <summary>
+        /// File search cooldown time in seconds
+        /// </summary>
+        public int FileSearchCooldownMinutes { get; set; }
+
+        /// <summary>
+        /// File search cooldown time
+        /// </summary>
+        [XmlIgnore]
+        public TimeSpan FileSearchCooldown => TimeSpan.FromMinutes(FileSearchCooldownMinutes);
     }
 
     public class DestinationConfig
     {
+        /// <summary>
+        /// List of library paths for the application
+        /// </summary>
         [XmlElement(IsNullable = false)]
         public List<string> Paths { get; set; }
         
+        /// <summary>
+        /// Path that new files will go to
+        /// </summary>
         [XmlElement(IsNullable = false)]
         public string NewFilePath { get; set; }
 
+        /// <summary>
+        /// Flag to fragment series across paths (this only applies to single seasons)
+        /// </summary>
         [XmlElement]
         public bool FragmentSeries { get; set; } = true;
 
+        /// <summary>
+        /// Format string for the files. See README.md for more in depth info on this
+        /// </summary>
         [XmlElement(IsNullable = false)]
         public string Format { get; set; }
 
+        /// <summary>
+        /// Relative path to place tv shows
+        /// </summary>
         [XmlElement(IsNullable = false)]
         public string TvPath { get; set; }
 
+        /// <summary>
+        /// Relative path to place movies and OVAs
+        /// </summary>
         [XmlElement(IsNullable = false)]
         public string MoviePath { get; set; }
     }

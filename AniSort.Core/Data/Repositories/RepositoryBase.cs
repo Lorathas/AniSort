@@ -30,47 +30,49 @@ public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEnt
     }
 
     /// <inheritdoc />
-    public void Add(TEntity entity)
+    public TEntity Add(TEntity entity)
     {
-        Set.Add(entity);
+        return Set.Add(entity).Entity;
     }
 
-    public async Task AddAsync(TEntity entity)
+    public async Task<TEntity> AddAsync(TEntity entity)
     {
-        await Set.AddAsync(entity);
+        return (await Set.AddAsync(entity)).Entity;
     }
 
     /// <inheritdoc />
-    public void Remove(TKey key)
+    public TEntity Remove(TKey key)
     {
         var entity = GetById(key);
         if (entity != null)
         {
-            Set.Remove(entity);
+            return Set.Remove(entity).Entity;
         }
+        return null;
     }
 
     /// <inheritdoc />
-    public async Task RemoveAsync(TKey key)
+    public async Task<TEntity> RemoveAsync(TKey key)
     {
         var entity = await GetByIdAsync(key);
         if (entity != null)
         {
-            Set.Remove(entity);
+            return Set.Remove(entity).Entity;
         }
+
+        return null;
     }
 
     /// <inheritdoc />
-    public void Remove(TEntity entity)
+    public TEntity Remove(TEntity entity)
     {
-        Set.Remove(entity);
+        return Set.Remove(entity).Entity;
     }
 
     /// <inheritdoc />
-    public Task RemoveAsync(TEntity entity)
+    public Task<TEntity> RemoveAsync(TEntity entity)
     {
-        Set.Remove(entity);
-        return Task.CompletedTask;
+        return Task.FromResult(Set.Remove(entity).Entity);
     }
 
     /// <inheritdoc />

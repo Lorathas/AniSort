@@ -20,7 +20,7 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
     }
 
     /// <inheritdoc />
-    public Anime MergeSert(FileResult result)
+    public (Anime, Episode, EpisodeFile) MergeSert(FileResult result, bool insertRelational = true)
     {
         if (result.FileInfo.AnimeId == null)
         {
@@ -171,7 +171,10 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
                 Rating = result.AnimeInfo.EpisodeRating,
                 VoteCount = result.AnimeInfo.EpisodeVoteCount,
             };
-            anime.Episodes.Add(episode);
+            if (insertRelational)
+            {
+                anime.Episodes.Add(episode);
+            }
         }
         else
         {
@@ -211,6 +214,10 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
                 AniDbFilename = result.FileInfo.AniDbFilename,
                 Resolution = result.FileInfo.VideoResolution.ParseVideoResolution()
             };
+            if (insertRelational)
+            {
+                episode.Files.Add(file);
+            }
         }
         else
         {
@@ -286,11 +293,11 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
 
         #endregion
 
-        return anime;
+        return (anime, episode, file);
     }
 
     /// <inheritdoc />
-    public async Task<Anime> MergeSertAsync(FileResult result)
+    public async Task<(Anime, Episode, EpisodeFile)> MergeSertAsync(FileResult result, bool insertRelational = true)
     {
         if (result.FileInfo.AnimeId == null)
         {
@@ -447,7 +454,10 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
                 Rating = result.AnimeInfo.EpisodeRating,
                 VoteCount = result.AnimeInfo.EpisodeVoteCount,
             };
-            anime.Episodes.Add(episode);
+            if (insertRelational)
+            {
+                anime.Episodes.Add(episode);
+            }
         }
         else
         {
@@ -487,6 +497,10 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
                 AniDbFilename = result.FileInfo.AniDbFilename,
                 Resolution = result.FileInfo.VideoResolution.ParseVideoResolution()
             };
+            if (insertRelational)
+            {
+                episode.Files.Add(file);
+            }
         }
         else
         {
@@ -562,13 +576,13 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
 
         #endregion
 
-        return anime;
+        return (anime, episode, file);
     }
 
     /// <inheritdoc />
-    public Anime MergeSert(FileResult result, LocalFile localFile)
+    public (Anime, Episode, EpisodeFile) MergeSert(FileResult result, LocalFile localFile)
     {
-        var anime = MergeSert(result);
+        var (anime, episode, episodeFile) = MergeSert(result);
 
         var file = anime.Episodes.SelectMany(e => e.Files).FirstOrDefault(f => f.Id == result.FileInfo.FileId);
 
@@ -577,13 +591,13 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
             file.LocalFiles.Add(localFile);
         }
 
-        return anime;
+        return (anime, episode, episodeFile);
     }
 
     /// <inheritdoc />
-    public async Task<Anime> MergeSertAsync(FileResult result, LocalFile localFile)
+    public async Task<(Anime, Episode, EpisodeFile)> MergeSertAsync(FileResult result, LocalFile localFile)
     {
-        var anime = await MergeSertAsync(result);
+        var (anime, episode, episodeFile) = await MergeSertAsync(result);
 
         var file = anime.Episodes.SelectMany(e => e.Files).FirstOrDefault(f => f.Id == result.FileInfo.FileId);
 
@@ -592,6 +606,6 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
             file.LocalFiles.Add(localFile);
         }
 
-        return anime;
+        return (anime, episode, episodeFile);
     }
 }

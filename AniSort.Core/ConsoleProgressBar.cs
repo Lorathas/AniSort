@@ -14,14 +14,14 @@
 
 using System;
 using System.Text;
-using AniSort.Extensions;
+using AniSort.Core.Extensions;
 
-namespace AniSort
+namespace AniSort.Core
 {
     /// <summary>
     /// Class for writing a progress bar in to console
     /// </summary>
-    class ConsoleProgressBar
+    public class ConsoleProgressBar
     {
         private int spinnerPosition = 0;
         private readonly char[] spinnerCharacters = {'-', '\\', '|', '/'};

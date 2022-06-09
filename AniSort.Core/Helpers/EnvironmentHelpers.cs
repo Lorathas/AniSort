@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AniSort.Helpers
+namespace AniSort.Core.Helpers
 {
     public static class EnvironmentHelpers
     {

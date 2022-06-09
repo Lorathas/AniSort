@@ -14,6 +14,7 @@
 
 using System.Collections.Generic;
 using AniDbSharp.Data;
+using AniSort.Core.Data;
 
 namespace AniSort.Core.IO
 {
@@ -40,6 +41,12 @@ namespace AniSort.Core.IO
             {
                 return moviePath;
             }
+        }
+
+        /// <inheritdoc />
+        public string Emit(LocalFile file, Dictionary<string, string> overrides)
+        {
+            return string.Equals(file.EpisodeFile.Episode.Anime.Type, "TV Series") ? tvPath : moviePath;
         }
     }
 }

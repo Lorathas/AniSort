@@ -14,6 +14,7 @@
 
 using System.Collections.Generic;
 using AniDbSharp.Data;
+using AniSort.Core.Data;
 
 namespace AniSort.Core.IO
 {
@@ -31,6 +32,12 @@ namespace AniSort.Core.IO
 
         /// <inheritdoc />
         public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, Dictionary<string, string> overrides)
+        {
+            return value;
+        }
+
+        /// <inheritdoc />
+        public string Emit(LocalFile episodeFile, Dictionary<string, string> overrides)
         {
             return value;
         }
