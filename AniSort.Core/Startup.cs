@@ -54,12 +54,15 @@ public class Startup
             fileAndConsoleMinLevel = LogLevel.Debug;
         }
 
+        var nullTarget = new NullTarget();
+        loggingConfig.LoggingRules.Add(new LoggingRule("Microsoft.*", LogLevel.Trace, LogLevel.Fatal, nullTarget) {Final = true});
+
         loggingConfig.AddRule(fileAndConsoleMinLevel, LogLevel.Warn, fileLog);
         loggingConfig.AddRule(LogLevel.Error, LogLevel.Fatal, errorFileLog);
 
         if (EnvironmentHelpers.IsConsolePresent)
         {
-            var consoleLog = new ConsoleTarget("consoleLog");
+            var consoleLog = new ColoredConsoleTarget("consoleLog");
             loggingConfig.AddRule(fileAndConsoleMinLevel, LogLevel.Fatal, consoleLog);
         }
 
