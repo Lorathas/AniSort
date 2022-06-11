@@ -1,4 +1,4 @@
-﻿// Copyright © 2020 Lorathas
+﻿// Copyright © 2022 Lorathas
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
 // files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy,
@@ -12,37 +12,6 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-using System.Collections.Generic;
 using AniSort.Core;
 
-namespace AniSort
-{
-    class Options
-    {
-        public Mode Mode { get; set; } = Mode.Normal;
-        public bool DebugMode { get; set; }
-        public bool VerboseLogging { get; set; }
-        public string Username { get; set; }
-        public string Password { get; set; }
-        public string ConfigFile { get; set; }
-        public List<string> Sources { get; set; } = new List<string>();
-
-        public bool IsValid
-        {
-            get
-            {
-                if (Mode == Mode.Normal && (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password)))
-                {
-                    return false;
-                }
-
-                if (Sources.Count == 0)
-                {
-                    return false;
-                }
-
-                return true;
-            }
-        }
-    }
-}
+new Cli(Startup.Initialize(null)).Main(args);
