@@ -4,6 +4,8 @@
     <TargetFramework>net6.0</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
     <LangVersion>default</LangVersion>
+    <PackageVersion>2.1.0</PackageVersion>
+    <Authors>Lorathas</Authors>
   </PropertyGroup>
 
   <ItemGroup>

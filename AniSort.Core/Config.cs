@@ -83,16 +83,16 @@ namespace AniSort.Core
         /// </summary>
         [XmlElement(IsNullable = false)]
         public string Password { get; set; }
-        
+
         /// <summary>
         /// Max file search retries
         /// </summary>
-        public int? MaxFileSearchRetries { get; set; }
-        
+        public int? MaxFileSearchRetries { get; set; } = 10;
+
         /// <summary>
         /// File search cooldown time in seconds
         /// </summary>
-        public int FileSearchCooldownMinutes { get; set; }
+        public int FileSearchCooldownMinutes { get; set; } = 300;
 
         /// <summary>
         /// File search cooldown time
