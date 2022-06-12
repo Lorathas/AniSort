@@ -25,25 +25,20 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
     private readonly ILocalFileRepository localFileRepository;
     private readonly ILogger<FixUnknownResolutionMaintenanceTask> logger;
     private readonly Config config;
+    private readonly IPathBuilderRepository pathBuilderRepository;
 
-    public FixUnknownResolutionMaintenanceTask(ILocalFileRepository localFileRepository, ILogger<FixUnknownResolutionMaintenanceTask> logger, Config config)
+    public FixUnknownResolutionMaintenanceTask(ILocalFileRepository localFileRepository, ILogger<FixUnknownResolutionMaintenanceTask> logger, Config config, IPathBuilderRepository pathBuilderRepository)
     {
         this.localFileRepository = localFileRepository;
         this.logger = logger;
         this.config = config;
+        this.pathBuilderRepository = pathBuilderRepository;
     }
 
     /// <inheritdoc />
     public async Task RunAsync()
     {
         var filesWithoutResolution = localFileRepository.GetWithoutResolutionAsync();
-        
-        var pathBuilder = PathBuilder.Compile(
-            config.Destination.NewFilePath,
-            config.Destination.TvPath,
-            config.Destination.MoviePath,
-            config.Destination.Format,
-            new FileMask { FirstByteFlags = FileMaskFirstByte.AnimeId | FileMaskFirstByte.GroupId | FileMaskFirstByte.EpisodeId, SecondByteFlags = FileMaskSecondByte.Ed2k });
 
         await foreach (var file in filesWithoutResolution)
         {
@@ -69,6 +64,8 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
             var resolution = new VideoResolution(mediaInfo.PrimaryVideoStream.Width, mediaInfo.PrimaryVideoStream.Height);
 
             file.EpisodeFile.Resolution = resolution;
+
+            var pathBuilder = pathBuilderRepository.GetPathBuilderForPath(file.Path);
 
             string extension = Path.GetExtension(file.Path);
             Debug.Assert(extension != null, nameof(extension) + " != null");
@@ -156,6 +153,7 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
             var flow = BuildProcessingFlow();
 
             flow.AddPathsToFlow(config.Sources, p => ResolutionReplacementRegex.IsMatch(p));
+            flow.AddPathsToFlow(config.LibraryPaths, p => ResolutionReplacementRegex.IsMatch(p));
             flow.Complete();
 
             await flow.Completion;

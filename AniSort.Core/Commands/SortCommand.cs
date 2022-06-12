@@ -32,14 +32,16 @@ public class SortCommand : ICommand
     private readonly ILogger<SortCommand> logger;
     private readonly AniDbClient client;
     private readonly IServiceProvider serviceProvider;
+    private readonly IPathBuilderRepository pathBuilderRepository;
     private ConsoleProgressBar hashProgressBar;
 
-    public SortCommand(Config config, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider)
+    public SortCommand(Config config, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider, IPathBuilderRepository pathBuilderRepository)
     {
         this.config = config;
         this.logger = logger;
         this.client = client;
         this.serviceProvider = serviceProvider;
+        this.pathBuilderRepository = pathBuilderRepository;
     }
 
     /// <inheritdoc />
@@ -47,22 +49,9 @@ public class SortCommand : ICommand
     {var fileQueue = new Queue<string>();
      
              fileQueue.AddPathsToQueue(config.Sources);
-     
-             PathBuilder pathBuilder = null;
-     
-             try
+             if (!config.IgnoreLibraryFiles)
              {
-                 pathBuilder = PathBuilder.Compile(
-                     config.Destination.NewFilePath,
-                     config.Destination.TvPath,
-                     config.Destination.MoviePath,
-                     config.Destination.Format,
-                     new FileMask { FirstByteFlags = FileMaskFirstByte.AnimeId | FileMaskFirstByte.GroupId | FileMaskFirstByte.EpisodeId, SecondByteFlags = FileMaskSecondByte.Ed2k });
-             }
-             catch (InvalidFormatPathException ex)
-             {
-                 logger.LogCritical(ex, "Invalid path format found in config");
-                 Environment.Exit(ExitCodes.InvalidFormatPath);
+                 fileQueue.AddPathsToQueue(config.LibraryPaths);
              }
      
              if (config.Verbose)
@@ -74,9 +63,9 @@ public class SortCommand : ICommand
      
                  using (logger.BeginScope("Config setup to write to following directories for files:"))
                  {
-                     logger.LogTrace("TV:     {TvPath}", Path.Combine(config.Destination.NewFilePath, config.Destination.TvPath));
-                     logger.LogTrace("Movies: {MoviePath}", Path.Combine(config.Destination.NewFilePath, config.Destination.MoviePath));
-                     logger.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilder.Root);
+                     logger.LogTrace("TV:     {TvPath}", Path.Combine(config.Destination.Path, config.Destination.TvPath));
+                     logger.LogTrace("Movies: {MoviePath}", Path.Combine(config.Destination.Path, config.Destination.MoviePath));
+                     logger.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilderRepository.DefaultPathBuilder.Root);
                  }
              }
      
@@ -210,7 +199,9 @@ public class SortCommand : ICommand
                              }
                          }
 
-                         if (config.AniDb.MaxFileSearchRetries.HasValue && localFile.FileActions.Count(a => a.Type == FileActionType.Search) >= config.AniDb.MaxFileSearchRetries)
+                         var fileActions = actionRepository.GetForFile(localFile.Id).ToList().OrderBy(a => a.CreatedAt).ToList();
+
+                         if (config.AniDb.MaxFileSearchRetries.HasValue && fileActions.Count(a => a.Type == FileActionType.Search) >= config.AniDb.MaxFileSearchRetries)
                          {
                              if (EnvironmentHelpers.IsConsolePresent)
                              {
@@ -224,7 +215,7 @@ public class SortCommand : ICommand
                          }
 
                          if (config.AniDb.FileSearchCooldown != TimeSpan.Zero &&
-                             localFile.FileActions.Any(a => a.Type == FileActionType.Search && a.UpdatedAt.Add(config.AniDb.FileSearchCooldown) < DateTimeOffset.Now))
+                             fileActions.Any(a => a.Type == FileActionType.Search && a.UpdatedAt.Add(config.AniDb.FileSearchCooldown) < DateTimeOffset.Now))
                          {
                              if (EnvironmentHelpers.IsConsolePresent)
                              {
@@ -241,6 +232,11 @@ public class SortCommand : ICommand
                          var searchAction = new FileAction { Type = FileActionType.Search, Success = false, FileId = localFile.Id };
                          await actionRepository.AddAsync(searchAction);
                          await actionRepository.SaveChangesAsync();
+                         
+                         fileActions.Add(searchAction);
+                         fileActions = fileActions.OrderBy(a => a.CreatedAt).ToList();
+
+                         var pathBuilder = pathBuilderRepository.GetPathBuilderForPath(path);
 
                          var result = await client.SearchForFile(totalBytes, hash, pathBuilder.FileMask, pathBuilder.AnimeMask);
 
@@ -272,6 +268,7 @@ public class SortCommand : ICommand
                          searchAction.Success = true;
                          searchAction.Info = $"Found file {result.FileInfo.FileId} for file hash {localFile.Ed2kHash.ToHexString()}";
                          searchAction.UpdatedAt = DateTimeOffset.Now;
+                         await actionRepository.SaveChangesAsync();
                          await localFileRepository.SaveChangesAsync();
 
                          logger.LogInformation($"File found for {filename}");
@@ -286,12 +283,18 @@ public class SortCommand : ICommand
 
                          var (anime, episode, episodeFile) = await animeRepository.MergeSertAsync(result, false);
                          await animeRepository.SaveChangesAsync();
-                         episode.AnimeId = anime.Id;
-                         await episodeRepository.AddAsync(episode);
-                         await episodeRepository.SaveChangesAsync();
-                         episodeFile.EpisodeId = episode.Id;
-                         await episodeFileRepository.AddAsync(episodeFile);
-                         await episodeFileRepository.SaveChangesAsync();
+                         if (episode.Id == 0)
+                         {
+                             episode.AnimeId = anime.Id;
+                             await episodeRepository.AddAsync(episode);
+                             await episodeRepository.SaveChangesAsync();
+                         }
+                         if (episodeFile.Id == 0)
+                         {
+                             episodeFile.EpisodeId = episode.Id;
+                             await episodeFileRepository.AddAsync(episodeFile);
+                             await episodeFileRepository.SaveChangesAsync();
+                         }
                          localFile.EpisodeFileId = episodeFile.Id;
                          await localFileRepository.SaveChangesAsync();
 

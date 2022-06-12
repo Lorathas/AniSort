@@ -15,4 +15,7 @@ public class FileAction
     public virtual LocalFile File { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+
+    /// <inheritdoc />
+    public override string ToString() => $"File {FileId} Action {Type}:{Success} at {CreatedAt}";
 }
