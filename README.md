@@ -28,6 +28,7 @@ There are several commands and various maintenance tasks defined for usage in th
 Config files can be stored in one of three formats: json, xml, and yaml.
 By default the program will look for them in the users home directory (`~` or `%USERPROFILE%`) as either `AniSort.{extension}` or `anisort.{extension}`,
 but you can also provide a path to a different location with the `--config` command line option.  
+Samples of each config file type can be found in the root folder of `AniSort.Core`.  
 NOTE: Field names in XML need to be `PascalCase` and names in JSON and YAML need to be `camelCase`. They are provided in `PascalCase` in the example tables below.
 
 ## Main Config
