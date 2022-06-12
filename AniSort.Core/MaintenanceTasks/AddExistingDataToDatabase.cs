@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using AniSort.Core.Data;
+using AniSort.Core.IO;
 using AniSort.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,14 +15,16 @@ namespace AniSort.Core.MaintenanceTasks;
 public class AddExistingDataToDatabase : IMaintenanceTask
 {
     private readonly IServiceProvider serviceProvider;
-    private readonly AnimeFileStore animeFileStore = new();
+    private readonly AnimeFileStore animeFileStore;
     private readonly ILogger<AddExistingDataToDatabase> logger;
-    private readonly List<FileImportStatus> importedFiles = new();
+    private readonly List<FileImportStatus> importedFiles;
 
-    public AddExistingDataToDatabase(IServiceProvider serviceProvider, ILogger<AddExistingDataToDatabase> logger)
+    public AddExistingDataToDatabase(IServiceProvider serviceProvider, ILogger<AddExistingDataToDatabase> logger, LegacyDataStoreProvider legacyDataProvider)
     {
         this.serviceProvider = serviceProvider;
         this.logger = logger;
+        animeFileStore = legacyDataProvider.LoadAnimeFileStore();
+        importedFiles = legacyDataProvider.LoadImportedFiles();
     }
 
     /// <inheritdoc />

@@ -39,6 +39,18 @@ public class LocalFileEpisodeRepository : IFileEpisodeRepository
     }
 
     /// <inheritdoc />
+    public bool Exists(int key)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ExistsAsync(int key)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
     EpisodeInfo IRepository<EpisodeInfo, int>.Add(EpisodeInfo entity)
     {
         throw new System.NotImplementedException();
