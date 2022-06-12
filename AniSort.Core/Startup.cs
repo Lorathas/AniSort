@@ -9,6 +9,7 @@ using AniSort.Core.Commands;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
 using AniSort.Core.Helpers;
+using AniSort.Core.IO;
 using AniSort.Core.MaintenanceTasks;
 using AniSort.Core.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +84,7 @@ public class Startup
             .AddTransient<ILocalFileRepository, LocalFileRepository>()
             .AddTransient<IReleaseGroupRepository, ReleaseGroupRepository>()
             .AddTransient<ISynonymRepository, SynonymRepository>()
+            .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
             .AddDbContext<AniSortContext>(builder => builder.UseSqlite($"Data Source={AppPaths.DatabasePath}"))
             .AddTransient(p =>
             {

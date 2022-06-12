@@ -12,12 +12,12 @@
     <Sources>
         <Source>\\SERVEY\unsorted</Source>
     </Sources>
+    <LibraryPaths>
+        <Path>\\SERVEY\anime1</Path>
+        <Path>\\SERVEY\anime2</Path>
+    </LibraryPaths>
     <Destination>
-        <Paths>
-            <Path>\\SERVEY\anime1</Path>
-            <Path>\\SERVEY\anime2</Path>
-        </Paths>
-        <NewFilePath>\\SERVEY\anime2</NewFilePath>
+        <Path>\\SERVEY\anime2</Path>
         <TvPath>tv</TvPath>
         <MoviePath>mov</MoviePath>
         <Format>{animeRomaji}\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...} [{groupShort}][{resolution}][{videoCodec}][{crc32}]</Format>
