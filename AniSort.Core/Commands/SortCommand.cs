@@ -213,9 +213,10 @@ public class SortCommand : ICommand
                              }
                              continue;
                          }
+                         
+                         var lastSearchAction = fileActions.LastOrDefault(a => a.Type == FileActionType.Search);
 
-                         if (config.AniDb.FileSearchCooldown != TimeSpan.Zero &&
-                             fileActions.Any(a => a.Type == FileActionType.Search && a.UpdatedAt.Add(config.AniDb.FileSearchCooldown) < DateTimeOffset.Now))
+                         if (config.AniDb.FileSearchCooldown != TimeSpan.Zero && (lastSearchAction?.IsCoolingDown(config.AniDb.FileSearchCooldown) ?? false))
                          {
                              if (EnvironmentHelpers.IsConsolePresent)
                              {
