@@ -20,7 +20,7 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
     }
 
     /// <inheritdoc />
-    public (Anime, Episode, EpisodeFile) MergeSert(FileResult result, bool insertRelational = true)
+    public (Anime, Episode, EpisodeFile, ReleaseGroup) MergeSert(FileResult result, bool insertRelational = true)
     {
         if (result.FileInfo.AnimeId == null)
         {
@@ -268,36 +268,46 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
             
         #region Release Group
 
-        if (file.Group == null)
-        {
-            var group = Context.ReleaseGroups.FirstOrDefault(g => g.Id == result.FileInfo.GroupId);
+        ReleaseGroup releaseGroup = null;
 
-            if (group == default)
+        if (result.FileInfo.GroupId.HasValue && result.FileInfo.GroupId != 0)
+        {
+            if (file.Group == null)
             {
-                file.Group = new ReleaseGroup
+                releaseGroup = Context.ReleaseGroups.FirstOrDefault(g => g.Id == result.FileInfo.GroupId);
+
+                if (releaseGroup == default)
                 {
-                    Id = result.FileInfo.GroupId.Value,
-                    Name = result.AnimeInfo.GroupName,
-                    ShortName = result.AnimeInfo.GroupShortName
-                };
-            }
-            else
-            {
-                file.Group = group;
+                    releaseGroup = new ReleaseGroup
+                    {
+                        Id = result.FileInfo.GroupId.Value,
+                        Name = result.AnimeInfo.GroupName,
+                        ShortName = result.AnimeInfo.GroupShortName
+                    };
+
+                    if (insertRelational)
+                    {
+                        file.Group = releaseGroup;
+                    }
+                }
+                else
+                {
+                    file.Group = releaseGroup;
+                }
             }
         }
-            
-        #endregion
 
         #endregion
 
         #endregion
 
-        return (anime, episode, file);
+        #endregion
+
+        return (anime, episode, file, releaseGroup);
     }
 
     /// <inheritdoc />
-    public async Task<(Anime, Episode, EpisodeFile)> MergeSertAsync(FileResult result, bool insertRelational = true)
+    public async Task<(Anime, Episode, EpisodeFile, ReleaseGroup)> MergeSertAsync(FileResult result, bool insertRelational = true)
     {
         if (result.FileInfo.AnimeId == null)
         {
@@ -551,38 +561,48 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
             
         #region Release Group
 
-        if (file.Group == null)
-        {
-            var group = Context.ReleaseGroups.FirstOrDefault(g => g.Id == result.FileInfo.GroupId);
+        ReleaseGroup releaseGroup = null;
 
-            if (group == default)
+        if (result.FileInfo.GroupId.HasValue && result.FileInfo.GroupId != 0)
+        {
+            if (file.Group == null)
             {
-                file.Group = new ReleaseGroup
+                releaseGroup = Context.ReleaseGroups.FirstOrDefault(g => g.Id == result.FileInfo.GroupId);
+
+                if (releaseGroup == default)
                 {
-                    Id = result.FileInfo.GroupId.Value,
-                    Name = result.AnimeInfo.GroupName,
-                    ShortName = result.AnimeInfo.GroupShortName
-                };
-            }
-            else
-            {
-                file.Group = group;
+                    releaseGroup = new ReleaseGroup
+                    {
+                        Id = result.FileInfo.GroupId.Value,
+                        Name = result.AnimeInfo.GroupName,
+                        ShortName = result.AnimeInfo.GroupShortName
+                    };
+
+                    if (insertRelational)
+                    {
+                        file.Group = releaseGroup;
+                    }
+                }
+                else
+                {
+                    file.Group = releaseGroup;
+                }
             }
         }
-            
-        #endregion
 
         #endregion
 
         #endregion
 
-        return (anime, episode, file);
+        #endregion
+
+        return (anime, episode, file, releaseGroup);
     }
 
     /// <inheritdoc />
-    public (Anime, Episode, EpisodeFile) MergeSert(FileResult result, LocalFile localFile)
+    public (Anime, Episode, EpisodeFile, ReleaseGroup) MergeSert(FileResult result, LocalFile localFile)
     {
-        var (anime, episode, episodeFile) = MergeSert(result);
+        var (anime, episode, episodeFile, releaseGroup) = MergeSert(result);
 
         var file = anime.Episodes.SelectMany(e => e.Files).FirstOrDefault(f => f.Id == result.FileInfo.FileId);
 
@@ -591,13 +611,13 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
             file.LocalFiles.Add(localFile);
         }
 
-        return (anime, episode, episodeFile);
+        return (anime, episode, episodeFile, releaseGroup);
     }
 
     /// <inheritdoc />
-    public async Task<(Anime, Episode, EpisodeFile)> MergeSertAsync(FileResult result, LocalFile localFile)
+    public async Task<(Anime, Episode, EpisodeFile, ReleaseGroup)> MergeSertAsync(FileResult result, LocalFile localFile)
     {
-        var (anime, episode, episodeFile) = await MergeSertAsync(result);
+        var (anime, episode, episodeFile, releaseGroup) = await MergeSertAsync(result);
 
         var file = anime.Episodes.SelectMany(e => e.Files).FirstOrDefault(f => f.Id == result.FileInfo.FileId);
 
@@ -606,6 +626,6 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
             file.LocalFiles.Add(localFile);
         }
 
-        return (anime, episode, episodeFile);
+        return (anime, episode, episodeFile, releaseGroup);
     }
 }

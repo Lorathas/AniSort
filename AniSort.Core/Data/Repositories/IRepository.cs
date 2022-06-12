@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
 namespace AniSort.Core.Data.Repositories;
 
@@ -17,6 +18,20 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="key">Primary key to match</param>
     /// <returns>Entity if it exists, otherwise false</returns>
     Task<TEntity> GetByIdAsync(TKey key);
+
+    /// <summary>
+    /// Check if entity exists for primary key
+    /// </summary>
+    /// <param name="key">Key to check for existence</param>
+    /// <returns></returns>
+    bool Exists(TKey key);
+    
+    /// <summary>
+    /// Check if entity exists for primary key
+    /// </summary>
+    /// <param name="key">Key to check for existence</param>
+    /// <returns></returns>
+    Task<bool> ExistsAsync(TKey key);
 
     /// <summary>
     /// Add the entity to the repository

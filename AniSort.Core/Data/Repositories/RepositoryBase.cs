@@ -30,6 +30,18 @@ public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEnt
     }
 
     /// <inheritdoc />
+    public bool Exists(TKey key)
+    {
+        return Set.Find(key) != null;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ExistsAsync(TKey key)
+    {
+        return await Set.FindAsync(key) != null;
+    }
+
+    /// <inheritdoc />
     public TEntity Add(TEntity entity)
     {
         return Set.Add(entity).Entity;

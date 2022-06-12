@@ -13,7 +13,7 @@ public class EpisodeFile
 
     public int EpisodeId { get; set; }
     public virtual Episode Episode { get; set; }
-    public int GroupId { get; set; }
+    public int? GroupId { get; set; }
     public virtual ReleaseGroup Group { get; set; }
     public string OtherEpisodes { get; set; }
     public bool IsDeprecated { get; set; }

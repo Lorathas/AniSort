@@ -43,6 +43,18 @@ public class LocalFileFileRepository : IFileFileRepository
     }
 
     /// <inheritdoc />
+    public bool Exists(int key)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ExistsAsync(int key)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
     public void Add(FileInfo entity)
     {
         throw new NotImplementedException();

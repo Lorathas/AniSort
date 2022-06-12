@@ -85,6 +85,7 @@ public class Startup
             .AddTransient<IReleaseGroupRepository, ReleaseGroupRepository>()
             .AddTransient<ISynonymRepository, SynonymRepository>()
             .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
+            .AddTransient<LegacyDataStoreProvider, LegacyDataStoreProvider>()
             .AddDbContext<AniSortContext>(builder => builder.UseSqlite($"Data Source={AppPaths.DatabasePath}"))
             .AddTransient(p =>
             {
