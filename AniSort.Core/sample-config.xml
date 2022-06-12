@@ -1,18 +1,23 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Config>
-    <Mode>Normal</Mode>
     <Debug>true</Debug>
     <Verbose>true</Verbose>
     <Copy>true</Copy>
     <AniDb>
         <Username>TestUser</Username>
         <Password>SecurePassword</Password>
+        <MaxFileSearchRetries>5</MaxFileSearchRetries>
+        <FileSearchCooldownMinutes>300</FileSearchCooldownMinutes>
     </AniDb>
     <Sources>
-        <Source>\\server\unsorted</Source>
+        <Source>\\SERVEY\unsorted</Source>
     </Sources>
     <Destination>
-        <Path>\\SERVEY\anime</Path>
+        <Paths>
+            <Path>\\SERVEY\anime1</Path>
+            <Path>\\SERVEY\anime2</Path>
+        </Paths>
+        <NewFilePath>\\SERVEY\anime2</NewFilePath>
         <TvPath>tv</TvPath>
         <MoviePath>mov</MoviePath>
         <Format>{animeRomaji}\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...} [{groupShort}][{resolution}][{videoCodec}][{crc32}]</Format>
