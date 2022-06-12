@@ -64,6 +64,12 @@ namespace AniSort.Core
 
         public static string[] DefaultConfigFilePaths => new[]
         {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "anisort.yaml"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "anisort.yml"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AniSort.yaml"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AniSort.yml"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "anisort.json"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AniSort.json"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "anisort.xml"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AniSort.xml"),
         };

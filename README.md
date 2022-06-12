@@ -25,6 +25,11 @@ There are several commands and various maintenance tasks defined for usage in th
 `maint upgradetodb` will import the original flat file data into the sqlite database for use with the newer version
 
 # Config
+Config files can be stored in one of three formats: json, xml, and yaml.
+By default the program will look for them in the users home directory (`~` or `%USERPROFILE%`) as either `AniSort.{extension}` or `anisort.{extension}`,
+but you can also provide a path to a different location with the `--config` command line option.  
+Samples of each config file type can be found in the root folder of `AniSort.Core`.  
+NOTE: Field names in XML need to be `PascalCase` and names in JSON and YAML need to be `camelCase`. They are provided in `PascalCase` in the example tables below.
 
 ## Main Config
 | Field       	| Description                                                                	| Required                                        	| Default 	|
@@ -45,13 +50,14 @@ There are several commands and various maintenance tasks defined for usage in th
 | FileSearchCooldownMinutes 	| The time in minutes to wait between checking with AniDb again for a file's info 	| 300     	|
 
 ## Destination Config
-| Field       	| Description                                                                                                                                  	| Required 	| Default 	|
-|-------------	|----------------------------------------------------------------------------------------------------------------------------------------------	|----------	|---------	|
-| NewFilePath 	| Path to move newly found files to                                                                                                            	| Yes      	| N/A     	|
-| TvPath      	| Relative name of TV path                                                                                                                     	| Yes      	| N/A     	|
-| MoviePath   	| Relative name of movie path                                                                                                                  	| Yes      	| N/A     	|
-| Format      	| File path format for where to place and name the file inside either the tv or movie folder. For more info see the File Organization section. 	| Yes      	| N/A     	|
-| Paths       	| Library paths to watch (not yet implemented)                                                                                                 	| No       	| N/A     	|
+| Field          	| Description                                                                                                                                  	| Required 	| Default 	|
+|----------------	|----------------------------------------------------------------------------------------------------------------------------------------------	|----------	|---------	|
+| NewFilePath    	| Path to move newly found files to                                                                                                            	| Yes      	| N/A     	|
+| TvPath         	| Relative name of TV path                                                                                                                     	| Yes      	| N/A     	|
+| MoviePath      	| Relative name of movie path                                                                                                                  	| Yes      	| N/A     	|
+| Format         	| File path format for where to place and name the file inside either the tv or movie folder. For more info see the File Organization section. 	| Yes      	| N/A     	|
+| Paths          	| Library paths to watch (not yet implemented)                                                                                                 	| No       	| N/A     	|
+| FragmentSeries 	| When moving files, allow series to be fragmented (not yet implemented)                                                                       	| No       	| true    	|
 
 ## File Organization
 To control the naming of files you can provide a custom format string such as  

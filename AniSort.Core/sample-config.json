@@ -1,0 +1,25 @@
+﻿{
+  "debug": true,
+  "verbose": true,
+  "copy": true,
+  "aniDb": {
+    "username": "TestUser",
+    "password": "SecurePassword",
+    "maxFileSearchRetries": 5,
+    "FileSearchCooldownMinutes": 300
+  },
+  "sources": [
+    "\\\\SERVEY\\unsorted"
+  ],
+  "destination": {
+    "paths": [
+      "\\\\SERVEY\\anime1",
+      "\\\\SERVEY\\anime2"
+    ],
+    "newFilePath": "\\\\SERVEY\\anime2",
+    "tvPath": "tv",
+    "moviePath": "mov",
+    "fragmentSeries": false,
+    "format": "{animeRomaji}\\{animeRomaji} - {episodeNumber}{'v'fileVersion} - {episodeEnglish...} [{groupShort}][{resolution}][{videoCodec}][{crc32}]"
+  }
+}

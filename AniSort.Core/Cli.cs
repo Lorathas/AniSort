@@ -2,6 +2,7 @@
 using System.IO;
 using System.Xml.Serialization;
 using AniSort.Core.Commands;
+using AniSort.Core.Exceptions;
 using AniSort.Core.Helpers;
 using Microsoft.Extensions.CommandLineUtils;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,39 +69,22 @@ public class Cli
                     command.OnExecute(async () =>
                     {
                         Config config = default;
-                        var serializer = new XmlSerializer(typeof(Config));
 
-                        if (ConfigOption.HasValue())
+                        try
                         {
-                            await using var fs = File.OpenRead(ConfigOption.Value());
-
-                            config = serializer.Deserialize(fs) as Config;
-
-                            if (config == default)
+                            if (ConfigOption.HasValue())
                             {
-                                logger.LogCritical("No valid config found at provided path: {ConfigFilePAth}", ConfigOption.Value());
-                                Environment.Exit(ExitCodes.NoConfigFileProvided);
+                                config = await ConfigReader.ReadConfigAsync(ConfigOption.Value());
+                            }
+                            else
+                            {
+                                config = await ConfigReader.ReadDefaultConfigFileLocationsAsync();
                             }
                         }
-                        else
+                        catch (InvalidConfigFileException ex)
                         {
-                            foreach (string path in AppPaths.DefaultConfigFilePaths)
-                            {
-                                if (!File.Exists(path))
-                                {
-                                    continue;
-                                }
-
-                                await using var fs = File.OpenRead(path);
-                                config = serializer.Deserialize(fs) as Config;
-                                break;
-                            }
-
-                            if (config == default)
-                            {
-                                logger.LogCritical("No config found in default paths: {DefaultConfigFilePaths}", string.Join(',', AppPaths.DefaultConfigFilePaths));
-                                Environment.Exit(ExitCodes.NoConfigFileProvided);
-                            }
+                            logger.LogCritical(ex, "No valid config found at provided path: {ConfigFilePath}", ConfigOption.Value());
+                            Environment.Exit(ExitCodes.NoConfigFileProvided);
                         }
 
                         if (DebugOption.HasValue())
