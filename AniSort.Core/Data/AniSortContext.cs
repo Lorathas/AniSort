@@ -1,4 +1,5 @@
-﻿using AniDbSharp.Data;
+﻿using System.Threading;
+using AniDbSharp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -17,25 +18,27 @@ public class AniSortContext : DbContext
     public AniSortContext(DbContextOptions options) : base(options)
     {
     }
-    
+
+    public static SemaphoreSlim DatabaseLock { get; } = new(1, 1);
+
     public DbSet<Anime> Anime { get; set; }
-    
+
     public DbSet<Synonym> Synonyms { get; set; }
-    
+
     public DbSet<Category> Categories { get; set; }
-    
+
     public DbSet<AnimeCategory> AnimeCategories { get; set; }
-    
+
     public DbSet<Episode> Episodes { get; set; }
-    
+
     public DbSet<EpisodeFile> EpisodeFiles { get; set; }
-    
+
     public DbSet<AudioCodec> AudioCodecs { get; set; }
-    
+
     public DbSet<ReleaseGroup> ReleaseGroups { get; set; }
-    
+
     public DbSet<LocalFile> LocalFiles { get; set; }
-    
+
     public DbSet<FileAction> FileActions { get; set; }
 
     /// <inheritdoc />
@@ -49,7 +52,7 @@ public class AniSortContext : DbContext
             .HasOne(e => e.SourceAnime)
             .WithMany(e => e.ChildrenAnime)
             .HasForeignKey(e => e.SourceAnimeId);
-        
+
         modelBuilder.Entity<RelatedAnime>()
             .HasOne(e => e.DestinationAnime)
             .WithMany(e => e.ParentAnime)

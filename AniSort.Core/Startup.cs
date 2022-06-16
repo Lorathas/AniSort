@@ -8,6 +8,7 @@ using AniDbSharp;
 using AniSort.Core.Commands;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
+using AniSort.Core.DataFlow;
 using AniSort.Core.Helpers;
 using AniSort.Core.IO;
 using AniSort.Core.MaintenanceTasks;
@@ -26,7 +27,7 @@ namespace AniSort.Core;
 
 public class Startup
 {
-    public static IServiceProvider ServiceProvider { get; private set; }
+    public static ServiceProvider ServiceProvider { get; private set; }
     private static IImmutableDictionary<string, Type> commands;
     private static ILogger<Startup> logger;
 
@@ -75,17 +76,18 @@ public class Startup
         var builder = new ServiceCollection()
             .AddSingleton(sp => sp) // Add service provider so it's injectable for items that need a custom scope
             .AddSingleton(typeof(FileImportUtils))
-            .AddTransient<IAnimeRepository, AnimeRepository>()
-            .AddTransient<IAudioCodecRepository, AudioCodecRepository>()
-            .AddTransient<ICategoryRepository, CategoryRepository>()
-            .AddTransient<IEpisodeFileRepository, EpisodeFileRepository>()
-            .AddTransient<IEpisodeRepository, EpisodeRepository>()
-            .AddTransient<IFileActionRepository, FileActionRepository>()
-            .AddTransient<ILocalFileRepository, LocalFileRepository>()
-            .AddTransient<IReleaseGroupRepository, ReleaseGroupRepository>()
-            .AddTransient<ISynonymRepository, SynonymRepository>()
+            .AddScoped<IAnimeRepository, AnimeRepository>()
+            .AddScoped<IAudioCodecRepository, AudioCodecRepository>()
+            .AddScoped<ICategoryRepository, CategoryRepository>()
+            .AddScoped<IEpisodeFileRepository, EpisodeFileRepository>()
+            .AddScoped<IEpisodeRepository, EpisodeRepository>()
+            .AddScoped<IFileActionRepository, FileActionRepository>()
+            .AddScoped<ILocalFileRepository, LocalFileRepository>()
+            .AddScoped<IReleaseGroupRepository, ReleaseGroupRepository>()
+            .AddScoped<ISynonymRepository, SynonymRepository>()
             .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
-            .AddTransient<LegacyDataStoreProvider, LegacyDataStoreProvider>()
+            .AddTransient<LegacyDataStoreProvider>()
+            .AddTransient<BlockProvider>()
             .AddDbContext<AniSortContext>(builder => builder.UseSqlite($"Data Source={AppPaths.DatabasePath}"))
             .AddTransient(p =>
             {
@@ -119,8 +121,11 @@ public class Startup
         return builder;
     }
 
-    public static IServiceProvider InitializeServices(Config config)
+    public static ServiceProvider InitializeServices(Config config)
     {
+        ServiceProvider?.Dispose();
+        ServiceProvider = null;
+        InitializeLogging(config);
         return ServiceProvider = InitializeServicesInternal()
             .AddSingleton(config ?? new Config())
             .BuildServiceProvider();
@@ -165,7 +170,6 @@ public class Startup
     public static IServiceProvider Initialize(Config config)
     {
         AppPaths.Initialize();
-        InitializeLogging(config);
         ServiceProvider = InitializeServices(config);
         logger = ServiceProvider.GetService<ILogger<Startup>>();
         InitializeCommands();
