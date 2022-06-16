@@ -6,12 +6,14 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using AniDbSharp;
 using AniDbSharp.Data;
 using AniDbSharp.Exceptions;
 using AniSort.Core.Crypto;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
+using AniSort.Core.DataFlow;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
 using AniSort.Core.Helpers;
@@ -23,6 +25,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.CommandLineUtils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using FileInfo = AniDbSharp.Data.FileInfo;
 
 namespace AniSort.Core.Commands;
 
@@ -32,530 +35,180 @@ public class SortCommand : ICommand
     private readonly ILogger<SortCommand> logger;
     private readonly AniDbClient client;
     private readonly IServiceProvider serviceProvider;
+    private readonly IPathBuilderRepository pathBuilderRepository;
     private ConsoleProgressBar hashProgressBar;
 
-    public SortCommand(Config config, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider)
+    public SortCommand(Config config, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider, IPathBuilderRepository pathBuilderRepository)
     {
         this.config = config;
         this.logger = logger;
         this.client = client;
         this.serviceProvider = serviceProvider;
+        this.pathBuilderRepository = pathBuilderRepository;
     }
 
     /// <inheritdoc />
     public async Task RunAsync(List<CommandOption> commandOptions)
-    {var fileQueue = new Queue<string>();
-     
-             fileQueue.AddPathsToQueue(config.Sources);
-     
-             PathBuilder pathBuilder = null;
-     
-             try
-             {
-                 pathBuilder = PathBuilder.Compile(
-                     config.Destination.NewFilePath,
-                     config.Destination.TvPath,
-                     config.Destination.MoviePath,
-                     config.Destination.Format,
-                     new FileMask { FirstByteFlags = FileMaskFirstByte.AnimeId | FileMaskFirstByte.GroupId | FileMaskFirstByte.EpisodeId, SecondByteFlags = FileMaskSecondByte.Ed2k });
-             }
-             catch (InvalidFormatPathException ex)
-             {
-                 logger.LogCritical(ex, "Invalid path format found in config");
-                 Environment.Exit(ExitCodes.InvalidFormatPath);
-             }
-     
-             if (config.Verbose)
-             {
-                 if (EnvironmentHelpers.IsConsolePresent)
-                 {
-                     Console.WriteLine();
-                 }
-     
-                 using (logger.BeginScope("Config setup to write to following directories for files:"))
-                 {
-                     logger.LogTrace("TV:     {TvPath}", Path.Combine(config.Destination.NewFilePath, config.Destination.TvPath));
-                     logger.LogTrace("Movies: {MoviePath}", Path.Combine(config.Destination.NewFilePath, config.Destination.MoviePath));
-                     logger.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilder.Root);
-                 }
-             }
-     
-             try
-             {
-                 client.Connect();
-                 var auth = await client.AuthAsync();
-     
-                 if (!auth.Success)
-                 {
-                     logger.LogCritical("Invalid auth credentials. Unable to connect to AniDb");
-                     Environment.Exit(ExitCodes.InvalidAuthCredentials);
-                 }
-     
-                 if (auth.HasNewVersion)
-                 {
-                     logger.LogWarning("A new version of the software is available. Please download it when possible");
-                 }
-     
-                 await using var scope = serviceProvider.CreateAsyncScope();
-     
-                 var localFileRepository = scope.ServiceProvider.GetService<ILocalFileRepository>();
-                 var animeRepository = scope.ServiceProvider.GetService<IAnimeRepository>();
-                 var episodeRepository = scope.ServiceProvider.GetService<IEpisodeRepository>();
-                 var episodeFileRepository = scope.ServiceProvider.GetService<IEpisodeFileRepository>();
-                 var actionRepository = scope.ServiceProvider.GetService<IFileActionRepository>();
-     
-                 while (fileQueue.TryDequeue(out var path))
-                 {
-                     try
-                     {
-                         var filename = Path.GetFileName(path);
+    {
+        var fileQueue = new Queue<string>();
 
-                         var localFile = await localFileRepository.GetForPathAsync(path);
+        fileQueue.AddPathsToQueue(config.Sources);
+        if (!config.IgnoreLibraryFiles)
+        {
+            fileQueue.AddPathsToQueue(config.LibraryPaths);
+        }
 
-                         if (localFile == null)
-                         {
-                             localFile = new LocalFile { Path = path, Status = ImportStatus.NotYetImported, EpisodeFile = null };
-                             await localFileRepository.AddAsync(localFile);
-                             await localFileRepository.SaveChangesAsync();
-                         }
+        if (config.Verbose)
+        {
+            if (EnvironmentHelpers.IsConsolePresent)
+            {
+                Console.WriteLine();
+            }
 
-                         if (localFile.Status == ImportStatus.Imported)
-                         {
-                             logger.LogDebug("File \"{FilePath}\" has already been imported. Skipping...", path);
-                             if (EnvironmentHelpers.IsConsolePresent)
-                             {
-                                 Console.WriteLine();
-                             }
+            using (logger.BeginScope("Config setup to write to following directories for files:"))
+            {
+                logger.LogTrace("TV:     {TvPath}", Path.Combine(config.Destination.Path, config.Destination.TvPath));
+                logger.LogTrace("Movies: {MoviePath}", Path.Combine(config.Destination.Path, config.Destination.MoviePath));
+                logger.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilderRepository.DefaultPathBuilder.Root);
+            }
+        }
 
-                             continue;
-                         }
+        try
+        {
+            client.Connect();
+            var auth = await client.AuthAsync();
 
-                         byte[] hash;
-                         long totalBytes;
-                         if (localFile.Ed2kHash != null)
-                         {
-                             hash = localFile.Ed2kHash;
-                             totalBytes = localFile.FileLength;
+            if (!auth.Success)
+            {
+                logger.LogCritical("Invalid auth credentials. Unable to connect to AniDb");
+                Environment.Exit(ExitCodes.InvalidAuthCredentials);
+            }
 
-                             logger.LogDebug("File \"{FilePath}\" already hashed. Skipping hashing process...", path);
-                         }
-                         else
-                         {
-                             var hashAction = new FileAction { Type = FileActionType.Hash, Success = false, FileId = localFile.Id };
-                             await actionRepository.AddAsync(hashAction);
-                             await actionRepository.SaveChangesAsync();
-
-                             await using var fs = new BufferedStream(File.OpenRead(path));
-                             localFile.FileLength = totalBytes = fs.Length;
-                             localFile.UpdatedAt = DateTimeOffset.Now;
-                             await localFileRepository.SaveChangesAsync();
-
-                             if (EnvironmentHelpers.IsConsolePresent)
-                             {
-                                 hashProgressBar = new ConsoleProgressBar(totalBytes, 40, postfixMessage: $"hashing: {path}",
-                                     postfixMessageShort: $"hashing: {filename}");
-                             }
-
-                             var sw = Stopwatch.StartNew();
-
-                             var hashTask = Ed2k.HashMultiAsync(fs, new Progress<long>(OnProgressUpdate));
-
-                             while (!hashTask.IsCompleted)
-                             {
-                                 if (EnvironmentHelpers.IsConsolePresent)
-                                 {
-                                     hashProgressBar?.WriteNextFrame();
-                                 }
-
-                                 Thread.Sleep(TimeSpan.FromMilliseconds(100));
-                             }
-
-                             hashProgressBar = null;
-
-                             hashTask.Wait();
-
-                             localFile.Ed2kHash = hash = hashTask.Result;
-                             localFile.Status = ImportStatus.Hashed;
-                             localFile.UpdatedAt = DateTimeOffset.Now;
-                             if (hashAction != null)
-                             {
-                                 hashAction.Success = true;
-                                 hashAction.Info = $"Successfully hashed file with hash of {hashTask.Result.ToHexString()}";
-                                 hashAction.UpdatedAt = DateTimeOffset.Now;
-                             }
-                             await localFileRepository.SaveChangesAsync();
-
-                             sw.Stop();
-
-                             if (EnvironmentHelpers.IsConsolePresent)
-                             {
-                                 Console.Write("\r");
-                             }
-
-                             if (EnvironmentHelpers.IsConsolePresent)
-                             {
-                                 logger.LogInformation("Hashed: {TruncatedFilename}", (path.Length + 8 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth));
-                             }
-                             else
-                             {
-                                 logger.LogInformation("Hashed: {Filename}", path);
-                             }
-                             logger.LogDebug("  eD2k hash: {HashInHex}", hash.ToHexString());
-
-                             if (config.Verbose)
-                             {
-                                 logger.LogTrace(
-                                     "  Processed {SizeInMB:###,###,##0.00}MB in {ElapsedTime} at a rate of {HashRate:F2}MB/s", (double)totalBytes / 1024 / 1024, sw.Elapsed,
-                                     Math.Round((double)totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds));
-                             }
-                         }
-
-                         if (config.AniDb.MaxFileSearchRetries.HasValue && localFile.FileActions.Count(a => a.Type == FileActionType.Search) >= config.AniDb.MaxFileSearchRetries)
-                         {
-                             if (EnvironmentHelpers.IsConsolePresent)
-                             {
-                                 logger.LogDebug("File {TruncatedFilename} has hit the retry limit, skipping", (path.Length + 40 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth));
-                             }
-                             else
-                             {
-                                 logger.LogDebug("File {Filename} has hit the retry limit, skipping", path);
-                             }
-                             continue;
-                         }
-
-                         if (config.AniDb.FileSearchCooldown != TimeSpan.Zero &&
-                             localFile.FileActions.Any(a => a.Type == FileActionType.Search && a.UpdatedAt.Add(config.AniDb.FileSearchCooldown) < DateTimeOffset.Now))
-                         {
-                             if (EnvironmentHelpers.IsConsolePresent)
-                             {
-                                 logger.LogDebug("File {TruncatedFilename} is still cooling down from last search, skipping",
-                                     (path.Length + 49 + 5 > Console.WindowWidth ? filename : path).Truncate(Console.WindowWidth));
-                             }
-                             else
-                             {
-                                 logger.LogDebug("File {Filename} is still cooling down from last search, skipping", path);
-                             }
-                             continue;
-                         }
-
-                         var searchAction = new FileAction { Type = FileActionType.Search, Success = false, FileId = localFile.Id };
-                         await actionRepository.AddAsync(searchAction);
-                         await actionRepository.SaveChangesAsync();
-
-                         var result = await client.SearchForFile(totalBytes, hash, pathBuilder.FileMask, pathBuilder.AnimeMask);
-
-                         if (!result.FileFound)
-                         {
-                             searchAction.Info = "No file found for hash";
-                             searchAction.UpdatedAt = DateTimeOffset.Now;
-                             await localFileRepository.SaveChangesAsync();
-
-                             if (EnvironmentHelpers.IsConsolePresent)
-                             {
-                                 logger.LogWarning($"No file found for {filename}".Truncate(Console.WindowWidth));
-                             }
-                             else
-                             {
-                                 logger.LogWarning("No file found for {FilePath}", filename);
-                             }
-
-                             if (EnvironmentHelpers.IsConsolePresent)
-                             {
-                                 Console.WriteLine();
-                             }
-
-                             localFile.Status = ImportStatus.NoFileFound;
-                             localFile.UpdatedAt = DateTimeOffset.Now;
-                             continue;
-                         }
-
-                         searchAction.Success = true;
-                         searchAction.Info = $"Found file {result.FileInfo.FileId} for file hash {localFile.Ed2kHash.ToHexString()}";
-                         searchAction.UpdatedAt = DateTimeOffset.Now;
-                         await localFileRepository.SaveChangesAsync();
-
-                         logger.LogInformation($"File found for {filename}");
-
-                         if (config.Verbose)
-                         {
-                             logger.LogTrace("  Anime: {AnimeNameInRomaji}", result.AnimeInfo.RomajiName);
-                             logger.LogTrace("  Episode: {EpisodeNumber:##} {EpisodeName}", result.AnimeInfo.EpisodeNumber, result.AnimeInfo.EpisodeName);
-                             logger.LogTrace("  CRC32: {Crc32Hash}", result.FileInfo.Crc32Hash.ToHexString());
-                             logger.LogTrace("  Group: {SubGroupName}", result.AnimeInfo.GroupShortName);
-                         }
-
-                         var (anime, episode, episodeFile) = await animeRepository.MergeSertAsync(result, false);
-                         await animeRepository.SaveChangesAsync();
-                         episode.AnimeId = anime.Id;
-                         await episodeRepository.AddAsync(episode);
-                         await episodeRepository.SaveChangesAsync();
-                         episodeFile.EpisodeId = episode.Id;
-                         await episodeFileRepository.AddAsync(episodeFile);
-                         await episodeFileRepository.SaveChangesAsync();
-                         localFile.EpisodeFileId = episodeFile.Id;
-                         await localFileRepository.SaveChangesAsync();
+            if (auth.HasNewVersion)
+            {
+                logger.LogWarning("A new version of the software is available. Please download it when possible");
+            }
 
 
-                         var resolution = result.FileInfo.VideoResolution.ParseVideoResolution();
+            var blockProvider = serviceProvider.GetService<BlockProvider>();
 
-                         if (!result.FileInfo.HasResolution)
-                         {
-                             var mediaInfo = await FFProbe.AnalyseAsync(path);
+            var bufferBlock = new BufferBlock<string>();
 
-                             resolution = new VideoResolution(mediaInfo.PrimaryVideoStream.Width, mediaInfo.PrimaryVideoStream.Height);
-                         }
+            var fetchFileBlock = blockProvider!.BuildFetchLocalFileBlock();
+            var hashFileBlock = blockProvider.BuildHashFileBlock(OnHashStarted, OnProgressUpdate, OnHashFinished);
+            var filterCoolingDownFiles = blockProvider.BuildFilterCoolingDownFilesBlock();
+            var searchFileBlock = blockProvider.BuildSearchFileBlock(client);
+            var getVideoResolutionBlock = blockProvider.BuildGetFileVideoResolutionBlock();
+            var renameBlock = blockProvider.BuildRenameFileBlock();
 
-                         var extension = Path.GetExtension(filename);
+            bufferBlock.LinkTo(fetchFileBlock, new DataflowLinkOptions { PropagateCompletion = true });
 
-                         // Trailing dot is there to prevent Path.ChangeExtension from screwing with the path if it has been ellipsized or has ellipsis in it
-                         var destinationPathWithoutExtension = pathBuilder.BuildPath(result.FileInfo, result.AnimeInfo,
-                             PlatformUtils.MaxPathLength - extension.Length, resolution);
+            fetchFileBlock.LinkTo(hashFileBlock, new DataflowLinkOptions { PropagateCompletion = true }, f => f != null && f.Ed2kHash == null);
+            fetchFileBlock.LinkTo(filterCoolingDownFiles, new DataflowLinkOptions { PropagateCompletion = true }, f => f != null);
+            fetchFileBlock.LinkTo(DataflowBlock.NullTarget<LocalFile>());
 
-                         var destinationPath = destinationPathWithoutExtension + extension;
-                         var destinationDirectory = Path.GetDirectoryName(destinationPathWithoutExtension);
+            filterCoolingDownFiles.LinkTo(searchFileBlock, f => f != null);
+            filterCoolingDownFiles.LinkTo(DataflowBlock.NullTarget<LocalFile>());
+            hashFileBlock.LinkTo(searchFileBlock, f => f != null);
+            hashFileBlock.LinkTo(DataflowBlock.NullTarget<LocalFile>());
 
-                         if (!config.Debug && !Directory.Exists(destinationDirectory))
-                         {
-                             try
-                             {
-                                 Directory.CreateDirectory(destinationDirectory);
-                             }
-                             catch (Exception ex)
-                             {
-                                 logger.LogError(ex,
-                                     "An unknown error occurred while trying to created the directory. Please make sure the program has access to the target directory.");
-                                 if (EnvironmentHelpers.IsConsolePresent)
-                                 {
-                                     Console.WriteLine();
-                                 }
+            searchFileBlock.LinkTo(getVideoResolutionBlock, a => a.Resolution == default);
+            searchFileBlock.LinkTo(renameBlock, t => t != default);
+            searchFileBlock.LinkTo(DataflowBlock.NullTarget<(LocalFile LocalFile, FileAnimeInfo AnimeInfo, FileInfo FileInfo, VideoResolution VideoResolution)>());
+            getVideoResolutionBlock.LinkTo(renameBlock);
 
-                                 localFile.Status = ImportStatus.Error;
-                                 localFile.UpdatedAt = DateTimeOffset.Now;
-                                 await localFileRepository.SaveChangesAsync();
-                                 continue;
-                             }
-                         }
+            var updateHashBarCancellationSource = new CancellationTokenSource();
+            Task updateHashBarTask = null;
 
-                         if (File.Exists(destinationPath))
-                         {
-                             localFile.Status = result.FileInfo.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
-                             localFile.UpdatedAt = DateTimeOffset.Now;
-                             await actionRepository.AddAsync(new FileAction { Type = FileActionType.Copied, Success = true, Info = $"File already exists at {destinationPath}", FileId = localFile.Id });
-                             await actionRepository.SaveChangesAsync();
-                             if (!await localFileRepository.ExistsForPathAsync(localFile.Path))
-                             {
-                                 await localFileRepository.AddAsync(new LocalFile
-                                 {
-                                     Path = localFile.Path,
-                                     Status = localFile.Status,
-                                     Ed2kHash = localFile.Ed2kHash,
-                                     EpisodeFileId = localFile.EpisodeFileId,
-                                     FileLength = localFile.FileLength,
-                                     FileActions = new List<FileAction> { new() { Type = FileActionType.Copied, Success = true, Info = $"File already exists at {destinationPath}" } }
-                                 });
-                             }
-                             await localFileRepository.SaveChangesAsync();
-                             logger.LogDebug("Destination file \"{DestinationPath}\" already exists. Skipping...", destinationPath);
-                         }
-                         else if (config.Copy)
-                         {
-                             if (!config.Debug)
-                             {
-                                 try
-                                 {
-                                     if (config.Verbose)
-                                     {
-                                         logger.LogTrace("Destination Path: {DestinationPath}", destinationPath);
-                                     }
+            if (EnvironmentHelpers.IsConsolePresent)
+            {
+                // ReSharper disable once MethodSupportsCancellation
+                updateHashBarTask = Task.Run(async () =>
+                {
+                    var cancellationToken = updateHashBarCancellationSource.Token;
 
-                                     File.Copy(path, destinationPath);
-                                 }
-                                 catch (UnauthorizedAccessException ex)
-                                 {
-                                     logger.LogError("You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
-                                     if (EnvironmentHelpers.IsConsolePresent)
-                                     {
-                                         Console.WriteLine();
-                                     }
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        hashProgressBar?.WriteNextFrame();
 
-                                     localFile.Status = ImportStatus.Error;
-                                     localFile.UpdatedAt = DateTimeOffset.Now;
-                                     await localFileRepository.SaveChangesAsync();
-                                     await actionRepository.AddAsync(new FileAction
-                                         { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
-                                     await actionRepository.SaveChangesAsync();
-                                     continue;
-                                 }
-                                 catch (PathTooLongException ex)
-                                 {
-                                     logger.LogError(
-                                         "Filename too long. Yell at Lorathas to fix path length checking if this keeps occurring.");
-                                     if (EnvironmentHelpers.IsConsolePresent)
-                                     {
-                                         Console.WriteLine();
-                                     }
+                        // ReSharper disable once MethodSupportsCancellation
+                        await Task.Delay(TimeSpan.FromMilliseconds(100));
+                    }
+                });
+            }
 
-                                     localFile.Status = ImportStatus.Error;
-                                     localFile.UpdatedAt = DateTimeOffset.Now;
-                                     await localFileRepository.SaveChangesAsync();
-                                     await actionRepository.AddAsync(new FileAction
-                                         { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
-                                     await actionRepository.SaveChangesAsync();
-                                     continue;
-                                 }
-                                 catch (IOException ex)
-                                 {
-                                     logger.LogError(ex, "An unhandled I/O error has occurred");
-                                     if (EnvironmentHelpers.IsConsolePresent)
-                                     {
-                                         Console.WriteLine();
-                                     }
+            var queue = new Queue<string>();
 
-                                     localFile.Status = ImportStatus.Error;
-                                     localFile.UpdatedAt = DateTimeOffset.Now;
-                                     await localFileRepository.SaveChangesAsync();
-                                     await actionRepository.AddAsync(new FileAction
-                                         { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
-                                     await actionRepository.SaveChangesAsync();
-                                     continue;
-                                 }
+            queue.AddPathsToQueue(config.Sources);
+            if (!config.IgnoreLibraryFiles)
+            {
+                queue.AddPathsToQueue(config.LibraryPaths);
+            }
 
-                                 localFile.Status = result.FileInfo.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
-                                 await localFileRepository.AddAsync(new LocalFile
-                                 {
-                                     Path = localFile.Path,
-                                     Status = localFile.Status,
-                                     Ed2kHash = localFile.Ed2kHash,
-                                     EpisodeFileId = localFile.EpisodeFileId,
-                                     FileLength = localFile.FileLength,
-                                     FileActions = new List<FileAction> { new() { Type = FileActionType.Copied, Success = true, Info = $"Source file copied to {destinationPath}" } }
-                                 });
-                                 localFile.Path = destinationPath;
-                                 localFile.UpdatedAt = DateTimeOffset.Now;
-                                 await localFileRepository.SaveChangesAsync();
-                                 await actionRepository.AddAsync(new FileAction
-                                 {
-                                     Type = FileActionType.Copy,
-                                     Success = true,
-                                     Info = $"File {localFile.Path} copied to {destinationPath}",
-                                     FileId = localFile.Id
-                                 });
-                                 await actionRepository.SaveChangesAsync();
-                             }
+            int fileCount = queue.Count;
 
-                             logger.LogInformation("Copied {SourceFilePath} to {DestinationFilePath}", filename, destinationPath);
-                         }
-                         else
-                         {
-                             if (!config.Debug)
-                             {
-                                 try
-                                 {
-                                     File.Move(path, destinationPath);
-                                 }
-                                 catch (UnauthorizedAccessException ex)
-                                 {
-                                     logger.LogError(ex,
-                                         "You do not have access to the destination path. Please ensure your user account has access to the destination folder.");
-                                     if (EnvironmentHelpers.IsConsolePresent)
-                                     {
-                                         Console.WriteLine();
-                                     }
+            while (queue.TryDequeue(out string path))
+            {
+                bufferBlock.Post(path);
+            }
 
-                                     localFile.Status = ImportStatus.Error;
-                                     localFile.UpdatedAt = DateTimeOffset.Now;
-                                     await localFileRepository.SaveChangesAsync();
-                                     await actionRepository.AddAsync(new FileAction
-                                         { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
-                                     await actionRepository.SaveChangesAsync();
-                                     continue;
-                                 }
-                                 catch (PathTooLongException ex)
-                                 {
-                                     logger.LogError(ex,
-                                         "Filename too long. Yell at Lorathas to implement path length checking if this keeps occurring.");
-                                     if (EnvironmentHelpers.IsConsolePresent)
-                                     {
-                                         Console.WriteLine();
-                                     }
+            bufferBlock.Complete();
+            await bufferBlock.Completion;
+            fetchFileBlock.Complete();
+            await fetchFileBlock.Completion;
+            filterCoolingDownFiles.Complete();
+            hashFileBlock.Complete();
+            await Task.WhenAll(filterCoolingDownFiles.Completion, hashFileBlock.Completion);
+            searchFileBlock.Complete();
+            await searchFileBlock.Completion;
+            getVideoResolutionBlock.Complete();
+            await getVideoResolutionBlock.Completion;
+            renameBlock.Complete();
+            await renameBlock.Completion;
 
-                                     localFile.Status = ImportStatus.Error;
-                                     localFile.UpdatedAt = DateTimeOffset.Now;
-                                     await localFileRepository.SaveChangesAsync();
-                                     await actionRepository.AddAsync(new FileAction
-                                         { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
-                                     await actionRepository.SaveChangesAsync();
-                                     continue;
-                                 }
-                                 catch (IOException ex)
-                                 {
-                                     logger.LogError(ex, "An unhandled I/O error has occurred");
-                                     if (EnvironmentHelpers.IsConsolePresent)
-                                     {
-                                         Console.WriteLine();
-                                     }
-
-                                     localFile.Status = ImportStatus.Error;
-                                     localFile.UpdatedAt = DateTimeOffset.Now;
-                                     await localFileRepository.SaveChangesAsync();
-                                     await actionRepository.AddAsync(new FileAction
-                                         { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
-                                     await actionRepository.SaveChangesAsync();
-                                     continue;
-                                 }
-
-                                 localFile.Status = ImportStatus.Imported;
-                                 localFile.UpdatedAt = DateTimeOffset.Now;
-                                 localFile.Path = destinationPath;
-                                 await localFileRepository.SaveChangesAsync();
-                                 await actionRepository.AddAsync(new FileAction
-                                 {
-                                     Type = FileActionType.Move,
-                                     Success = true,
-                                     Info = $"File {localFile.Path} moved to {destinationPath}",
-                                     FileId = localFile.Id
-                                 });
-                                 await actionRepository.SaveChangesAsync();
-                             }
-
-                             logger.LogInformation("Moved {SourceFilePath} to {DestinationFilePath}", filename, destinationPath);
-                         }
-
-                         if (EnvironmentHelpers.IsConsolePresent)
-                         {
-                             Console.WriteLine();
-                         }
-                     }
-                     catch (AniDbConnectionRefusedException ex)
-                     {
-                         logger.LogCritical(ex, "AniDB connection timed out. Please wait or switch to a different IP address.");
-                         Environment.Exit(ExitCodes.AniDbConnectionRefused);
-                     }
-                     catch (DbUpdateConcurrencyException ex)
-                     {
-                         foreach (var entry in ex.Entries)
-                         {
-                             logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
-                         }
-                     }
-                     catch (Exception ex)
-                     {
-                         logger.LogError(ex, ex.Message);
-                     }
-                 }
-             }
-             finally
-             {
-                 await client.DisposeAsync();
-             }
+            updateHashBarCancellationSource.Cancel();
+            if (updateHashBarTask != null)
+            {
+                await updateHashBarTask;
+            }
+            logger.LogInformation("Finished processing {FileCount} files", fileCount);
+        }
+        finally
+        {
+            await client.DisposeAsync();
+        }
     }
-    
+
+    private void OnHashStarted(string path, long totalBytes)
+    {
+        if (EnvironmentHelpers.IsConsolePresent)
+        {
+            hashProgressBar = new ConsoleProgressBar(totalBytes, 40, postfixMessage: $"hashing: {path}",
+                postfixMessageShort: $"hashing: {Path.GetFileName(path)}");
+        }
+    }
+
     private void OnProgressUpdate(long bytesProcessed)
     {
         if (hashProgressBar != null)
         {
             hashProgressBar.Progress = bytesProcessed;
         }
+    }
+
+    private void OnHashFinished()
+    {
+        if (!EnvironmentHelpers.IsConsolePresent)
+        {
+            return;
+        }
+        if (hashProgressBar != null)
+        {
+            hashProgressBar.Progress = hashProgressBar.TotalProgress;
+            hashProgressBar.WriteNextFrame();
+            hashProgressBar = null;
+        }
+        Console.WriteLine();
     }
 
     /// <inheritdoc />
@@ -569,4 +222,5 @@ public class SortCommand : ICommand
 
     /// <inheritdoc />
     public List<CommandOption> SetupCommand(CommandLineApplication command) => new();
+
 }

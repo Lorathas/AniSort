@@ -11,12 +11,12 @@
   "sources": [
     "\\\\SERVEY\\unsorted"
   ],
+  "libraryPaths": [
+    "\\\\SERVEY\\anime1",
+    "\\\\SERVEY\\anime2"
+  ],
   "destination": {
-    "paths": [
-      "\\\\SERVEY\\anime1",
-      "\\\\SERVEY\\anime2"
-    ],
-    "newFilePath": "\\\\SERVEY\\anime2",
+    "path": "\\\\SERVEY\\anime2",
     "tvPath": "tv",
     "moviePath": "mov",
     "fragmentSeries": false,

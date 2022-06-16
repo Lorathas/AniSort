@@ -26,6 +26,18 @@ public class LocalFileAnimeRepository : IFileAnimeRepository
     }
 
     /// <inheritdoc />
+    public bool Exists(int key)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ExistsAsync(int key)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
     AnimeInfo IRepository<AnimeInfo, int>.Add(AnimeInfo entity)
     {
         throw new System.NotImplementedException();

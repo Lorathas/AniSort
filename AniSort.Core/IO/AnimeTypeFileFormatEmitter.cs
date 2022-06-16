@@ -20,6 +20,8 @@ namespace AniSort.Core.IO
 {
     class AnimeTypeFileFormatEmitter : IFileFormatEmitter
     {
+        private static readonly HashSet<string> TvTypeValues = new() { "TV Series", "Web", "OVA" };
+        
         private readonly string tvPath;
 
         private readonly string moviePath;
@@ -33,7 +35,7 @@ namespace AniSort.Core.IO
         /// <inheritdoc />
         public string Emit(FileInfo fileInfo, FileAnimeInfo animeInfo, Dictionary<string, string> overrides)
         {
-            if (string.Equals(animeInfo.Type, "TV Series"))
+            if (TvTypeValues.Contains(animeInfo.Type))
             {
                 return tvPath;
             }

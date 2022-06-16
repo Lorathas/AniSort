@@ -8,11 +8,11 @@ aniDb:
   fileSearchCooldownMinutes: 300
 sources:
   - \\SERVEY\unsorted
+libraryPaths:
+  - \\SERVEY\anime1
+  - \\SERVEY\anime2
 destination:
-  paths:
-    - \\SERVEY\anime1
-    - \\SERVEY\anime2
-  newFilePath: \\SERVERY\anime2
+  path: \\SERVERY\anime2
   tvPath: tv
   moviePath: mov
   fragmentSeries: false

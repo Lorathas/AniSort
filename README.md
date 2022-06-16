@@ -32,14 +32,16 @@ Samples of each config file type can be found in the root folder of `AniSort.Cor
 NOTE: Field names in XML need to be `PascalCase` and names in JSON and YAML need to be `camelCase`. They are provided in `PascalCase` in the example tables below.
 
 ## Main Config
-| Field       	| Description                                                                	| Required                                        	| Default 	|
-|-------------	|----------------------------------------------------------------------------	|-------------------------------------------------	|---------	|
-| Mode        	| Deprecated: Mode to run the program in                                     	| No                                              	| Normal  	|
-| Debug       	| Enable debug mode (Debug level logging and no destructive actions are run) 	| No                                              	| false   	|
-| Verbose     	| Enable verbose logging                                                     	| No                                              	| false   	|
-| AniDb       	| AniDb Config                                                               	| Only for commands that use the AniDb connection 	| N/A     	|
-| Sources     	| List of directories to look for files                                      	| Yes                                             	| N/A     	|
-| Destination 	| Destination configuration section                                          	| Yes                                             	| N/A     	|
+| Field              	| Description                                                                	| Required                                        	| Default 	|
+|--------------------	|----------------------------------------------------------------------------	|-------------------------------------------------	|---------	|
+| Mode               	| Deprecated: Mode to run the program in                                     	| No                                              	| Normal  	|
+| Debug              	| Enable debug mode (Debug level logging and no destructive actions are run) 	| No                                              	| false   	|
+| Verbose            	| Enable verbose logging                                                     	| No                                              	| false   	|
+| LibraryPaths       	| List of library paths for the program                                      	| No                                              	| N/A     	|
+| IgnoreLibraryFiles 	| Flag to ignore library files when sorting                                  	| No                                              	| false   	|
+| AniDb              	| AniDb Config                                                               	| Only for commands that use the AniDb connection 	| N/A     	|
+| Sources            	| List of directories to look for files                                      	| Yes                                             	| N/A     	|
+| Destination        	| Destination configuration section                                          	| Yes                                             	| N/A     	|
 
 ## AniDb Config
 | Field                     	| Description                                                                     	| Default 	|
@@ -50,14 +52,13 @@ NOTE: Field names in XML need to be `PascalCase` and names in JSON and YAML need
 | FileSearchCooldownMinutes 	| The time in minutes to wait between checking with AniDb again for a file's info 	| 300     	|
 
 ## Destination Config
-| Field          	| Description                                                                                                                                  	| Required 	| Default 	|
-|----------------	|----------------------------------------------------------------------------------------------------------------------------------------------	|----------	|---------	|
-| NewFilePath    	| Path to move newly found files to                                                                                                            	| Yes      	| N/A     	|
-| TvPath         	| Relative name of TV path                                                                                                                     	| Yes      	| N/A     	|
-| MoviePath      	| Relative name of movie path                                                                                                                  	| Yes      	| N/A     	|
-| Format         	| File path format for where to place and name the file inside either the tv or movie folder. For more info see the File Organization section. 	| Yes      	| N/A     	|
-| Paths          	| Library paths to watch (not yet implemented)                                                                                                 	| No       	| N/A     	|
-| FragmentSeries 	| When moving files, allow series to be fragmented (not yet implemented)                                                                       	| No       	| true    	|
+| Field          	 | Description                                                                                                                                  	| Required 	| Default 	|
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------------	|----------	|---------	|
+| Path    	        | Path to move newly found files to                                                                                                            	| Yes      	| N/A     	|
+| TvPath         	 | Relative name of TV path                                                                                                                     	| Yes      	| N/A     	|
+| MoviePath      	 | Relative name of movie path                                                                                                                  	| Yes      	| N/A     	|
+| Format         	 | File path format for where to place and name the file inside either the tv or movie folder. For more info see the File Organization section. 	| Yes      	| N/A     	|
+| FragmentSeries 	 | When moving files, allow series to be fragmented (not yet implemented)                                                                       	| No       	| true    	|
 
 ## File Organization
 To control the naming of files you can provide a custom format string such as  

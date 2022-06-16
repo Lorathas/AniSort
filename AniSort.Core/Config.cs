@@ -57,6 +57,15 @@ namespace AniSort.Core
         /// </summary>
         [XmlArray(IsNullable = false), XmlArrayItem("Source")]
         public List<string> Sources { get; set; } = new();
+        
+        /// <summary>
+        /// List of library paths for the application
+        /// </summary>
+        [XmlArray(IsNullable = false), XmlArrayItem("Path")]
+        public List<string> LibraryPaths { get; set; }
+
+        [XmlElement]
+        public bool IgnoreLibraryFiles { get; set; } = false;
 
         /// <summary>
         /// Config for file destinations
@@ -104,16 +113,10 @@ namespace AniSort.Core
     public class DestinationConfig
     {
         /// <summary>
-        /// List of library paths for the application
-        /// </summary>
-        [XmlElement(IsNullable = false)]
-        public List<string> Paths { get; set; }
-        
-        /// <summary>
         /// Path that new files will go to
         /// </summary>
         [XmlElement(IsNullable = false)]
-        public string NewFilePath { get; set; }
+        public string Path { get; set; }
 
         /// <summary>
         /// Flag to fragment series across paths (this only applies to single seasons)

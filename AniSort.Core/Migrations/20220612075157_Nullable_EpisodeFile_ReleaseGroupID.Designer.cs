@@ -3,6 +3,7 @@ using System;
 using AniSort.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AniSort.Core.Migrations
 {
     [DbContext(typeof(AniSortContext))]
-    partial class AniSortContextModelSnapshot : ModelSnapshot
+    [Migration("20220612075157_Nullable_EpisodeFile_ReleaseGroupID")]
+    partial class Nullable_EpisodeFile_ReleaseGroupID
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "6.0.5");

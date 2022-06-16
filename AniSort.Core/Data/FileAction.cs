@@ -15,4 +15,14 @@ public class FileAction
     public virtual LocalFile File { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+
+    public bool IsCoolingDown(TimeSpan cooldownTime)
+    {
+        var now = DateTimeOffset.Now;
+
+        return CreatedAt.Add(cooldownTime) >= now && UpdatedAt.Add(cooldownTime) >= now;
+    }
+
+    /// <inheritdoc />
+    public override string ToString() => $"File {FileId} Action {Type}:{Success} at {CreatedAt}";
 }
