@@ -26,7 +26,7 @@ using FileInfo = AniDbSharp.Data.FileInfo;
 
 namespace AniSort.Core.IO
 {
-    public class PathBuilder
+    public class PathBuilder : IPathBuilder
     {
         public string Root { get; }
 

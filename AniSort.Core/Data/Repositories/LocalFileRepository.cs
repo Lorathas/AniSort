@@ -42,7 +42,7 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     }
 
     /// <inheritdoc />
-    public IEnumerable<LocalFile> GetForEd2kHash(byte[] hash)
+    public IQueryable<LocalFile> GetForEd2kHash(byte[] hash)
     {
         return Set.Where(f => f.Ed2kHash == hash);
     }
@@ -101,6 +101,55 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     {
         return Set.Where(f => f.Path.Contains("[0x0]"))
             .Include(f => f.EpisodeFile)
+            .AsAsyncEnumerable();
+    }
+
+    /// <inheritdoc />
+    public IQueryable<LocalFile> GetOtherLocalFilesForSameSeriesAsFile(Guid localFileId)
+    {
+        return (from originalFile in Set
+            join originalEpisodeFile in Context.EpisodeFiles
+                on originalFile.EpisodeFileId equals originalEpisodeFile.Id
+            join originalEpisode in Context.Episodes
+                on originalEpisodeFile.EpisodeId equals originalEpisode.Id
+            join anime in Context.Anime
+                on originalEpisode.AnimeId equals anime.Id
+            join destinationEpisodes in Context.Episodes
+                on anime.Id equals destinationEpisodes.AnimeId
+            join destinationEpisodeFiles in Context.EpisodeFiles
+                on destinationEpisodes.Id equals destinationEpisodeFiles.EpisodeId
+            join df in Context.LocalFiles
+                on destinationEpisodes.Id equals df.EpisodeFileId
+            where originalFile.Id == localFileId && df.Id != localFileId
+            orderby destinationEpisodes.Number
+            select df)
+            .Include(f => f.EpisodeFile)
+            .ThenInclude(ef => ef.Episode)
+            .ThenInclude(e => e.Anime);
+    }
+
+    /// <inheritdoc />
+    public IAsyncEnumerable<LocalFile> GetOtherLocalFilesForSameSeriesAsFileAsync(Guid localFileId)
+    {
+        return (from originalFile in Set
+                join originalEpisodeFile in Context.EpisodeFiles
+                    on originalFile.EpisodeFileId equals originalEpisodeFile.Id
+                join originalEpisode in Context.Episodes
+                    on originalEpisodeFile.EpisodeId equals originalEpisode.Id
+                join anime in Context.Anime
+                    on originalEpisode.AnimeId equals anime.Id
+                join destinationEpisodes in Context.Episodes
+                    on anime.Id equals destinationEpisodes.AnimeId
+                join destinationEpisodeFiles in Context.EpisodeFiles
+                    on destinationEpisodes.Id equals destinationEpisodeFiles.EpisodeId
+                join df in Context.LocalFiles
+                    on destinationEpisodes.Id equals df.EpisodeFileId
+                where originalFile.Id == localFileId && df.Id != localFileId
+                orderby destinationEpisodes.Number
+                select df)
+            .Include(f => f.EpisodeFile)
+            .ThenInclude(ef => ef.Episode)
+            .ThenInclude(e => e.Anime)
             .AsAsyncEnumerable();
     }
 }

@@ -12,10 +12,35 @@
 // // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-namespace AniSort.Core.IO;
+using System.Collections.Generic;
+using System.Linq;
+using AniSort.Core.Data;
+using AniSort.Core.IO;
 
-public interface IPathBuilderRepository
+namespace AniSort.Core.Defragmentation;
+
+/// <summary>
+/// Defragmentation strategy that moves files to the location of the lowest episode number
+/// </summary>
+[DefragmentationStrategy("lowestEpisodeNumber")]
+public class LowestEpisodeDefragmentationStrategy : IDefragmentationStrategy
 {
-    PathBuilder DefaultPathBuilder { get; }
-    IPathBuilder GetPathBuilderForPath(string path);
+    private readonly IPathBuilderRepository pathBuilderRepository;
+
+    public LowestEpisodeDefragmentationStrategy(IPathBuilderRepository pathBuilderRepository)
+    {
+        this.pathBuilderRepository = pathBuilderRepository;
+    }
+
+    /// <inheritdoc />
+    public IPathBuilder GetPathBuilderForFiles(IEnumerable<LocalFile> localFiles)
+    {
+        var enumerable = localFiles as LocalFile[] ?? localFiles?.ToArray();
+        if (localFiles == null || enumerable.Length == 0)
+        {
+            return pathBuilderRepository.DefaultPathBuilder;
+        }
+
+        return pathBuilderRepository.GetPathBuilderForPath(enumerable.OrderBy(f => f.EpisodeFile.Episode.Number).First().Path);
+    }
 }

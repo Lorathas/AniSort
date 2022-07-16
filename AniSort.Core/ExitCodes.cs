@@ -11,4 +11,5 @@ public static class ExitCodes
     public const int DuplicateCommandsFound = 7;
     public const int CommandNotInstantiable = 8;
     public const int AniDbConnectionRefused = 9;
+    public const int DefragmentationStrategyNotInstantiable = 10;
 }

@@ -58,7 +58,7 @@ public class PathBuilderRepository : IPathBuilderRepository
     public PathBuilder DefaultPathBuilder { get; }
 
     /// <inheritdoc />
-    public PathBuilder GetPathBuilderForPath(string path)
+    public IPathBuilder GetPathBuilderForPath(string path)
     {
         foreach (var (key, builder) in libraryPathBuilders)
         {

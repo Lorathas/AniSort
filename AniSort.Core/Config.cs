@@ -122,7 +122,13 @@ namespace AniSort.Core
         /// Flag to fragment series across paths (this only applies to single seasons)
         /// </summary>
         [XmlElement]
-        public bool FragmentSeries { get; set; } = true;
+        public bool DefragmentSeries { get; set; } = true;
+        
+        /// <summary>
+        /// Defragmentation strategy type
+        /// </summary>
+        [XmlElement]
+        public string DefragmentationStrategy { get; set; }
 
         /// <summary>
         /// Format string for the files. See README.md for more in depth info on this

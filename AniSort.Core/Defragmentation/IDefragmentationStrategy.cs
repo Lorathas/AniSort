@@ -12,10 +12,18 @@
 // // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-namespace AniSort.Core.IO;
+using System.Collections.Generic;
+using AniSort.Core.Data;
+using AniSort.Core.IO;
 
-public interface IPathBuilderRepository
+namespace AniSort.Core.Defragmentation;
+
+public interface IDefragmentationStrategy
 {
-    PathBuilder DefaultPathBuilder { get; }
-    IPathBuilder GetPathBuilderForPath(string path);
+    /// <summary>
+    /// Get path builder for where the files should be relocated to
+    /// </summary>
+    /// <param name="localFiles">Files to use to decide relocation location</param>
+    /// <returns></returns>
+    IPathBuilder GetPathBuilderForFiles(IEnumerable<LocalFile> localFiles);
 }

@@ -12,10 +12,19 @@
 // // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+using AniDbSharp.Data;
+using AniSort.Core.Data;
+using AniSort.Core.Models;
+using FileInfo = AniDbSharp.Data.FileInfo;
+
 namespace AniSort.Core.IO;
 
-public interface IPathBuilderRepository
+public interface IPathBuilder
 {
-    PathBuilder DefaultPathBuilder { get; }
-    IPathBuilder GetPathBuilderForPath(string path);
+    public string Root { get; }
+    public FileMask FileMask { get; }
+    public FileAnimeMask AnimeMask { get; }
+    string BuildPath(FileInfo fileInfo, FileAnimeInfo animeInfo, int maxLength, VideoResolution resolution = null);
+    string BuildPath(LocalFile file, int maxLength, VideoResolution resolution = null);
+    
 }

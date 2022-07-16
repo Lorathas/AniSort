@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using AniDbSharp;
 using AniSort.Core.Commands;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
 using AniSort.Core.DataFlow;
+using AniSort.Core.Defragmentation;
 using AniSort.Core.Helpers;
 using AniSort.Core.IO;
 using AniSort.Core.MaintenanceTasks;
@@ -30,6 +32,7 @@ public class Startup
     public static ServiceProvider ServiceProvider { get; private set; }
     private static IImmutableDictionary<string, Type> commands;
     private static ILogger<Startup> logger;
+    private static IImmutableDictionary<string, Type> defragmentationStrategies;
 
     public static void InitializeLogging(Config aniSortConfig)
     {
@@ -71,6 +74,36 @@ public class Startup
         LogManager.Configuration = loggingConfig;
     }
 
+    private static void InitializeDefragmentationStrategies()
+    {
+        var types = AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes()).Where(t => typeof(IDefragmentationStrategy).IsAssignableFrom(t) && !t.IsInterface);
+
+        // ReSharper disable once LocalVariableHidesMember
+        var defragmentationStrategies = new Dictionary<string, Type>();
+        
+        foreach (var type in types)
+        {
+            var markerAttribute = Attribute.GetCustomAttribute(type, typeof(DefragmentationStrategyAttribute)) as DefragmentationStrategyAttribute;
+
+            if (markerAttribute == null)
+            {
+                if (logger != null)
+                {
+                    logger.LogCritical("Class {ClassName} must be annotated with {AttributeName}", type.FullName, typeof(DefragmentationStrategyAttribute));
+                }
+                else if (EnvironmentHelpers.IsConsolePresent)
+                {
+                    Console.Error.WriteLine($"Class {type} must be annotated with {typeof(DefragmentationStrategyAttribute)}");
+                }
+                Environment.Exit(ExitCodes.DefragmentationStrategyNotInstantiable);
+            }
+
+            defragmentationStrategies[markerAttribute.Name] = type;
+        }
+
+        Startup.defragmentationStrategies = defragmentationStrategies.ToImmutableDictionary();
+    }
+
     private static IServiceCollection InitializeServicesInternal()
     {
         var builder = new ServiceCollection()
@@ -97,6 +130,39 @@ public class Startup
                     ? new AniDbClient(Constants.ApiClientName, Constants.ApiClientVersion, config!.AniDb.Username, config.AniDb.Password)
                     : new AniDbClient(Constants.ApiClientName, Constants.ApiClientVersion);
             })
+            .AddTransient(p =>
+            {
+                var config = p.GetService<Config>();
+
+                if (string.IsNullOrWhiteSpace(config?.Destination?.DefragmentationStrategy))
+                {
+                    return p.GetService<LowestEpisodeDefragmentationStrategy>();
+                }
+
+                if (!defragmentationStrategies.TryGetValue(config.Destination.DefragmentationStrategy, out var type))
+                {
+                    if (EnvironmentHelpers.IsConsolePresent)
+                    {
+                        Console.Error.WriteLine($"No defragmentation strategy found for name {config.Destination.DefragmentationStrategy}");
+                    }
+                    Environment.Exit(ExitCodes.DefragmentationStrategyNotInstantiable);
+                    return null;
+                }
+
+                var defragmentationStrategy = p.GetService(type) as IDefragmentationStrategy;
+
+                if (defragmentationStrategy == null)
+                {
+                    if (EnvironmentHelpers.IsConsolePresent)
+                    {
+                        Console.Error.WriteLine($"Could not instantiate defragmentation strategy {config.Destination.DefragmentationStrategy}");
+                    }
+                    Environment.Exit(ExitCodes.DefragmentationStrategyNotInstantiable);
+                    return null;
+                }
+
+                return defragmentationStrategy;
+            })
             .AddLogging(b =>
             {
                 b.ClearProviders();
@@ -116,6 +182,11 @@ public class Startup
         foreach (var commandType in AssemblyHelpers.CommandTypes)
         {
             builder = builder.AddTransient(commandType);
+        }
+
+        foreach (var defragmentationStrategyType in AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes()).Where(t => typeof(IDefragmentationStrategy).IsAssignableFrom(t) && !t.IsInterface))
+        {
+            builder = builder.AddTransient(defragmentationStrategyType);
         }
 
         return builder;
@@ -170,6 +241,7 @@ public class Startup
     public static IServiceProvider Initialize(Config config)
     {
         AppPaths.Initialize();
+        InitializeDefragmentationStrategies();
         ServiceProvider = InitializeServices(config);
         logger = ServiceProvider.GetService<ILogger<Startup>>();
         InitializeCommands();

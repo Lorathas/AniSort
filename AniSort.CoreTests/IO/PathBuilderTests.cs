@@ -12,18 +12,16 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using AniSort.Core.IO;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using AniDbSharp.Data;
 using AniDbSharp.Extensions;
+using AniSort.Core.IO;
 using AniSort.Core.Utils;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using FileInfo = AniDbSharp.Data.FileInfo;
 
-namespace AniSort.Core.IO.Tests
+namespace AniSort.CoreTests.IO
 {
     [TestClass()]
     public class PathBuilderTests

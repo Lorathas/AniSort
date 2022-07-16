@@ -26,6 +26,7 @@ using AniDbSharp.Exceptions;
 using AniSort.Core.Crypto;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
+using AniSort.Core.Defragmentation;
 using AniSort.Core.Extensions;
 using AniSort.Core.Helpers;
 using AniSort.Core.IO;
@@ -594,7 +595,7 @@ public class BlockProvider
             var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
-            var pathBuilderRepository = serviceProvider.GetService<IPathBuilderRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(PathBuilderRepository)}");
+            var pathBuilderRepository = serviceProvider.GetService<IPathBuilderRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IPathBuilderRepository)}");
 
             using var logScope = logger.BeginScope("RenameFileBlock");
 
@@ -608,7 +609,31 @@ public class BlockProvider
                 {
                     throw new ApplicationException($"Video file {localFile.Path} has no extension");
                 }
-                var pathBuilder = pathBuilderRepository.GetPathBuilderForPath(localFile.Path);
+                
+                
+                
+                IPathBuilder pathBuilder;
+                if (config.Destination.DefragmentSeries)
+                {
+                    var defragmentationStrategy = serviceProvider.GetService<IDefragmentationStrategy>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IDefragmentationStrategy)}");
+                    
+                    List<LocalFile> otherShowFiles;
+                    await AniSortContext.DatabaseLock.WaitAsync();
+                    try
+                    {
+                        otherShowFiles = await localFileRepository.GetOtherLocalFilesForSameSeriesAsFile(localFile.Id).ToListAsync();
+                    }
+                    finally
+                    {
+                        AniSortContext.DatabaseLock.Release();
+                    }
+
+                    pathBuilder = defragmentationStrategy.GetPathBuilderForFiles(otherShowFiles);
+                }
+                else
+                {
+                    pathBuilder = pathBuilderRepository.GetPathBuilderForPath(localFile.Path);
+                }
 
                 // Trailing dot is there to prevent Path.ChangeExtension from screwing with the path if it has been ellipsized or has ellipsis in it
                 var destinationPathWithoutExtension = pathBuilder.BuildPath(fileInfo, animeInfo,

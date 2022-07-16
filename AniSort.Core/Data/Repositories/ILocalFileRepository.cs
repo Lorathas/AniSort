@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AniSort.Core.Data.Repositories;
@@ -26,7 +27,7 @@ public interface ILocalFileRepository : IRepository<LocalFile, Guid>
     /// </summary>
     /// <param name="hash">Hash to match</param>
     /// <returns>Files with matching hash if it exists, otherwise default</returns>
-    IEnumerable<LocalFile> GetForEd2kHash(byte[] hash);
+    IQueryable<LocalFile> GetForEd2kHash(byte[] hash);
     
     /// <summary>
     /// Gets files with a matching ED2k hash
@@ -88,4 +89,18 @@ public interface ILocalFileRepository : IRepository<LocalFile, Guid>
     /// </summary>
     /// <returns>Files without resolution info</returns>
     IAsyncEnumerable<LocalFile> GetWithoutResolutionAsync();
+
+    /// <summary>
+    /// Get other local files for the file in the same series with their episode files and episodes linked
+    /// </summary>
+    /// <param name="localFileId">Id of the file to fetch neighbors for</param>
+    /// <returns></returns>
+    IQueryable<LocalFile> GetOtherLocalFilesForSameSeriesAsFile(Guid localFileId);
+
+    /// <summary>
+    /// Get other local files for the file in the same series with their episode files and episodes linked
+    /// </summary>
+    /// <param name="localFileId">Id of the file to fetch neighbors for</param>
+    /// <returns></returns>
+    IAsyncEnumerable<LocalFile> GetOtherLocalFilesForSameSeriesAsFileAsync(Guid localFileId);
 }
