@@ -7,36 +7,22 @@ on:
     branches: [ master, develop ]
 
 jobs:
-  Build:
+  build:
 
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet-version: ['6.x']
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 6.x.x
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
-    - name: AniDbSharp Unit Tests
-      run: dotnet test AniDbSharpTests --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
-    - name: Report AniDbSharp Unit Tests
-      uses: dorny/test-reporter@v1
-      if: success() || failure()
-      with:
-        name: AniDbSharp Unit Tests
-        path: AniDbSharpTests/TestResults/test-results.trx
-        reporter: dotnet-trx
-    - name: AniSort.Core Unit Tests
-      run: dotnet test AniSort.CoreTests --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
-    - name: Report AniSort.Core Unit Tests
-      uses: dorny/test-reporter@v1
-      if: success() || failure()
-      with:
-        name: AniSort.Core Unit Tests
-        path: AniSort.CoreTests/TestResults/test-results.trx
-        reporter: dotnet-trx
-    
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      - name: Test
+        run: dotnet test --no-restore --verbosity normal
