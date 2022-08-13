@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="anisort.sqlite3" uuid="983cb078-76ec-4760-9799-2f1c664aa009">
+    <data-source source="LOCAL" name="SQLite" uuid="983cb078-76ec-4760-9799-2f1c664aa009">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:$USER_HOME$/AppData/Roaming/AniSort/anisort.sqlite3</jdbc-url>
+      <jdbc-url>jdbc:sqlite://SERVEY/AniSort/AniSort/anisort.sqlite3</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

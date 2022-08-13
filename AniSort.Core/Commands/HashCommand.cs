@@ -31,6 +31,11 @@ public class HashCommand : ICommand
 
         fileQueue.AddPathsToQueue(config.Sources);
 
+        if (!config.IgnoreLibraryFiles)
+        {
+            fileQueue.AddPathsToQueue(config.LibraryPaths);
+        }
+
         while (fileQueue.TryDequeue(out var path))
         {
             await using var fs = new BufferedStream(File.OpenRead(path));
