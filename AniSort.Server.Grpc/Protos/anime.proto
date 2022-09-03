@@ -1,0 +1,60 @@
+﻿syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "Protos/episode_files.proto";
+
+option csharp_namespace = "AniSort.Server";
+
+package anisort;
+
+service AnimeService {
+  rpc GetForFileId(FileIdRequest) returns (Anime);
+  
+  rpc GetForFileHash(FileHashRequest) returns (Anime);
+}
+
+//region Models
+
+message Anime {
+  int32 animeId = 1;
+  int32 totalEpisodes = 2;
+  int32 highestEpisodeNumber = 3;
+  int32 year = 4;
+  string type = 5;
+  string romajiName = 6;
+  string kanjiName = 7;
+  string englishName = 8;
+  optional string otherName = 9;
+  repeated string synonyms = 10;
+  repeated Episode episodes = 11;
+  google.protobuf.Timestamp createdAt = 12;
+  google.protobuf.Timestamp updatedAt = 13;
+}
+
+message Episode {
+  int32 episodeId = 1;
+  optional int32 animeId = 2;
+  optional Anime anime = 3;
+  string number = 4;
+  string englishName = 5;
+  string romajiName = 6;
+  string kanjiName = 7;
+  optional int32 rating = 8;
+  optional int32 voteCount = 9;
+  repeated EpisodeFile files = 10;
+}
+
+//endregion
+
+//region Requests and Replies
+
+message FileIdRequest {
+  int32 episodeFileId = 1;
+}
+
+message FileHashRequest {
+  bytes ed2kHash = 1;
+  int64 fileSize = 2;
+}
+
+//endregion

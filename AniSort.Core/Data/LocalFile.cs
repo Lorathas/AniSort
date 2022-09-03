@@ -19,4 +19,5 @@ public class LocalFile
     public ImportStatus Status { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+    public virtual ICollection<Job> Jobs { get; set; } = new List<Job>();
 }

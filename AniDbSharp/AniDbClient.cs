@@ -21,18 +21,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using AniDbSharp.Data;
 using AniDbSharp.Exceptions;
+using Polly;
 
 namespace AniDbSharp
 {
-    public class AniDbClient : IDisposable, IAsyncDisposable
+    public class AniDbClient : IAniDbClient
     {
         private const int ClientPort = 32569;
         private const int ServerPort = 9000;
         private const string Endpoint = "api.anidb.net";
         private const string SupportedApiVersion = "3";
         private static readonly List<string> UnauthWhitelist = new() { "PING", "ENCRYPT", "ENCODING", "AUTH", "VERSION" };
-        private static readonly TimeSpan RequestCooldownTime = TimeSpan.FromSeconds(4);
-        private static readonly SemaphoreSlim ApiLock = new(1, 1);
+        private static readonly TimeSpan RequestCooldownTime = TimeSpan.FromSeconds(2);
+        private static readonly AsyncPolicy RateLimitPolicy = Policy.RateLimitAsync(1, RequestCooldownTime);
 
         private readonly string username;
         private readonly string password;
@@ -42,7 +43,6 @@ namespace AniDbSharp
         private bool isConnected;
         private bool isAuthenticated;
         private string? sessionToken;
-        private DateTime lastRequestTime = DateTime.MinValue;
         private UdpClient? udpClient;
 
         /// <summary>
@@ -79,44 +79,42 @@ namespace AniDbSharp
 
         public async Task<AniDbResponse> SendCommandAsync(string command, ParamBuilder? parameters = null)
         {
-            await ApiLock.WaitAsync();
-
-            try
+            if (!isConnected || udpClient == null)
             {
-                if (!isConnected || udpClient == null)
-                {
-                    throw new AniDbConnectionException("AniDbClient is not connected yet. Make sure to call .Connect() and that it successfully connects before trying to execute any commands.");
-                }
+                throw new AniDbConnectionException("AniDbClient is not connected yet. Make sure to call .Connect() and that it successfully connects before trying to execute any commands.");
+            }
 
-                if (string.IsNullOrWhiteSpace(command))
-                {
-                    throw new ArgumentNullException(nameof(command));
-                }
+            if (string.IsNullOrWhiteSpace(command))
+            {
+                throw new ArgumentNullException(nameof(command));
+            }
 
-                command = command.ToUpperInvariant();
+            command = command.ToUpperInvariant();
 
-                if (!UnauthWhitelist.Contains(command) && !isAuthenticated)
-                {
-                    throw new AniDbException($"Command \"{command}\" requires the client to be authenticated.");
-                }
+            if (!UnauthWhitelist.Contains(command) && !isAuthenticated)
+            {
+                throw new AniDbException($"Command \"{command}\" requires the client to be authenticated.");
+            }
 
-                if (parameters == null)
-                {
-                    parameters = new ParamBuilder();
-                }
+            if (parameters == null)
+            {
+                parameters = new ParamBuilder();
+            }
 
-                if (isAuthenticated)
-                {
-                    parameters.Add("s", sessionToken);
-                }
+            if (isAuthenticated)
+            {
+                parameters.Add("s", sessionToken);
+            }
 
-                byte[] bytes = Encoding.ASCII.GetBytes($"{command} {parameters}");
+            byte[] bytes = Encoding.ASCII.GetBytes($"{command} {parameters}");
 
-                if (bytes.Length > 1400)
-                {
-                    throw new AniDbException("Request size greater than 1,400 bytes. Please ensure that you are formatting the request correctly.");
-                }
-
+            if (bytes.Length > 1400)
+            {
+                throw new AniDbException("Request size greater than 1,400 bytes. Please ensure that you are formatting the request correctly.");
+            }
+            
+            async Task<AniDbResponse> SendCommandInternal()
+            {
                 await udpClient.SendAsync(bytes, bytes.Length);
 
                 var task = udpClient.ReceiveAsync();
@@ -178,23 +176,13 @@ namespace AniDbSharp
 
                 ThrowForGlobalErrors(response);
 
-                lastRequestTime = DateTime.Now;
-
                 return response;
             }
-            finally
-            {
-#pragma warning disable CS4014
-                Task.Run(async () =>
-#pragma warning restore CS4014
-                {
-                    await Task.Delay(RequestCooldownTime);
-                    ApiLock.Release();
-                });
-            }
+
+            return await RateLimitPolicy.ExecuteAsync(SendCommandInternal);
         }
 
-        private AniDbResponse SendCommandIgnoreWarnings([NotNull] string command, ParamBuilder? parameters = null)
+        private Task<AniDbResponse> SendCommandIgnoreWarnings([NotNull] string command, ParamBuilder? parameters = null)
         {
             if (string.IsNullOrWhiteSpace(command))
             {

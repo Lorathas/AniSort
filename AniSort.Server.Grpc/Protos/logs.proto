@@ -1,0 +1,24 @@
+﻿syntax = "proto3";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "AniSort.Server";
+
+package anisort;
+
+message JobLog {
+  string jobLogId = 1;
+  optional string jobId = 2;
+  string message = 3;
+  google.protobuf.Struct params = 4;
+  google.protobuf.Timestamp createdAt = 5;
+}
+
+message StepLog {
+  string stepLogId = 1;
+  optional string stepId = 2;
+  string message = 3;
+  google.protobuf.Struct params = 4;
+  google.protobuf.Timestamp createdAt = 5;
+}

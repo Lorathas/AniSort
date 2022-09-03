@@ -81,6 +81,10 @@ public class AniSortContext : DbContext
         modelBuilder.Entity<FileAction>()
             .Property(e => e.Type)
             .HasConversion(new EnumToStringConverter<FileActionType>());
+
+        modelBuilder.ApplyConfiguration(new JobEntityTypeConfiguration());
+        modelBuilder.ApplyConfiguration(new JobLogEntityTypeConfiguration());
+        modelBuilder.ApplyConfiguration(new StepLogEntityTypeConfiguration());
     }
 
     /// <inheritdoc />

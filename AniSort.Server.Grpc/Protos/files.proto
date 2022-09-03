@@ -1,0 +1,79 @@
+﻿syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "AniSort.Server";
+
+package anisort;
+
+service LocalFileService {
+  rpc ListFiles(FilteredLocalFilesRequest) returns (stream LocalFile);
+  
+  rpc ListenForFileUpdates(FilteredLocalFilesRequest) returns (stream LocalFile);
+  
+  rpc GetFileDetails(LocalFileRequest) returns (LocalFile);
+}
+
+//region Base Data Types
+
+message LocalFile {
+  optional string localFileId = 1;
+  optional int32 episodeFileId = 2;
+  string path = 3;
+  optional bytes ed2kHash = 4;
+  optional bytes md5Hash = 5;
+  optional bytes sha3_512Hash = 6;
+  int64 fileLength = 7;
+  repeated FileAction fileActions = 8;
+  ImportStatus status = 9;
+  google.protobuf.Timestamp createdAt = 10;
+  google.protobuf.Timestamp updatedAt = 11;
+}
+
+enum ImportStatus {
+  NotYetImported = 0;
+  Imported = 1;
+  Error = 2;
+  NoFileFound = 3;
+  ImportedMissingData = 4;
+  Hashed = 5;
+}
+
+message FileAction {
+  string fileActionId = 1;
+  FileActionType type = 2;
+  bool success = 3;
+  string info = 4;
+  string exception = 5;
+  optional string localFileId = 6;
+  optional LocalFile localFile = 7;
+  google.protobuf.Timestamp createdAt = 8;
+  google.protobuf.Timestamp updatedAt = 9;
+}
+
+enum FileActionType {
+  Hash = 0;
+  Search = 1;
+  Copy = 2;
+  Move = 3;
+  Delete = 4;
+  Copied = 5;
+}
+
+//endregion
+
+//region Request Types
+
+message FilteredLocalFilesRequest {
+  int32 page = 1;
+  optional string search = 2;
+  optional google.protobuf.Timestamp startTime = 3;
+  optional google.protobuf.Timestamp endTime = 4;
+  optional ImportStatus status = 5;
+}
+
+message LocalFileRequest {
+  string localFileId = 1;
+}
+
+//endregion

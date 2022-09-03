@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AniSort.Core.Data.Filtering;
+using AniSort.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace AniSort.Core.Data.Repositories;
@@ -101,6 +103,85 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     {
         return Set.Where(f => f.Path.Contains("[0x0]"))
             .Include(f => f.EpisodeFile)
+            .AsAsyncEnumerable();
+    }
+
+    private IOrderedQueryable<LocalFile> SearchForFilesPagedInternal(LocalFileFilter filter)
+    {
+        string[] searchTerms = filter.Search.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        var query = Set.AsQueryable();
+
+        query = searchTerms.Aggregate(query, (current, term) => current.Where(f => f.Path.ToLowerInvariant().Contains(term)));
+
+        if (filter.Start.HasValue)
+        {
+            query = query.Where(f => f.CreatedAt >= filter.Start.Value || f.UpdatedAt >= filter.Start.Value);
+        }
+
+        if (filter.End.HasValue)
+        {
+            query = query.Where(f => f.CreatedAt < filter.End.Value || f.UpdatedAt < filter.End.Value);
+        }
+
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(f => f.Status == filter.Status.Value);
+        }
+        
+        IOrderedQueryable<LocalFile> orderedQuery;
+
+        switch (filter.SortBy)
+        {
+            case LocalFileSortBy.Path:
+                orderedQuery = filter.Sort == SortDirection.Ascending
+                    ? query.OrderBy(f => f.Path)
+                    : query.OrderByDescending(f => f.Path);
+                break;
+            case LocalFileSortBy.Length:
+                orderedQuery = filter.Sort == SortDirection.Ascending
+                    ? query.OrderBy(f => f.FileLength)
+                    : query.OrderByDescending(f => f.FileLength);
+                break;
+            case LocalFileSortBy.Hash:
+                orderedQuery = filter.Sort == SortDirection.Ascending
+                    ? query.OrderBy(f => f.Ed2kHash)
+                    : query.OrderByDescending(f => f.Ed2kHash);
+                break;
+            case LocalFileSortBy.Status:
+                orderedQuery = filter.Sort == SortDirection.Ascending
+                    ? query.OrderBy(f => f.Status)
+                    : query.OrderByDescending(f => f.Status);
+                break;
+            case LocalFileSortBy.CreatedAt:
+                orderedQuery = filter.Sort == SortDirection.Ascending
+                    ? query.OrderBy(f => f.CreatedAt)
+                    : query.OrderByDescending(f => f.CreatedAt);
+                break;
+            case LocalFileSortBy.UpdatedAt:
+                orderedQuery = filter.Sort == SortDirection.Ascending
+                    ? query.OrderBy(f => f.UpdatedAt)
+                    : query.OrderByDescending(f => f.UpdatedAt);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        return orderedQuery;
+    }
+
+    public IEnumerable<LocalFile> SearchForFilesPaged(LocalFileFilter filter, int page, int pageSize)
+    {
+        return SearchForFilesPagedInternal(filter)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize);
+    }
+
+    public IAsyncEnumerable<LocalFile> SearchForFilesPagedAsync(LocalFileFilter filter, int page, int pageSize)
+    {
+        return SearchForFilesPagedInternal(filter)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .AsAsyncEnumerable();
     }
 }

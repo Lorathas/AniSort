@@ -2,11 +2,11 @@
 {
     public enum ImportStatus
     {
-        NotYetImported,
-        Imported,
-        Error,
-        NoFileFound,
-        ImportedMissingData,
-        Hashed
+        NotYetImported = 0,
+        Imported = 1,
+        Error = 2,
+        NoFileFound = 3,
+        ImportedMissingData = 4,
+        Hashed = 5,
     }
 }

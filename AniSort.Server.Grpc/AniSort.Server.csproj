@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Protobuf Include="Protos\jobs.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\logs.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\common.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\files.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\anime.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\episode_files.proto" GrpcServices="Server" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Grpc.AspNetCore" Version="2.40.0" />
+        <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+        <PackageReference Include="System.Text.Json" Version="6.0.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\AniDbSharp\AniDbSharp.csproj" />
+      <ProjectReference Include="..\AniSort.Core\AniSort.Core.csproj" />
+      <ProjectReference Include="..\AniSort\AniSort.csproj" />
+    </ItemGroup>
+
+</Project>

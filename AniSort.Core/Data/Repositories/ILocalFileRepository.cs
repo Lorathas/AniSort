@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AniSort.Core.Data.Filtering;
+using AniSort.Core.Models;
 
 namespace AniSort.Core.Data.Repositories;
 
@@ -88,4 +90,22 @@ public interface ILocalFileRepository : IRepository<LocalFile, Guid>
     /// </summary>
     /// <returns>Files without resolution info</returns>
     IAsyncEnumerable<LocalFile> GetWithoutResolutionAsync();
+
+    /// <summary>
+    /// Search for files with some simple filters
+    /// </summary>
+    /// <param name="filter">Filtering for the files</param>
+    /// <param name="page">Page to fetch</param>
+    /// <param name="pageSize">Size of each page</param>
+    /// <returns></returns>
+    IEnumerable<LocalFile> SearchForFilesPaged(LocalFileFilter filter, int page, int pageSize);
+    
+    /// <summary>
+    /// Search for files with some simple filters
+    /// </summary>
+    /// <param name="filter">Filtering for the files</param>
+    /// <param name="page">Page to fetch</param>
+    /// <param name="pageSize">Size of each page</param>
+    /// <returns></returns>
+    IAsyncEnumerable<LocalFile> SearchForFilesPagedAsync(LocalFileFilter filter, int page, int pageSize);
 }

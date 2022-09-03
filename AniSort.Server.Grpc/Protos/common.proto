@@ -1,0 +1,13 @@
+﻿syntax = "proto3";
+
+option csharp_namespace = "AniSort.Server";
+
+package anisort;
+
+message Empty {
+}
+
+enum FilterDirection {
+  Ascending = 0;
+  Descending = 1;
+}

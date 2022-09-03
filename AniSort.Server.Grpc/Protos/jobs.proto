@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "Protos/logs.proto";
+import "Protos/common.proto";
+
+option csharp_namespace = "AniSort.Server";
+
+package anisort;
+
+// The greeting service definition.
+service JobService {
+  // Queue Job to be run
+  rpc QueueJob (QueueJobRequest) returns (Empty);
+  
+  // List jobs based on filtering conditions
+  rpc ListJobs (FilteredJobsRequest) returns (stream JobReply);
+  
+  // Open stream for listening for job changes based on filtering conditions
+  rpc ListenForJobChanges (FilteredJobsRequest) returns (stream JobUpdateReply);
+  
+  // Get stream of job details and updates
+  rpc GetJobDetails (JobDetailsRequest) returns (stream JobDetailsReply);
+}
+
+enum JobStatus {
+  Created = 0;
+  Queued = 1;
+  Running = 2;
+  Completed = 3;
+  Failed = 4;
+}
+
+enum JobUpdate {
+  JobCreated = 0;
+  JobStarted = 1;
+  JobProgress = 2;
+  JobCompleted = 3;
+  JobFailed = 4;
+}
+
+enum JobType {
+  Sort = 0;
+  Hash = 1;
+  Defragment = 2;
+}
+
+message JobStep {
+  string stepId = 1;
+  optional string jobId = 2;
+  string name = 3;
+  string type = 4;
+  JobStatus status = 5;
+  double percentComplete = 6;
+  optional google.protobuf.Timestamp startedAt = 7;
+  optional google.protobuf.Timestamp completedAt = 8;
+}
+
+// The response message containing the greetings.
+message JobUpdateReply {
+  string jobId = 1;
+  string name = 2;
+  JobType type = 3;
+  JobStatus status = 4;
+  double percentComplete = 5;
+  bool isFinished = 6;
+  optional google.protobuf.Timestamp queuedAt = 7;
+  optional google.protobuf.Timestamp startedAt = 8;
+  optional google.protobuf.Timestamp completedAt = 9; 
+  repeated JobStep steps = 10;
+  JobUpdate updateType = 11;
+  google.protobuf.Struct options = 12;
+}
+
+message QueueJobRequest {
+  string name = 1;
+  string type = 2;
+  google.protobuf.Struct options = 11;
+}
+
+message FilteredJobsRequest {
+  optional JobStatus status = 1;
+  optional string name = 2;
+  optional JobType type = 3;
+  optional google.protobuf.Timestamp startTime = 4;
+  optional google.protobuf.Timestamp endTime = 5;
+  optional JobFilterSortBy sortBy = 6;
+  optional FilterDirection sort = 7;
+}
+
+enum JobFilterSortBy
+{
+  Id = 0;
+  Name = 1;
+  Type = 2;
+  Status = 3;
+  PercentComplete = 4;
+  IsFinished = 5;
+  QueuedAt = 6;
+  StartedAt = 7;
+  CompletedAt = 8;
+}
+
+message JobReply {
+  string jobId = 1;
+  string name = 2;
+  JobType type = 3;
+  JobStatus status = 4;
+  double percentComplete = 5;
+  bool isFinished = 6;
+  optional google.protobuf.Timestamp startedAt = 7;
+  optional google.protobuf.Timestamp completedAt = 8;
+  repeated JobStep steps = 9;
+  google.protobuf.Struct options = 11;
+}
+
+message JobDetailsRequest {
+  string jobId = 1;
+}
+
+message JobDetailsReply {
+  message JobStepDetails {
+    string name = 1;
+    optional google.protobuf.Timestamp startedAt = 8;
+    optional google.protobuf.Timestamp completedAt = 9;
+    repeated StepLog logs = 3;
+  }
+  
+  repeated JobLog logs = 1;
+  repeated JobStepDetails steps = 2; 
+}
