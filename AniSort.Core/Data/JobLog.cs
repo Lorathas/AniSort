@@ -26,7 +26,7 @@ public class JobLogEntityTypeConfiguration : IEntityTypeConfiguration<JobLog>
     {
         builder.Property(l => l.Params)
             .HasConversion(
-                p => JsonSerializer.Serialize(p, Constants.JsonSerializerOptions),
-                p => Struct.Parser.ParseJson(p));
+                p => p.ToByteArray(),
+                p => Struct.Parser.ParseFrom(p));
     }
 }

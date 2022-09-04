@@ -173,4 +173,17 @@ public static class ModelExtensions
             QueuedAt = DateTimeOffset.Now
         };
     }
+
+    public static ScheduledJob ToReply(this AniSort.Core.Data.ScheduledJob scheduledJob)
+    {
+        return new ScheduledJob
+        {
+            ScheduledJobId = scheduledJob.Id.ToString(),
+            Name = scheduledJob.Name,
+            Type = (JobType) scheduledJob.Type,
+            ScheduleType = (ScheduleType) scheduledJob.ScheduleType,
+            Options = scheduledJob.Options,
+            ScheduleOptions = scheduledJob.ScheduleOptions,
+        };
+    }
 }

@@ -1,3 +1,4 @@
+using AniSort.Core;
 using AniSort.Server.Hubs;
 using AniSort.Server.Services;
 
@@ -11,6 +12,8 @@ builder.Services.AddGrpc();
 
 builder.Services.AddSingleton<IJobHub, JobHub>();
 builder.Services.AddSingleton<ILocalFileHub, LocalFileHub>();
+builder.Services.AddSingleton<IScheduledJobHub, ScheduledJobHub>();
+Startup.InitializeServices(null, builder.Services);
 
 var app = builder.Build();
 

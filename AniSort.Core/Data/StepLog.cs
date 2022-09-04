@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -23,7 +24,7 @@ public class StepLogEntityTypeConfiguration : IEntityTypeConfiguration<StepLog>
     {
         builder.Property(l => l.Params)
             .HasConversion(
-                p => JsonSerializer.Serialize(p, Constants.JsonSerializerOptions),
-                p => Struct.Parser.ParseJson(p));
+                p => p.ToByteArray(),
+                p => Struct.Parser.ParseFrom(p));
     }
 }

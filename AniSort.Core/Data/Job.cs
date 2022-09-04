@@ -35,7 +35,7 @@ public class JobEntityTypeConfiguration : IEntityTypeConfiguration<Job>
     {
         builder.Property(e => e.Options)
             .HasConversion(
-                o => JsonSerializer.Serialize(o, Constants.JsonSerializerOptions),
-                o => Struct.Parser.ParseJson(o));
+                o => o.ToByteArray(),
+                o => Struct.Parser.ParseFrom(o));
     }
 }

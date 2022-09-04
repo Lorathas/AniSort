@@ -71,9 +71,10 @@ public class Startup
         LogManager.Configuration = loggingConfig;
     }
 
-    private static IServiceCollection InitializeServicesInternal()
+    private static IServiceCollection InitializeServicesInternal(IServiceCollection builder = null)
     {
-        var builder = new ServiceCollection()
+        builder ??= new ServiceCollection();
+        builder
             .AddSingleton(sp => sp) // Add service provider so it's injectable for items that need a custom scope
             .AddSingleton(typeof(FileImportUtils))
             .AddScoped<IAnimeRepository, AnimeRepository>()
@@ -85,10 +86,12 @@ public class Startup
             .AddScoped<ILocalFileRepository, LocalFileRepository>()
             .AddScoped<IReleaseGroupRepository, ReleaseGroupRepository>()
             .AddScoped<ISynonymRepository, SynonymRepository>()
+            .AddScoped<IJobRepository, JobRepository>()
+            .AddScoped<IScheduledJobRepository, ScheduledJobRepository>()
             .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
             .AddTransient<LegacyDataStoreProvider>()
             .AddTransient<BlockProvider>()
-            .AddDbContext<AniSortContext>(builder => builder.UseSqlite($"Data Source={AppPaths.DatabasePath}"))
+            .AddDbContext<AniSortContext>(b => b.UseSqlite($"Data Source={AppPaths.DatabasePath}"))
             .AddTransient(p =>
             {
                 // ReSharper disable once VariableHidesOuterVariable
@@ -121,12 +124,10 @@ public class Startup
         return builder;
     }
 
-    public static ServiceProvider InitializeServices(Config config)
+    public static ServiceProvider InitializeServices(Config config, IServiceCollection serviceCollection = null)
     {
-        ServiceProvider?.Dispose();
-        ServiceProvider = null;
         InitializeLogging(config);
-        return ServiceProvider = InitializeServicesInternal()
+        return InitializeServicesInternal(serviceCollection)
             .AddSingleton(config ?? new Config())
             .BuildServiceProvider();
     }
@@ -167,10 +168,10 @@ public class Startup
         Startup.commands = commands.ToImmutableDictionary();
     }
 
-    public static IServiceProvider Initialize(Config config)
+    public static IServiceProvider Initialize(Config config, IServiceCollection serviceCollection = null)
     {
         AppPaths.Initialize();
-        ServiceProvider = InitializeServices(config);
+        ServiceProvider = InitializeServices(config, serviceCollection);
         logger = ServiceProvider.GetService<ILogger<Startup>>();
         InitializeCommands();
         return ServiceProvider;
