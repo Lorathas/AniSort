@@ -3,11 +3,11 @@ using AniSort.Core.Models;
 
 namespace AniSort.Core.Data.Filtering;
 
-public class LocalFileFilter : FilterBase<LocalFileSortBy>
+public class LocalFileFilter : PagedFilterBase<LocalFileSortBy>
 {
     public string Search { get; set; }
-    public DateTimeOffset? Start { get; set; }
-    public DateTimeOffset? End { get; set; }
+    public DateTimeOffset? StartTime { get; set; }
+    public DateTimeOffset? EndTime { get; set; }
     public ImportStatus? Status { get; set; }
 }
 

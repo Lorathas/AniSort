@@ -107,10 +107,10 @@ public class JobRepository : RepositoryBase<Job, Guid, AniSortContext>, IJobRepo
         return GetFilteredJobsInternal(filter).AsAsyncEnumerable();
     }
 
-    public IAsyncEnumerable<Job> GetFilteredJobsPaged(JobFilter filter, int page, int pageSize)
+    public IAsyncEnumerable<Job> GetFilteredJobsPaged(JobFilter filter, int pageSize)
     {
         return GetFilteredJobsInternal(filter)
-            .Skip((page - 1) * pageSize)
+            .Skip((filter.Page - 1) * pageSize)
             .Take(pageSize)
             .AsAsyncEnumerable();
     }

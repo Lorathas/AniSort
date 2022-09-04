@@ -2,7 +2,7 @@
 
 namespace AniSort.Core.Data.Filtering;
 
-public class JobFilter : FilterBase<JobFilterSortBy>
+public class JobFilter : PagedFilterBase<JobFilterSortBy>
 {
     public JobStatus? Status { get; init; }
     public string Name { get; init; }

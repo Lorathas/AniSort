@@ -8,14 +8,14 @@ option csharp_namespace = "AniSort.Server";
 package anisort;
 
 service AnimeService {
-  rpc GetForFileId(FileIdRequest) returns (Anime);
+  rpc GetForFileId(FileIdRequest) returns (AnimeReply);
   
-  rpc GetForFileHash(FileHashRequest) returns (Anime);
+  rpc GetForFileHash(FileHashRequest) returns (AnimeReply);
 }
 
 //region Models
 
-message Anime {
+message AnimeReply {
   int32 animeId = 1;
   int32 totalEpisodes = 2;
   int32 highestEpisodeNumber = 3;
@@ -34,14 +34,14 @@ message Anime {
 message Episode {
   int32 episodeId = 1;
   optional int32 animeId = 2;
-  optional Anime anime = 3;
+  optional AnimeReply anime = 3;
   string number = 4;
   string englishName = 5;
   string romajiName = 6;
   string kanjiName = 7;
   optional int32 rating = 8;
   optional int32 voteCount = 9;
-  repeated EpisodeFile files = 10;
+  repeated EpisodeFileReply files = 10;
 }
 
 //endregion

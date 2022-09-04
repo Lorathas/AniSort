@@ -6,6 +6,6 @@ option csharp_namespace = "AniSort.Server";
 
 package anisort;
 
-message EpisodeFile {
+message EpisodeFileReply {
   
 }

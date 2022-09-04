@@ -20,7 +20,7 @@ public interface IJobRepository : IRepository<Job, Guid>
     /// <param name="page">Page to get</param>
     /// <param name="pageSize">Size of each page</param>
     /// <returns></returns>
-    IAsyncEnumerable<Job> GetFilteredJobsPaged(JobFilter filter, int page, int pageSize);
+    IAsyncEnumerable<Job> GetFilteredJobsPaged(JobFilter filter, int pageSize);
 
     /// <summary>
     /// Get pending jobs

@@ -1,30 +1,51 @@
 ﻿syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
+import "Protos/common.proto";
+import "Protos/episode_files.proto";
 
 option csharp_namespace = "AniSort.Server";
 
 package anisort;
 
 service LocalFileService {
-  rpc ListFiles(FilteredLocalFilesRequest) returns (stream LocalFile);
+  rpc ListFiles(FilteredLocalFilesRequest) returns (stream LocalFileReply);
   
-  rpc ListenForFileUpdates(FilteredLocalFilesRequest) returns (stream LocalFile);
-  
-  rpc GetFileDetails(LocalFileRequest) returns (LocalFile);
+  rpc ListenForFileUpdates(LocalFileRequest) returns (stream LocalFileReply);
+
+  rpc GetFileDetails(LocalFileRequest) returns (LocalFileReply);
+
+  rpc GetPageInfo(FilteredLocalFilesRequest) returns (PagesInfo);
 }
 
 //region Base Data Types
 
-message LocalFile {
+message LocalFileReply {
   optional string localFileId = 1;
   optional int32 episodeFileId = 2;
+  optional EpisodeFileReply episodeFile = 12;
   string path = 3;
   optional bytes ed2kHash = 4;
   optional bytes md5Hash = 5;
   optional bytes sha3_512Hash = 6;
   int64 fileLength = 7;
-  repeated FileAction fileActions = 8;
+  repeated FileActionReply fileActions = 8;
+  ImportStatus status = 9;
+  google.protobuf.Timestamp createdAt = 10;
+  google.protobuf.Timestamp updatedAt = 11;
+}
+
+message LocalFileUpdate {
+  HubUpdate updateType = 13;
+  optional string localFileId = 1;
+  optional int32 episodeFileId = 2;
+  optional EpisodeFileReply episodeFile = 12;
+  string path = 3;
+  optional bytes ed2kHash = 4;
+  optional bytes md5Hash = 5;
+  optional bytes sha3_512Hash = 6;
+  int64 fileLength = 7;
+  repeated FileActionReply fileActions = 8;
   ImportStatus status = 9;
   google.protobuf.Timestamp createdAt = 10;
   google.protobuf.Timestamp updatedAt = 11;
@@ -39,14 +60,14 @@ enum ImportStatus {
   Hashed = 5;
 }
 
-message FileAction {
+message FileActionReply {
   string fileActionId = 1;
   FileActionType type = 2;
   bool success = 3;
   string info = 4;
-  string exception = 5;
+  optional string exception = 5;
   optional string localFileId = 6;
-  optional LocalFile localFile = 7;
+  optional LocalFileReply localFile = 7;
   google.protobuf.Timestamp createdAt = 8;
   google.protobuf.Timestamp updatedAt = 9;
 }
@@ -70,6 +91,17 @@ message FilteredLocalFilesRequest {
   optional google.protobuf.Timestamp startTime = 3;
   optional google.protobuf.Timestamp endTime = 4;
   optional ImportStatus status = 5;
+  optional SortDirection sort = 6;
+  optional LocalFileSortBy sortBy = 7;
+}
+
+enum LocalFileSortBy {
+  Path = 0;
+  Length = 1;
+  SortByHash = 2;
+  Status = 3;
+  CreatedAt = 4;
+  UpdatedAt = 5;
 }
 
 message LocalFileRequest {

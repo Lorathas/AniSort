@@ -1,5 +1,4 @@
-using AniSort.Server.JobManager;
-using AniSort.Server.Jobs;
+using AniSort.Server.Hubs;
 using AniSort.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,7 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddGrpc();
 
-builder.Services.AddSingleton<IJobManager, JobManager>();
+builder.Services.AddSingleton<IJobHub, JobHub>();
+builder.Services.AddSingleton<ILocalFileHub, LocalFileHub>();
 
 var app = builder.Build();
 

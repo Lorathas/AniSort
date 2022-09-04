@@ -7,7 +7,18 @@ package anisort;
 message Empty {
 }
 
-enum FilterDirection {
+message PagesInfo {
+  int32 pages = 1;
+}
+
+enum SortDirection {
   Ascending = 0;
   Descending = 1;
+}
+
+enum HubUpdate {
+  Initial = 0;
+  ItemCreated = 1;
+  ItemUpdated = 2;
+  ItemDeleted = 3;
 }

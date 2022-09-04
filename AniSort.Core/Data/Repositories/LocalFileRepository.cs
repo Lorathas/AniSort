@@ -106,7 +106,7 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
             .AsAsyncEnumerable();
     }
 
-    private IOrderedQueryable<LocalFile> SearchForFilesPagedInternal(LocalFileFilter filter)
+    private IOrderedQueryable<LocalFile> SearchForFilesInternal(LocalFileFilter filter)
     {
         string[] searchTerms = filter.Search.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
@@ -114,14 +114,14 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
 
         query = searchTerms.Aggregate(query, (current, term) => current.Where(f => f.Path.ToLowerInvariant().Contains(term)));
 
-        if (filter.Start.HasValue)
+        if (filter.StartTime.HasValue)
         {
-            query = query.Where(f => f.CreatedAt >= filter.Start.Value || f.UpdatedAt >= filter.Start.Value);
+            query = query.Where(f => f.CreatedAt >= filter.StartTime.Value || f.UpdatedAt >= filter.StartTime.Value);
         }
 
-        if (filter.End.HasValue)
+        if (filter.EndTime.HasValue)
         {
-            query = query.Where(f => f.CreatedAt < filter.End.Value || f.UpdatedAt < filter.End.Value);
+            query = query.Where(f => f.CreatedAt < filter.EndTime.Value || f.UpdatedAt < filter.EndTime.Value);
         }
 
         if (filter.Status.HasValue)
@@ -170,18 +170,42 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
         return orderedQuery;
     }
 
-    public IEnumerable<LocalFile> SearchForFilesPaged(LocalFileFilter filter, int page, int pageSize)
+    private IQueryable<LocalFile> SearchForFilesPagedInternal(LocalFileFilter filter, int pageSize)
     {
-        return SearchForFilesPagedInternal(filter)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize);
+        return SearchForFilesInternal(filter)
+            .Skip((filter.Page - 1) * pageSize)
+            .Take(pageSize);;
     }
 
-    public IAsyncEnumerable<LocalFile> SearchForFilesPagedAsync(LocalFileFilter filter, int page, int pageSize)
+    public IEnumerable<LocalFile> SearchForFilesPaged(LocalFileFilter filter, int pageSize)
     {
-        return SearchForFilesPagedInternal(filter)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+        return SearchForFilesPagedInternal(filter, pageSize);
+    }
+
+    public IAsyncEnumerable<LocalFile> SearchForFilesPagedAsync(LocalFileFilter filter, int pageSize)
+    {
+        return SearchForFilesPagedInternal(filter, pageSize)
             .AsAsyncEnumerable();
+    }
+
+    public Task<int> CountSearchedFilesAsync(LocalFileFilter filter)
+    {
+        return SearchForFilesInternal(filter).CountAsync();
+    }
+
+    public LocalFile GetByIdWithRelated(Guid id)
+    {
+        return Set.Where(f => f.Id == id)
+            .Include(f => f.FileActions)
+            .Include(f => f.EpisodeFile)
+            .FirstOrDefault();
+    }
+
+    public async Task<LocalFile> GetByIdWithRelatedAsync(Guid id)
+    {
+        return await Set.Where(f => f.Id == id)
+            .Include(f => f.FileActions)
+            .Include(f => f.EpisodeFile)
+            .FirstOrDefaultAsync();
     }
 }

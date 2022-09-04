@@ -95,17 +95,36 @@ public interface ILocalFileRepository : IRepository<LocalFile, Guid>
     /// Search for files with some simple filters
     /// </summary>
     /// <param name="filter">Filtering for the files</param>
-    /// <param name="page">Page to fetch</param>
     /// <param name="pageSize">Size of each page</param>
     /// <returns></returns>
-    IEnumerable<LocalFile> SearchForFilesPaged(LocalFileFilter filter, int page, int pageSize);
+    IEnumerable<LocalFile> SearchForFilesPaged(LocalFileFilter filter, int pageSize);
     
     /// <summary>
     /// Search for files with some simple filters
     /// </summary>
     /// <param name="filter">Filtering for the files</param>
-    /// <param name="page">Page to fetch</param>
     /// <param name="pageSize">Size of each page</param>
     /// <returns></returns>
-    IAsyncEnumerable<LocalFile> SearchForFilesPagedAsync(LocalFileFilter filter, int page, int pageSize);
+    IAsyncEnumerable<LocalFile> SearchForFilesPagedAsync(LocalFileFilter filter, int pageSize);
+
+    /// <summary>
+    /// Count filtered files
+    /// </summary>
+    /// <param name="filter"></param>
+    /// <returns></returns>
+    Task<int> CountSearchedFilesAsync(LocalFileFilter filter);
+
+    /// <summary>
+    /// Get a file by id with it's related data
+    /// </summary>
+    /// <param name="id">Id of the file</param>
+    /// <returns>File with prefetched related data</returns>
+    LocalFile GetByIdWithRelated(Guid id);
+
+    /// <summary>
+    /// Get a file by id with it's related data
+    /// </summary>
+    /// <param name="id">Id of the file</param>
+    /// <returns>File with prefetched related data</returns>
+    Task<LocalFile> GetByIdWithRelatedAsync(Guid id);
 }

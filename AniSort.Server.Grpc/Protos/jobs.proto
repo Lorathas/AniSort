@@ -20,8 +20,14 @@ service JobService {
   // Open stream for listening for job changes based on filtering conditions
   rpc ListenForJobChanges (FilteredJobsRequest) returns (stream JobUpdateReply);
   
+  // Get job details
+  rpc GetJobDetails (JobDetailsRequest) returns (JobDetailsReply);
+  
   // Get stream of job details and updates
-  rpc GetJobDetails (JobDetailsRequest) returns (stream JobDetailsReply);
+  rpc ListenForJobDetailUpdates (JobDetailsRequest) returns (stream JobDetailsReply);
+  
+  // Get page info for a FilteredJobsRequest
+  rpc GetPageInfo (FilteredJobsRequest) returns (PagesInfo);
 }
 
 enum JobStatus {
@@ -80,13 +86,14 @@ message QueueJobRequest {
 }
 
 message FilteredJobsRequest {
-  optional JobStatus status = 1;
-  optional string name = 2;
-  optional JobType type = 3;
-  optional google.protobuf.Timestamp startTime = 4;
-  optional google.protobuf.Timestamp endTime = 5;
-  optional JobFilterSortBy sortBy = 6;
-  optional FilterDirection sort = 7;
+  int32 page = 1;
+  optional JobStatus status = 2;
+  optional string name = 3;
+  optional JobType type = 4;
+  optional google.protobuf.Timestamp startTime = 5;
+  optional google.protobuf.Timestamp endTime = 6;
+  optional JobFilterSortBy sortBy = 7;
+  optional SortDirection sort = 8;
 }
 
 enum JobFilterSortBy
