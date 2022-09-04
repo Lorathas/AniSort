@@ -1,8 +1,12 @@
 ﻿namespace AniSort.Core.Data.Filtering;
 
-public class AnimeFilter : FilterBase<AnimeSortBy>
+public class AnimeFilter : FilterBase<AnimeSortBy, Anime>
 {
-    
+    /// <inheritdoc />
+    public override bool Matches(Anime entity)
+    {
+        throw new System.NotImplementedException();
+    }
 }
 
 public enum AnimeSortBy
