@@ -92,4 +92,51 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
     {
         return new PagesInfo { Pages = await localFileRepository.CountSearchedFilesAsync(request.ToFilter()) };
     }
+
+    #region File Finding
+    
+    /// <inheritdoc />
+    public override Task<DrivesReply> GetDrives(Empty request, ServerCallContext context)
+    {
+        var reply = new DrivesReply();
+        
+        reply.Drives.AddRange(Directory.GetLogicalDrives());
+
+        return Task.FromResult(reply);
+    }
+
+    /// <inheritdoc />
+    public override async Task GetFilesInDirectory(IAsyncStreamReader<DirectoryFilesRequest> requestStream, IServerStreamWriter<DirectoryFilesReply> responseStream, ServerCallContext context)
+    {
+        async Task SendDirectoryContents(string path)
+        {
+            string[] files = Directory.GetFiles(path);
+            string[] directories = Directory.GetDirectories(path);
+
+            var directoryFiles = new List<DirectoryFilesReply.Types.DirectoryFile>(files.Length + directories.Length);
+            
+            directoryFiles.AddRange(files.Select(f => new DirectoryFilesReply.Types.DirectoryFile{Name = f, Type = DirectoryFilesReply.Types.DirectoryFileType.File}));
+            directoryFiles.AddRange(directories.Select(d => new DirectoryFilesReply.Types.DirectoryFile{Name = d, Type = DirectoryFilesReply.Types.DirectoryFileType.Directory}));
+
+            var reply = new DirectoryFilesReply();
+            reply.Files.AddRange(directoryFiles);
+
+            await responseStream.WriteAsync(reply);
+        }
+        
+        string homeFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        await SendDirectoryContents(homeFolder);
+
+        while (!context.CancellationToken.IsCancellationRequested)
+        {
+            await requestStream.MoveNext();
+
+            if (context.CancellationToken.IsCancellationRequested) break;
+
+            await SendDirectoryContents(requestStream.Current.Path);
+        }
+    }
+    
+    #endregion
 }

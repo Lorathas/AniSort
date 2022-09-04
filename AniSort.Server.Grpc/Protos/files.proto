@@ -18,6 +18,10 @@ service LocalFileService {
   rpc GetFileDetails(LocalFileRequest) returns (LocalFileReply);
 
   rpc GetPageInfo(FilteredLocalFilesRequest) returns (PagesInfo);
+  
+  rpc GetDrives(Empty) returns (DrivesReply);
+  
+  rpc GetFilesInDirectory(stream DirectoryFilesRequest) returns (stream DirectoryFilesReply);
 }
 
 //region Base Data Types
@@ -108,6 +112,28 @@ enum LocalFileSortBy {
 
 message LocalFileRequest {
   string localFileId = 1;
+}
+
+message DrivesReply {
+  repeated string drives = 1;
+}
+
+message DirectoryFilesRequest {
+  string path = 1;
+}
+
+message DirectoryFilesReply {
+  repeated DirectoryFile files = 1;
+  
+  enum DirectoryFileType {
+    File = 0;
+    Directory = 1;
+  }
+  
+  message DirectoryFile {
+    DirectoryFileType type = 1;
+    string name = 2;
+  }
 }
 
 //endregion

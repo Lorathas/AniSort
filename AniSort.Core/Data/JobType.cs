@@ -2,7 +2,9 @@
 
 public enum JobType
 {
-    Sort = 0,
-    Hash = 1,
-    Defragment = 2,
+    SortFile = 0,
+    SortDirectory = 1,
+    HashFile = 2,
+    HashDirectory = 3,
+    Defragment = 4,
 }

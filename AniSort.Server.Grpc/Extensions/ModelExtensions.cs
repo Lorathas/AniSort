@@ -162,4 +162,15 @@ public static class ModelExtensions
 
         return reply;
     }
+
+    public static Job ToJob(this QueueJobRequest request)
+    {
+        return new Job
+        {
+            Name = request.Name,
+            Options = request.Options,
+            Type = (Core.Data.JobType) request.Type,
+            QueuedAt = DateTimeOffset.Now
+        };
+    }
 }

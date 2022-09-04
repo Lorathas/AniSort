@@ -1,20 +1,19 @@
-using System.Threading.Tasks.Dataflow;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
-using Grpc.Core;
-using AniSort.Server;
 using AniSort.Server.Extensions;
 using AniSort.Server.Hubs;
-using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
+using Grpc.Core;
 
 namespace AniSort.Server.Services;
 
 public class JobService : Server.JobService.JobServiceBase
 {
-    private readonly ILogger<JobService> logger;
     private readonly IJobHub jobHub;
+
     private readonly IJobRepository jobRepository;
+
+    private readonly ILogger<JobService> logger;
 
     public JobService(ILogger<JobService> logger, IJobHub jobHub, IJobRepository jobRepository)
     {
@@ -27,18 +26,18 @@ public class JobService : Server.JobService.JobServiceBase
         IServerStreamWriter<JobUpdateReply> responseStream, ServerCallContext context)
     {
         var filter = request.ToFilter();
-        
+
         await jobHub.RegisterListenerAsync(filter.Matches, async (job, update) =>
         {
             var reply = new JobUpdateReply
             {
                 JobId = job.Id.ToString(),
                 Name = job.Name,
-                Type = (JobType)job.Type,
-                Status = (JobStatus)job.Status,
+                Type = (JobType) job.Type,
+                Status = (JobStatus) job.Status,
                 PercentComplete = job.PercentComplete,
                 IsFinished = job.IsFinished,
-                UpdateType = (JobUpdate) update,
+                UpdateType = update,
                 StartedAt = job.StartedAt?.ToTimestamp(),
                 CompletedAt = job.CompletedAt?.ToTimestamp()
             };
@@ -46,10 +45,10 @@ public class JobService : Server.JobService.JobServiceBase
             {
                 StepId = s.Id.ToString(),
                 Name = s.Name,
-                Status = (JobStatus)s.Status,
+                Status = (JobStatus) s.Status,
                 PercentComplete = s.PercentComplete,
                 StartedAt = s.StartedAt?.ToTimestamp(),
-                CompletedAt = s.CompletedAt?.ToTimestamp(),
+                CompletedAt = s.CompletedAt?.ToTimestamp()
             }));
 
             await responseStream.WriteAsync(reply);
@@ -58,9 +57,16 @@ public class JobService : Server.JobService.JobServiceBase
         await context.CancellationToken;
     }
 
-    public override Task<Empty> QueueJob(QueueJobRequest request, ServerCallContext context)
+    public override async Task<JobReply> QueueJob(QueueJobRequest request, ServerCallContext context)
     {
-        throw new NotImplementedException();
+        var job = request.ToJob();
+        
+        // TODO: Add job steps here
+
+        await jobRepository.AddAsync(job);
+        await jobRepository.SaveChangesAsync();
+
+        return job.ToReply();
     }
 
     public override async Task ListJobs(FilteredJobsRequest request, IServerStreamWriter<JobReply> responseStream,
@@ -98,7 +104,7 @@ public class JobService : Server.JobService.JobServiceBase
 
         await Listener(job, JobUpdate.JobCreated);
 
-        jobHub.RegisterListener(Listener, context.CancellationToken);
+        await jobHub.RegisterListenerAsync(Listener, context.CancellationToken);
 
         await context.CancellationToken;
     }

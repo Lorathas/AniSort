@@ -12,7 +12,7 @@ package anisort;
 // The greeting service definition.
 service JobService {
   // Queue Job to be run
-  rpc QueueJob (QueueJobRequest) returns (Empty);
+  rpc QueueJob (QueueJobRequest) returns (JobReply);
   
   // List jobs based on filtering conditions
   rpc ListJobs (FilteredJobsRequest) returns (stream JobReply);
@@ -47,9 +47,11 @@ enum JobUpdate {
 }
 
 enum JobType {
-  Sort = 0;
-  Hash = 1;
-  Defragment = 2;
+  SortFile = 0;
+  SortDirectory = 1;
+  HashFile = 2;
+  HashDirectory = 3;
+  Defragment = 4;
 }
 
 message JobStep {
@@ -81,7 +83,7 @@ message JobUpdateReply {
 
 message QueueJobRequest {
   string name = 1;
-  string type = 2;
+  JobType type = 2;
   google.protobuf.Struct options = 11;
 }
 
