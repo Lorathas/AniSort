@@ -6,27 +6,41 @@ namespace AniSort.Server.Hubs;
 
 public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpdate> where TKey : notnull where TUpdate : Enum
 {
+    // ReSharper disable once StaticMemberInGenericType
+    private static readonly SemaphoreSlim LockSemaphore = new(1, 1);
+
     private readonly ConcurrentSet<FilterListenerRegistration> filterListeners = new();
 
     private readonly ConcurrentSet<HubListenerRegistration> globalListeners = new();
 
     private readonly ConcurrentDictionary<TKey, ConcurrentSet<HubListenerRegistration>> individualListeners = new();
 
+    private readonly ILogger<HubBase<TKey, TEntity, TUpdate>> logger;
+
     private readonly Channel<(TEntity, TUpdate)> updatesChannel = Channel.CreateUnbounded<(TEntity, TUpdate)>();
 
-    private static readonly SemaphoreSlim LockSemaphore = new(1, 1);
+    private string? hubType = null;
+
+    private string HubType => hubType ??= GetType().Name;
+
+    protected HubBase(ILogger<HubBase<TKey, TEntity, TUpdate>> logger)
+    {
+        this.logger = logger;
+    }
 
     protected abstract Func<TEntity, TKey> KeySelector { get; }
 
     /// <inheritdoc />
     public async Task PublishUpdateAsync(TEntity entity, TUpdate update)
     {
+        logger.LogTrace("Publishing update for {Entity}", entity);
         await updatesChannel.Writer.WriteAsync((entity, update));
     }
 
     /// <inheritdoc />
     public async Task RunAsync(CancellationToken cancellationToken)
     {
+        logger.LogTrace("{HubType} Hub starting up", HubType);
         while (!cancellationToken.IsCancellationRequested)
         {
             var (entity, update) = await updatesChannel.Reader.ReadAsync(cancellationToken);
@@ -35,6 +49,7 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
 
             await PublishUpdateInternal(entity, update);
         }
+        logger.LogTrace("{HubType} Hub shutting down", HubType);
     }
 
     private async Task PublishUpdateInternal(TEntity entity, TUpdate update)
@@ -62,10 +77,12 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
             {
                 if (removal.Registration.CancellationToken.IsCancellationRequested)
                 {
+                    logger.LogTrace("Slating listener {Listener} for unregistration in {HubType} Hub", removal.Registration, HubType);
                     removal.Remove();
                 }
                 else
                 {
+                    logger.LogTrace("Publishing update to listener {Listener} in {HubType} Hub", removal.Registration, HubType);
                     await removal.Registration.Listener(entity, update);
                 }
             }
@@ -76,6 +93,7 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
             {
                 if (individualListeners.TryGetValue(removal.Key, out individualRegistrations))
                 {
+                    logger.LogTrace("Unregistering listener {Listener} in {HubType} Hub", removal.Registration, HubType);
                     individualRegistrations.TryRemove(removal.Registration);
                 }
             }
@@ -86,6 +104,12 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
         }
     }
 
+    private record ListenerRemoval(HubListenerRegistration Registration, Action Remove);
+
+    private record HubListenerRegistration(Func<TEntity, TUpdate, Task> Listener, CancellationToken CancellationToken);
+
+    private record FilterListenerRegistration(Func<TEntity, bool> Predicate, Func<TEntity, TUpdate, Task> Listener, CancellationToken CancellationToken) : HubListenerRegistration(Listener, CancellationToken);
+
     #region Listeners
 
     /// <inheritdoc />
@@ -94,7 +118,9 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
         LockSemaphore.Wait(cancellationToken);
         try
         {
-            globalListeners.TryAdd(new HubListenerRegistration(listener, cancellationToken));
+            var registration = new HubListenerRegistration(listener, cancellationToken);
+            logger.LogTrace("Adding global listener {Listener} for {HubType} Hub", registration, HubType);
+            globalListeners.TryAdd(registration);
         }
         finally
         {
@@ -108,7 +134,9 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
         await LockSemaphore.WaitAsync(cancellationToken);
         try
         {
-            globalListeners.TryAdd(new HubListenerRegistration(listener, cancellationToken));
+            var registration = new HubListenerRegistration(listener, cancellationToken);
+            logger.LogTrace("Adding global listener {Listener} for {HubType} Hub", registration, HubType);
+            globalListeners.TryAdd(registration);
         }
         finally
         {
@@ -124,7 +152,9 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
         {
             var keyListeners = individualListeners.GetOrAdd(key, new ConcurrentSet<HubListenerRegistration>());
 
-            keyListeners.TryAdd(new HubListenerRegistration(listener, cancellationToken));
+            var registration = new HubListenerRegistration(listener, cancellationToken);
+            logger.LogTrace("Adding individual listener {Listener} for {HubType} Hub", registration, HubType);
+            keyListeners.TryAdd(registration);
         }
         finally
         {
@@ -140,7 +170,9 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
         {
             var keyListeners = individualListeners.GetOrAdd(key, new ConcurrentSet<HubListenerRegistration>());
 
-            keyListeners.TryAdd(new HubListenerRegistration(listener, cancellationToken));
+            var registration = new HubListenerRegistration(listener, cancellationToken);
+            logger.LogTrace("Adding individual listener {Listener} for {HubType} Hub", registration, HubType);
+            keyListeners.TryAdd(registration);
         }
         finally
         {
@@ -155,7 +187,9 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
         LockSemaphore.Wait(cancellationToken);
         try
         {
-            filterListeners.TryAdd(new FilterListenerRegistration(predicate, listener, cancellationToken));
+            var registration = new FilterListenerRegistration(predicate, listener, cancellationToken);
+            logger.LogTrace("Adding filter listener {Listener} for {HubType} Hub", registration, HubType);
+            filterListeners.TryAdd(registration);
         }
         finally
         {
@@ -169,7 +203,9 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
         await LockSemaphore.WaitAsync(cancellationToken);
         try
         {
-            filterListeners.TryAdd(new FilterListenerRegistration(predicate, listener, cancellationToken));
+            var registration = new FilterListenerRegistration(predicate, listener, cancellationToken);
+            logger.LogTrace("Adding filter listener {Listener} for {HubType} Hub", registration, HubType);
+            filterListeners.TryAdd(registration);
         }
         finally
         {
@@ -178,10 +214,4 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
     }
 
     #endregion
-
-    record ListenerRemoval(HubListenerRegistration Registration, Action Remove);
-    
-    record HubListenerRegistration(Func<TEntity, TUpdate, Task> Listener, CancellationToken CancellationToken);
-
-    record FilterListenerRegistration(Func<TEntity, bool> Predicate, Func<TEntity, TUpdate, Task> Listener, CancellationToken CancellationToken) : HubListenerRegistration(Listener, CancellationToken);
 }

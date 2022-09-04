@@ -11,7 +11,9 @@ package anisort;
 service LocalFileService {
   rpc ListFiles(FilteredLocalFilesRequest) returns (stream LocalFileReply);
   
-  rpc ListenForFileUpdates(LocalFileRequest) returns (stream LocalFileReply);
+  rpc ListenForFileUpdates(LocalFileRequest) returns (stream LocalFileUpdateReply);
+  
+  rpc ListenForAllFileUpdates(FilteredLocalFilesRequest) returns (stream LocalFileUpdateReply);
 
   rpc GetFileDetails(LocalFileRequest) returns (LocalFileReply);
 
@@ -35,7 +37,7 @@ message LocalFileReply {
   google.protobuf.Timestamp updatedAt = 11;
 }
 
-message LocalFileUpdate {
+message LocalFileUpdateReply {
   HubUpdate updateType = 13;
   optional string localFileId = 1;
   optional int32 episodeFileId = 2;

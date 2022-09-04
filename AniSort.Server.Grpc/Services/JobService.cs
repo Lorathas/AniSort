@@ -26,7 +26,9 @@ public class JobService : Server.JobService.JobServiceBase
     public override async Task ListenForJobChanges(FilteredJobsRequest request,
         IServerStreamWriter<JobUpdateReply> responseStream, ServerCallContext context)
     {
-        await jobHub.RegisterListenerAsync(async (job, update) =>
+        var filter = request.ToFilter();
+        
+        await jobHub.RegisterListenerAsync(filter.Matches, async (job, update) =>
         {
             var reply = new JobUpdateReply
             {

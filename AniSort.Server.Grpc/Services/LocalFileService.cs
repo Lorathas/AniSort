@@ -30,16 +30,20 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
             .ForEachAwaitAsync(async r => await responseStream.WriteAsync(r));
     }
 
-    public override async Task ListenForFileUpdates(LocalFileRequest request, IServerStreamWriter<LocalFileReply> responseStream, ServerCallContext context)
+    public override async Task ListenForFileUpdates(LocalFileRequest request, IServerStreamWriter<LocalFileUpdateReply> responseStream, ServerCallContext context)
     {
+        logger.LogTrace("Listener for updates registered at ");
+        
+        var localFileId = new Guid(request.LocalFileId);
+        
         async Task Listener(LocalFile file, HubUpdate update)
         {
-            await responseStream.WriteAsync(file.ToReply());
+            await responseStream.WriteAsync(file.ToUpdateReply(update));
         }
 
-        var job = await localFileRepository.GetByIdWithRelatedAsync(Guid.Parse(request.LocalFileId));
+        var file = await localFileRepository.GetByIdWithRelatedAsync(localFileId);
 
-        if (job == null)
+        if (file == null)
         {
             throw new RpcException(new Status(StatusCode.NotFound, $"No local file found for id {request.LocalFileId}"), new Metadata
             {
@@ -47,9 +51,24 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
             });
         }
 
-        await Listener(job, HubUpdate.Initial);
+        await Listener(file, HubUpdate.Initial);
 
-        await fileHub.RegisterListenerAsync(Listener, context.CancellationToken);
+        await fileHub.RegisterListenerAsync(localFileId, Listener, context.CancellationToken);
+
+        await context.CancellationToken;
+    }
+
+    /// <inheritdoc />
+    public override async Task ListenForAllFileUpdates(FilteredLocalFilesRequest request, IServerStreamWriter<LocalFileUpdateReply> responseStream, ServerCallContext context)
+    {
+        var filter = request.ToFilter();
+        
+        async Task Listener(LocalFile file, HubUpdate update)
+        {
+            await responseStream.WriteAsync(file.ToUpdateReply(update));
+        }
+
+        await fileHub.RegisterListenerAsync(filter.Matches, Listener, context.CancellationToken);
 
         await context.CancellationToken;
     }

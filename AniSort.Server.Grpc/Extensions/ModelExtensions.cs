@@ -38,6 +38,38 @@ public static class ModelExtensions
         return message;
     }
 
+    public static LocalFileUpdateReply ToUpdateReply(this LocalFile file, HubUpdate update, bool includeEpisodeFile = true, bool includeActions = true)
+    {
+        var message = new LocalFileUpdateReply
+        {
+            UpdateType = update,
+            LocalFileId = file.Id.ToString(),
+            Path = file.Path,
+            FileLength = file.FileLength,
+            Status = (ImportStatus)file.Status,
+            Ed2KHash = ByteString.CopyFrom(file.Ed2kHash),
+            CreatedAt = Timestamp.FromDateTimeOffset(file.CreatedAt),
+            UpdatedAt = Timestamp.FromDateTimeOffset(file.UpdatedAt),
+        };
+
+        if (file.EpisodeFileId.HasValue)
+        {
+            message.EpisodeFileId = file.EpisodeFileId.Value;
+        }
+
+        if (includeEpisodeFile && file.EpisodeFile != null)
+        {
+            message.EpisodeFile = file.EpisodeFile.ToReply();
+        }
+
+        if (includeActions && file.FileActions.Any())
+        {
+            message.FileActions.AddRange(file.FileActions.Select(a => a.ToReply(false)));
+        }
+
+        return message;
+    }
+
     public static FileActionReply ToReply(this FileAction action, bool includeLocalFile = true)
     {
         var reply = new FileActionReply
