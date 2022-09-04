@@ -27,6 +27,8 @@ public class Job
     public Guid LocalFileId { get; set; }
     public virtual LocalFile LocalFile { get; set; }
     public virtual ICollection<JobLog> Logs { get; set; } = new List<JobLog>();
+    public Guid? ScheduledJobId { get; set; }
+    public virtual ScheduledJob ScheduledJob { get; set; }
 }
 
 public class JobEntityTypeConfiguration : IEntityTypeConfiguration<Job>
