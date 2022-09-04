@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AniSort.Cli", "AniSort.Cli\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AniSort.Server", "AniSort.Server.Grpc\AniSort.Server.csproj", "{008534AA-7F68-4E52-A24D-9F4AA9DCB4A3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AniSort.Server.Generators", "AniSort.Server.Generators\AniSort.Server.Generators.csproj", "{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -81,6 +83,14 @@ Global
 		{008534AA-7F68-4E52-A24D-9F4AA9DCB4A3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{008534AA-7F68-4E52-A24D-9F4AA9DCB4A3}.Release|x64.ActiveCfg = Release|Any CPU
 		{008534AA-7F68-4E52-A24D-9F4AA9DCB4A3}.Release|x64.Build.0 = Release|Any CPU
+		{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}.Debug|x64.Build.0 = Debug|Any CPU
+		{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}.Release|x64.ActiveCfg = Release|Any CPU
+		{099D6724-61A2-4441-AAF8-0E0CA8B7A6AB}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

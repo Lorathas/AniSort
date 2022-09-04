@@ -1,7 +1,9 @@
 ﻿using AniSort.Core.Data;
+using AniSort.Server.Generators;
 
 namespace AniSort.Server.Hubs;
 
+[Hub]
 public class LocalFileHub : HubBase<Guid, LocalFile, HubUpdate>, ILocalFileHub
 {
     /// <inheritdoc />

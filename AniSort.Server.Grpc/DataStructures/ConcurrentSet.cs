@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace AniSort.Server.DataStructures;
 
-public class ConcurrentSet<T> : ISet<T>, IReadOnlySet<T>
+public class ConcurrentSet<T> : ISet<T>, IReadOnlySet<T> where T : notnull
 {
     private readonly ConcurrentDictionary<T, T> dictionary = new();
 
