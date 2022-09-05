@@ -2,6 +2,8 @@ using AniSort.Core;
 using AniSort.Server.Generators;
 using AniSort.Server.Hubs;
 using AniSort.Server.Services;
+using Grpc.AspNetCore.Server;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // For instructions on how to configure Kestrel and gRPC clients on macOS, visit https://go.microsoft.com/fwlink/?linkid=2099682
 
 // Add services to the container.
-builder.Services.AddGrpc();
+builder.Services.AddGrpc(options => options.EnableDetailedErrors = true);
 
 builder.Services.AddSingleton<IJobHub, JobHub>();
 builder.Services.AddSingleton<ILocalFileHub, LocalFileHub>();
@@ -22,6 +24,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 app.MapGrpcService<JobService>();
 app.MapGrpcService<LocalFileService>();
+app.MapGrpcService<ScheduledJobService>();
 app.MapGet("/",
     () =>
         "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
@@ -36,6 +39,6 @@ jobHub!.RunAsync(cts.Token);
 localFileHub!.RunAsync(cts.Token);
 scheduledJobHub!.RunAsync(cts.Token);
 
-app.Run();
+app.Run("http://localhost:5000");
 
 cts.Cancel();

@@ -6,7 +6,7 @@ import "Protos/episode_files.proto";
 
 option csharp_namespace = "AniSort.Server";
 
-package anisort;
+package anisort.files;
 
 service LocalFileService {
   rpc ListFiles(FilteredLocalFilesRequest) returns (stream LocalFileReply);

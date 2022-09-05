@@ -115,8 +115,8 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
 
             var directoryFiles = new List<DirectoryFilesReply.Types.DirectoryFile>(files.Length + directories.Length);
             
-            directoryFiles.AddRange(files.Select(f => new DirectoryFilesReply.Types.DirectoryFile{Name = f, Type = DirectoryFilesReply.Types.DirectoryFileType.File}));
-            directoryFiles.AddRange(directories.Select(d => new DirectoryFilesReply.Types.DirectoryFile{Name = d, Type = DirectoryFilesReply.Types.DirectoryFileType.Directory}));
+            directoryFiles.AddRange(files.Select(f => new DirectoryFilesReply.Types.DirectoryFile{Name = Path.GetFileName(f), Type = DirectoryFilesReply.Types.DirectoryFileType.File}));
+            directoryFiles.AddRange(directories.Select(d => new DirectoryFilesReply.Types.DirectoryFile{Name = Path.GetFileName(d), Type = DirectoryFilesReply.Types.DirectoryFileType.Directory}));
 
             var reply = new DirectoryFilesReply();
             reply.Files.AddRange(directoryFiles);

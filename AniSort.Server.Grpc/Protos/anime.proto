@@ -5,7 +5,7 @@ import "Protos/episode_files.proto";
 
 option csharp_namespace = "AniSort.Server";
 
-package anisort;
+package anisort.anime;
 
 service AnimeService {
   rpc GetForFileId(FileIdRequest) returns (AnimeReply);
