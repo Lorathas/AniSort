@@ -124,6 +124,7 @@ message DirectoryFilesRequest {
 
 message DirectoryFilesReply {
   repeated DirectoryFile files = 1;
+  string currentPath = 2;
   
   enum DirectoryFileType {
     File = 0;
@@ -133,6 +134,7 @@ message DirectoryFilesReply {
   message DirectoryFile {
     DirectoryFileType type = 1;
     string name = 2;
+    string path = 3;
   }
 }
 
