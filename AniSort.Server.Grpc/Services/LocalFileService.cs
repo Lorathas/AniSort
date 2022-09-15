@@ -198,7 +198,7 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
 
         while (!context.CancellationToken.IsCancellationRequested)
         {
-            await requestStream.MoveNext();
+            await requestStream.MoveNext(context.CancellationToken);
 
             if (context.CancellationToken.IsCancellationRequested) break;
 

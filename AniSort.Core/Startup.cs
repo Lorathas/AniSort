@@ -58,6 +58,7 @@ public class Startup
 
         var nullTarget = new NullTarget();
         loggingConfig.LoggingRules.Add(new LoggingRule("Microsoft.*", LogLevel.Trace, LogLevel.Fatal, nullTarget) {Final = true});
+        loggingConfig.LoggingRules.Add(new LoggingRule("Grpc.AspNetCore.Server.ServerCallHandler", LogLevel.Info, LogLevel.Error, nullTarget) {Final = true});
 
         loggingConfig.AddRule(fileAndConsoleMinLevel, LogLevel.Warn, fileLog);
         loggingConfig.AddRule(LogLevel.Error, LogLevel.Fatal, errorFileLog);

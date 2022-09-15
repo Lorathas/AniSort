@@ -2,8 +2,6 @@ using AniSort.Core;
 using AniSort.Server.Generators;
 using AniSort.Server.Hubs;
 using AniSort.Server.Services;
-using Grpc.AspNetCore.Server;
-using Microsoft.Extensions.Options;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
