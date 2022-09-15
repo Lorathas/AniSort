@@ -1,4 +1,5 @@
-﻿using AniSort.Core.Data;
+﻿using System.Diagnostics;
+using AniSort.Core.Data;
 using AniSort.Server.Generators;
 
 namespace AniSort.Server.Hubs;
@@ -10,7 +11,7 @@ public class LocalFileHub : HubBase<Guid, LocalFile, HubUpdate>, ILocalFileHub
     protected override Func<LocalFile, Guid> KeySelector => f => f.Id;
 
     /// <inheritdoc />
-    public LocalFileHub(ILogger<HubBase<Guid, LocalFile, HubUpdate>> logger) : base(logger)
+    public LocalFileHub(ILogger<HubBase<Guid, LocalFile, HubUpdate>> logger, ActivitySource activitySource) : base(logger, activitySource)
     {
     }
 }

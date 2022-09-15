@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading.Channels;
 using AniSort.Server.DataStructures;
 
@@ -19,13 +20,16 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
 
     private readonly Channel<(TEntity, TUpdate)> updatesChannel = Channel.CreateUnbounded<(TEntity, TUpdate)>();
 
+    private readonly ActivitySource activitySource;
+
     private string? hubType = null;
 
     private string HubType => hubType ??= GetType().Name;
 
-    protected HubBase(ILogger<HubBase<TKey, TEntity, TUpdate>> logger)
+    protected HubBase(ILogger<HubBase<TKey, TEntity, TUpdate>> logger, ActivitySource activitySource)
     {
         this.logger = logger;
+        this.activitySource = activitySource;
     }
 
     protected abstract Func<TEntity, TKey> KeySelector { get; }
@@ -33,6 +37,7 @@ public abstract class HubBase<TKey, TEntity, TUpdate> : IHub<TKey, TEntity, TUpd
     /// <inheritdoc />
     public async Task PublishUpdateAsync(TEntity entity, TUpdate update)
     {
+        using var activity = activitySource.StartActivity();
         logger.LogTrace("Publishing update for {Entity}", entity);
         await updatesChannel.Writer.WriteAsync((entity, update));
     }

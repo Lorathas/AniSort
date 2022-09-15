@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AniSort.Core;
 using AniSort.Server.Generators;
 using AniSort.Server.Hubs;
@@ -16,6 +17,7 @@ builder.Services.AddGrpc(options => options.EnableDetailedErrors = true);
 builder.Services.AddSingleton<IJobHub, JobHub>();
 builder.Services.AddSingleton<ILocalFileHub, LocalFileHub>();
 builder.Services.AddSingleton<IScheduledJobHub, ScheduledJobHub>();
+builder.Services.AddSingleton(new ActivitySource("AniSort Server"));
 Startup.InitializeServices(null, builder.Services);
 HubServiceRegistration.RegisterServices(builder.Services);
 

@@ -1,4 +1,5 @@
-﻿using System.Runtime.Caching;
+﻿using System.Diagnostics;
+using System.Runtime.Caching;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
 using AniSort.Server.Extensions;
@@ -16,15 +17,18 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
 
     private readonly ILogger<LocalFileService> logger;
 
+    private readonly ActivitySource activitySource;
+
     private readonly MemoryCache directoryContentsCache = new("DirectoryContents");
 
     private readonly MemoryCache directorySubdirectoriesCache = new("DirectorySubdirectories");
 
-    public LocalFileService(ILocalFileRepository localFileRepository, ILogger<LocalFileService> logger, ILocalFileHub fileHub)
+    public LocalFileService(ILocalFileRepository localFileRepository, ILogger<LocalFileService> logger, ILocalFileHub fileHub, ActivitySource activitySource)
     {
         this.localFileRepository = localFileRepository;
         this.logger = logger;
         this.fileHub = fileHub;
+        this.activitySource = activitySource;
     }
 
     public override async Task ListFiles(FilteredLocalFilesRequest request, IServerStreamWriter<LocalFileReply> responseStream, ServerCallContext context)
@@ -125,19 +129,27 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
         {
             return path =>
             {
+                using var activity = activitySource?.StartActivity();
+                activity?.AddBaggage(nameof(path), path);
+                activity?.AddBaggage(nameof(excludeFiles), excludeFiles.ToString());
+                
                 string[]? files = null;
                 string[] subdirectories;
                 try
                 {
                     if (!excludeFiles)
                     {
+                        activity?.AddEvent(new("Get Files"));
                         files = Directory.GetFiles(path);
                     }
+                    activity?.AddEvent(new("Get Subdirectories"));
                     subdirectories = Directory.GetDirectories(path);
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    throw new RpcException(new Status(StatusCode.PermissionDenied, $"AniSort does not have permission to access the path {path}"), new Metadata
+                    string errorMessage = $"AniSort does not have permission to access the path {path}";
+                    activity?.SetStatus(ActivityStatusCode.Error, errorMessage);
+                    throw new RpcException(new Status(StatusCode.PermissionDenied, errorMessage), new Metadata
                     {
                         {
                             "Path", path
@@ -147,6 +159,7 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
 
                 var directoryFiles = new List<DirectoryFilesReply.Types.DirectoryFile>(files?.Length ?? 0 + subdirectories.Length);
 
+                activity?.AddEvent(new("Build Response Collection"));
                 if (files != null)
                 {
                     directoryFiles.AddRange(files.Select(f => new DirectoryFilesReply.Types.DirectoryFile
@@ -169,6 +182,12 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
 
         async Task SendDirectoryContents(DirectoryFilesRequest request)
         {
+            using var activity = activitySource.StartActivity();
+            activity?.AddBaggage(nameof(request.Path), request.Path);
+            activity?.AddBaggage(nameof(request.IncludeDrives), request.IncludeDrives.ToString());
+            activity?.AddBaggage(nameof(request.ExcludeFiles), request.ExcludeFiles.ToString());
+
+            activity?.AddEvent(new("Fetch Directory Contents"));
             var directoryFiles = (request.ExcludeFiles ? directorySubdirectoriesCache : directoryContentsCache).GetOrFetch(request.Path, new CacheItemPolicy
             {
                 AbsoluteExpiration = DateTimeOffset.Now.AddMinutes(1)
@@ -185,6 +204,7 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
                 reply.Drives.AddRange(Directory.GetLogicalDrives());
             }
 
+            activity?.AddEvent(new("Write Directory Contents"));
             await responseStream.WriteAsync(reply);
         }
 

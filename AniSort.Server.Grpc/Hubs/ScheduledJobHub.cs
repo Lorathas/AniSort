@@ -1,4 +1,5 @@
-﻿using AniSort.Server.Generators;
+﻿using System.Diagnostics;
+using AniSort.Server.Generators;
 
 namespace AniSort.Server.Hubs;
 
@@ -6,7 +7,7 @@ namespace AniSort.Server.Hubs;
 public class ScheduledJobHub : HubBase<Guid, Core.Data.ScheduledJob, HubUpdate>, IScheduledJobHub
 {
     /// <inheritdoc />
-    public ScheduledJobHub(ILogger<HubBase<Guid, Core.Data.ScheduledJob, HubUpdate>> logger) : base(logger)
+    public ScheduledJobHub(ILogger<HubBase<Guid, Core.Data.ScheduledJob, HubUpdate>> logger, ActivitySource activitySource) : base(logger, activitySource)
     {
     }
 

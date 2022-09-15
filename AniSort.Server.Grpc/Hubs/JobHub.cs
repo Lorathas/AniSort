@@ -1,4 +1,5 @@
-﻿using AniSort.Core.Data;
+﻿using System.Diagnostics;
+using AniSort.Core.Data;
 using AniSort.Server.Generators;
 
 namespace AniSort.Server.Hubs;
@@ -10,7 +11,7 @@ public class JobHub : HubBase<Guid, Job, JobUpdate>, IJobHub
     protected override Func<Job, Guid> KeySelector => j => j.Id;
 
     /// <inheritdoc />
-    public JobHub(ILogger<HubBase<Guid, Job, JobUpdate>> logger) : base(logger)
+    public JobHub(ILogger<HubBase<Guid, Job, JobUpdate>> logger, ActivitySource activitySource) : base(logger, activitySource)
     {
     }
 }
