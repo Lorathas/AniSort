@@ -4,6 +4,8 @@ using AniSort.Server.Hubs;
 using AniSort.Server.Services;
 using Grpc.AspNetCore.Server;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,15 @@ builder.Services.AddSingleton<ILocalFileHub, LocalFileHub>();
 builder.Services.AddSingleton<IScheduledJobHub, ScheduledJobHub>();
 Startup.InitializeServices(null, builder.Services);
 HubServiceRegistration.RegisterServices(builder.Services);
+
+builder.Services.AddOpenTelemetryTracing(b =>
+{
+    b.AddConsoleExporter()
+        .AddSource("AniSort Server")
+        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName: "AniSort Server", serviceVersion: "0.1.0"))
+        .AddAspNetCoreInstrumentation()
+        .AddGrpcClientInstrumentation();
+});
 
 var app = builder.Build();
 
