@@ -1,6 +1,7 @@
 ﻿syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 import "Protos/common.proto";
 import "Protos/episode_files.proto";
 
@@ -10,17 +11,17 @@ package anisort.files;
 
 service LocalFileService {
   rpc ListFiles(FilteredLocalFilesRequest) returns (stream LocalFileReply);
-  
+
   rpc ListenForFileUpdates(LocalFileRequest) returns (stream LocalFileUpdateReply);
-  
+
   rpc ListenForAllFileUpdates(FilteredLocalFilesRequest) returns (stream LocalFileUpdateReply);
 
   rpc GetFileDetails(LocalFileRequest) returns (LocalFileReply);
 
   rpc GetPageInfo(FilteredLocalFilesRequest) returns (PagesInfo);
-  
-  rpc GetDrives(Empty) returns (DrivesReply);
-  
+
+  rpc GetDrives(google.protobuf.Empty) returns (DrivesReply);
+
   rpc GetFilesInDirectory(stream DirectoryFilesRequest) returns (stream DirectoryFilesReply);
 }
 
@@ -120,17 +121,20 @@ message DrivesReply {
 
 message DirectoryFilesRequest {
   string path = 1;
+  bool includeDrives = 2;
+  bool excludeFiles = 3;
 }
 
 message DirectoryFilesReply {
   repeated DirectoryFile files = 1;
   string currentPath = 2;
-  
+  repeated string drives = 3;
+
   enum DirectoryFileType {
     File = 0;
     Directory = 1;
   }
-  
+
   message DirectoryFile {
     DirectoryFileType type = 1;
     string name = 2;

@@ -4,9 +4,6 @@ option csharp_namespace = "AniSort.Server";
 
 package anisort;
 
-message Empty {
-}
-
 message PagesInfo {
   int32 pages = 1;
 }

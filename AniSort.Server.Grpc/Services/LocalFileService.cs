@@ -1,7 +1,9 @@
-﻿using AniSort.Core.Data;
+﻿using System.Runtime.Caching;
+using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
 using AniSort.Server.Extensions;
 using AniSort.Server.Hubs;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 
 namespace AniSort.Server.Services;
@@ -13,6 +15,10 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
     private readonly ILocalFileRepository localFileRepository;
 
     private readonly ILogger<LocalFileService> logger;
+
+    private readonly MemoryCache directoryContentsCache = new("DirectoryContents");
+
+    private readonly MemoryCache directorySubdirectoriesCache = new("DirectorySubdirectories");
 
     public LocalFileService(ILocalFileRepository localFileRepository, ILogger<LocalFileService> logger, ILocalFileHub fileHub)
     {
@@ -33,9 +39,9 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
     public override async Task ListenForFileUpdates(LocalFileRequest request, IServerStreamWriter<LocalFileUpdateReply> responseStream, ServerCallContext context)
     {
         logger.LogTrace("Listener for updates registered at ");
-        
+
         var localFileId = new Guid(request.LocalFileId);
-        
+
         async Task Listener(LocalFile file, HubUpdate update)
         {
             await responseStream.WriteAsync(file.ToUpdateReply(update));
@@ -47,7 +53,9 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
         {
             throw new RpcException(new Status(StatusCode.NotFound, $"No local file found for id {request.LocalFileId}"), new Metadata
             {
-                { "LocalFileId", request.LocalFileId }
+                {
+                    "LocalFileId", request.LocalFileId
+                }
             });
         }
 
@@ -62,7 +70,7 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
     public override async Task ListenForAllFileUpdates(FilteredLocalFilesRequest request, IServerStreamWriter<LocalFileUpdateReply> responseStream, ServerCallContext context)
     {
         var filter = request.ToFilter();
-        
+
         async Task Listener(LocalFile file, HubUpdate update)
         {
             await responseStream.WriteAsync(file.ToUpdateReply(update));
@@ -81,7 +89,9 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
         {
             throw new RpcException(new Status(StatusCode.NotFound, $"No local file found for id {request.LocalFileId}"), new Metadata
             {
-                { "LocalFileId", request.LocalFileId }
+                {
+                    "LocalFileId", request.LocalFileId
+                }
             });
         }
 
@@ -90,16 +100,19 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
 
     public override async Task<PagesInfo> GetPageInfo(FilteredLocalFilesRequest request, ServerCallContext context)
     {
-        return new PagesInfo { Pages = await localFileRepository.CountSearchedFilesAsync(request.ToFilter()) };
+        return new PagesInfo
+        {
+            Pages = await localFileRepository.CountSearchedFilesAsync(request.ToFilter())
+        };
     }
 
     #region File Finding
-    
+
     /// <inheritdoc />
     public override Task<DrivesReply> GetDrives(Empty request, ServerCallContext context)
     {
         var reply = new DrivesReply();
-        
+
         reply.Drives.AddRange(Directory.GetLogicalDrives());
 
         return Task.FromResult(reply);
@@ -108,28 +121,80 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
     /// <inheritdoc />
     public override async Task GetFilesInDirectory(IAsyncStreamReader<DirectoryFilesRequest> requestStream, IServerStreamWriter<DirectoryFilesReply> responseStream, ServerCallContext context)
     {
-        async Task SendDirectoryContents(string path)
+        Func<string, List<DirectoryFilesReply.Types.DirectoryFile>> GetDirectoryContents(bool excludeFiles)
         {
-            string[] files = Directory.GetFiles(path);
-            string[] directories = Directory.GetDirectories(path);
+            return path =>
+            {
+                string[]? files = null;
+                string[] subdirectories;
+                try
+                {
+                    if (!excludeFiles)
+                    {
+                        files = Directory.GetFiles(path);
+                    }
+                    subdirectories = Directory.GetDirectories(path);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    throw new RpcException(new Status(StatusCode.PermissionDenied, $"AniSort does not have permission to access the path {path}"), new Metadata
+                    {
+                        {
+                            "Path", path
+                        }
+                    });
+                }
 
-            var directoryFiles = new List<DirectoryFilesReply.Types.DirectoryFile>(files.Length + directories.Length);
-            
-            directoryFiles.AddRange(files.Select(f => new DirectoryFilesReply.Types.DirectoryFile{Name = Path.GetFileName(f), Path = f, Type = DirectoryFilesReply.Types.DirectoryFileType.File}));
-            directoryFiles.AddRange(directories.Select(d => new DirectoryFilesReply.Types.DirectoryFile{Name = Path.GetFileName(d), Path = d, Type = DirectoryFilesReply.Types.DirectoryFileType.Directory}));
+                var directoryFiles = new List<DirectoryFilesReply.Types.DirectoryFile>(files?.Length ?? 0 + subdirectories.Length);
+
+                if (files != null)
+                {
+                    directoryFiles.AddRange(files.Select(f => new DirectoryFilesReply.Types.DirectoryFile
+                    {
+                        Name = Path.GetFileName(f),
+                        Path = f,
+                        Type = DirectoryFilesReply.Types.DirectoryFileType.File
+                    }));
+                }
+                directoryFiles.AddRange(subdirectories.Select(d => new DirectoryFilesReply.Types.DirectoryFile
+                {
+                    Name = Path.GetFileName(d),
+                    Path = d,
+                    Type = DirectoryFilesReply.Types.DirectoryFileType.Directory
+                }));
+
+                return directoryFiles;
+            };
+        }
+
+        async Task SendDirectoryContents(DirectoryFilesRequest request)
+        {
+            var directoryFiles = (request.ExcludeFiles ? directorySubdirectoriesCache : directoryContentsCache).GetOrFetch(request.Path, new CacheItemPolicy
+            {
+                AbsoluteExpiration = DateTimeOffset.Now.AddMinutes(1)
+            }, GetDirectoryContents(request.ExcludeFiles));
 
             var reply = new DirectoryFilesReply
             {
-                CurrentPath = path
+                CurrentPath = request.Path
             };
             reply.Files.AddRange(directoryFiles);
 
+            if (request.IncludeDrives)
+            {
+                reply.Drives.AddRange(Directory.GetLogicalDrives());
+            }
+
             await responseStream.WriteAsync(reply);
         }
-        
+
         string homeFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        await SendDirectoryContents(homeFolder);
+        await SendDirectoryContents(new DirectoryFilesRequest
+        {
+            Path = homeFolder,
+            IncludeDrives = true,
+        });
 
         while (!context.CancellationToken.IsCancellationRequested)
         {
@@ -137,9 +202,9 @@ public class LocalFileService : Server.LocalFileService.LocalFileServiceBase
 
             if (context.CancellationToken.IsCancellationRequested) break;
 
-            await SendDirectoryContents(requestStream.Current.Path);
+            await SendDirectoryContents(requestStream.Current);
         }
     }
-    
+
     #endregion
 }
