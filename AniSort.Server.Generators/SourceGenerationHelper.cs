@@ -92,13 +92,8 @@ public class HubAttribute : System.Attribute
 
         var namespacesIncluded = new HashSet<string>();
         
-        foreach (var hubToGenerate in hubServiceToGenerates)
+        foreach (var hubToGenerate in hubServiceToGenerates.Where(hubToGenerate => !namespacesIncluded.Contains(hubToGenerate.Namespace)))
         {
-            if (namespacesIncluded.Contains(hubToGenerate.Namespace))
-            {
-                continue;
-            }
-            
             builder.Append("using ");
             builder.Append(hubToGenerate.Namespace);
             builder.Append(".Services;");

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Text;
 using AniSort.Server.Generators.Models;
 using Microsoft.CodeAnalysis;
@@ -24,39 +23,39 @@ public class HubGenerator : IIncrementalGenerator
             .Where(static m => m != null);
 
         IncrementalValueProvider<(Compilation, ImmutableArray<ClassDeclarationSyntax>)> compilationAndEnums = context.CompilationProvider.Combine(classDeclarations.Collect());
-        
+
         context.RegisterSourceOutput(compilationAndEnums, static (ctx, source) => Execute(source.Item1, source.Item2, ctx));
     }
 
-    private static bool IsSyntaxTargetForGeneration(SyntaxNode node) => node is ClassDeclarationSyntax { AttributeLists.Count: > 0 };
+    private static bool IsSyntaxTargetForGeneration(SyntaxNode node)
+    {
+        return node is ClassDeclarationSyntax { AttributeLists.Count: > 0 };
+    }
 
     private static ClassDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
     {
         var classDeclarationSyntax = (ClassDeclarationSyntax) context.Node;
 
-        foreach (var attributeSyntaxList in classDeclarationSyntax.AttributeLists)
+        foreach (var attributeSyntax in classDeclarationSyntax.AttributeLists.SelectMany(attributeSyntaxList => attributeSyntaxList.Attributes))
         {
-            foreach (var attributeSyntax in attributeSyntaxList.Attributes)
+            if (context.SemanticModel.GetSymbolInfo(attributeSyntax).Symbol is not IMethodSymbol attributeSymbol)
             {
-                if (context.SemanticModel.GetSymbolInfo(attributeSyntax).Symbol is not IMethodSymbol attributeSymbol)
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                INamedTypeSymbol attributeContainingTypeSymbol = attributeSymbol.ContainingType;
-                string fullName = attributeContainingTypeSymbol.ToDisplayString();
+            var attributeContainingTypeSymbol = attributeSymbol.ContainingType;
+            string fullName = attributeContainingTypeSymbol.ToDisplayString();
 
-                if (fullName == "AniSort.Server.Generators.HubAttribute")
-                {
-                    return classDeclarationSyntax;
-                }
+            if (fullName == "AniSort.Server.Generators.HubAttribute")
+            {
+                return classDeclarationSyntax;
             }
         }
 
         return null;
     }
-    
-    static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, SourceProductionContext context)
+
+    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, SourceProductionContext context)
     {
         if (classes.IsDefaultOrEmpty)
         {
@@ -65,25 +64,24 @@ public class HubGenerator : IIncrementalGenerator
         }
 
         // I'm not sure if this is actually necessary, but `[LoggerMessage]` does it, so seems like a good idea!
-        IEnumerable<ClassDeclarationSyntax> distinctEnums = classes.Distinct();
+        var distinctEnums = classes.Distinct();
 
         // Convert each EnumDeclarationSyntax to an EnumToGenerate
         var hubServicesToGenerate = GetTypesToGenerate(compilation, distinctEnums, context.CancellationToken);
 
         // If there were errors in the EnumDeclarationSyntax, we won't create an
         // EnumToGenerate for it, so make sure we have something to generate
-        if (hubServicesToGenerate.Count > 0)
+        if (hubServicesToGenerate.Count <= 0) return;
+
+        context.AddSource(
+            "HubServiceRegistration.g.cs",
+            SourceText.From(SourceGenerationHelper.GenerateHubServiceRegistrationClass(hubServicesToGenerate), Encoding.UTF8));
+
+        foreach (var hubServiceToGenerate in hubServicesToGenerate)
         {
-            context.AddSource(
-                "HubServiceRegistration.g.cs",
-                SourceText.From(SourceGenerationHelper.GenerateHubServiceRegistrationClass(hubServicesToGenerate), Encoding.UTF8));
-            
-            foreach (var hubServiceToGenerate in hubServicesToGenerate)
-            {
-                // generate the source code and add it to the output
-                string result = SourceGenerationHelper.GenerateHubServiceClass(hubServiceToGenerate);
-                context.AddSource($"{hubServiceToGenerate.Namespace}.Services.{hubServiceToGenerate.Name}Service.g.cs", SourceText.From(result, Encoding.UTF8));
-            }
+            // generate the source code and add it to the output
+            string result = SourceGenerationHelper.GenerateHubServiceClass(hubServiceToGenerate);
+            context.AddSource($"{hubServiceToGenerate.Namespace}.Services.{hubServiceToGenerate.Name}Service.g.cs", SourceText.From(result, Encoding.UTF8));
         }
     }
 
@@ -91,9 +89,9 @@ public class HubGenerator : IIncrementalGenerator
     {
         // Create a list to hold our output
         var classesToGenerate = new List<HubServiceToGenerate>();
-        
+
         // Get the semantic representation of our marker attribute 
-        INamedTypeSymbol? attribute = compilation.GetTypeByMetadataName("AniSort.Server.Generators.HubAttribute");
+        var attribute = compilation.GetTypeByMetadataName("AniSort.Server.Generators.HubAttribute");
 
         if (attribute == null)
         {
@@ -108,17 +106,17 @@ public class HubGenerator : IIncrementalGenerator
             cancellationToken.ThrowIfCancellationRequested();
 
             // Get the semantic representation of the enum syntax
-            SemanticModel semanticModel = compilation.GetSemanticModel(classDeclarationSyntax.SyntaxTree);
+            var semanticModel = compilation.GetSemanticModel(classDeclarationSyntax.SyntaxTree);
             if (semanticModel.GetDeclaredSymbol(classDeclarationSyntax) is not INamedTypeSymbol classSymbol)
             {
                 // something went wrong, bail out
                 continue;
             }
-            
+
             var namespaceSymbol = classSymbol.ContainingNamespace;
 
             var invertedNamespaces = new List<string>();
-            
+
             var ns = namespaceSymbol;
 
             while (ns != null)

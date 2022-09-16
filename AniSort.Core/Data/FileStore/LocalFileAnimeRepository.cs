@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using AniSort.Core.Data.Repositories;
 using AniSort.Core.Models;
 
@@ -140,6 +141,18 @@ public class LocalFileAnimeRepository : IFileAnimeRepository
     }
 
     /// <inheritdoc />
+    public void Detach(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public void Detach(IEnumerable<AnimeInfo> entities)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
     public void MergeSert(AnimeInfo animeInfo)
     {
         if (animeFileStore.Anime.TryGetValue(animeInfo.Id, out var existing))
@@ -152,5 +165,17 @@ public class LocalFileAnimeRepository : IFileAnimeRepository
         {
             animeFileStore.Anime[animeInfo.Id] = animeInfo;
         }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public ValueTask DisposeAsync()
+    {
+        throw new System.NotImplementedException();
     }
 }

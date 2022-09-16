@@ -13,6 +13,9 @@
         <ImportPathEntry>
           <option name="location" value="file://$PROJECT_DIR$/AniSort.Server" />
         </ImportPathEntry>
+        <ImportPathEntry>
+          <option name="location" value="file://$PROJECT_DIR$/AniSort.Server.Grpc" />
+        </ImportPathEntry>
       </list>
     </option>
     <option name="descriptorPath" value="google/protobuf/descriptor.proto" />

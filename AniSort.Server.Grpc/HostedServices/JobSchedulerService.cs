@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Threading.Channels;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
@@ -8,8 +7,6 @@ using AniSort.Server.DataStructures;
 using AniSort.Server.Extensions;
 using AniSort.Server.Hubs;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.Win32;
-using ScheduledJob = AniSort.Core.Data.ScheduledJob;
 
 namespace AniSort.Server.HostedServices;
 
@@ -27,7 +24,7 @@ public class JobSchedulerService : BackgroundService
 
     private readonly Channel<Job> pendingJobChannel = Channel.CreateUnbounded<Job>();
 
-    private readonly List<Task> timerJobs = new();
+    private readonly ConcurrentSet<TimedJobInfo> timerJobs = new();
 
     private readonly ConcurrentSet<FileWatcherJobInfo> watcherJobs = new();
 
@@ -62,9 +59,17 @@ public class JobSchedulerService : BackgroundService
         
         await scheduledJobHub.RegisterListenerAsync(async (scheduledJob, update) =>
         {
-            if (update == HubUpdate.ItemCreated)
+            switch (update)
             {
-                await QueueJobAsync(scheduledJob, stoppingToken);
+                case HubUpdate.ItemCreated:
+                    await QueueJobAsync(scheduledJob, stoppingToken);
+                    break;
+                case HubUpdate.ItemUpdated:
+                    await UpdateScheduledJobAsync(scheduledJob, stoppingToken);
+                    break;
+                case HubUpdate.ItemDeleted:
+                    await RemoveScheduledJobAsync(scheduledJob);
+                    break;
             }
         }, stoppingToken);
 
@@ -86,7 +91,7 @@ public class JobSchedulerService : BackgroundService
             await jobHub.PublishUpdateAsync(job, JobUpdate.JobCreated);
         }
 
-        await Task.WhenAll(timerJobs);
+        await Task.WhenAll(timerJobs.Select(j => j.TimerTask));
 
         foreach (var fileWatcherJobInfo in watcherJobs)
         {
@@ -99,7 +104,7 @@ public class JobSchedulerService : BackgroundService
         switch (job.ScheduleType)
         {
             case Core.Data.ScheduleType.Timed:
-                timerJobs.Add(QueueTimedJobAsync(job, stoppingToken));
+                timerJobs.TryAdd(QueueTimedJob(job, stoppingToken));
                 break;
             case Core.Data.ScheduleType.OnFileChange:
                 watcherJobs.TryAdd(await QueueWatcherJobAsync(job, stoppingToken));
@@ -109,25 +114,33 @@ public class JobSchedulerService : BackgroundService
         }
     }
 
-    private async Task QueueTimedJobAsync(Core.Data.ScheduledJob scheduledJob, CancellationToken cancellationToken)
+    private TimedJobInfo QueueTimedJob(Core.Data.ScheduledJob scheduledJob, CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var childCancellationToken = cancellationTokenSource.Token;
+
+        var timerTask = Task.Run(async () =>
         {
-            await using var jobRepository = serviceProvider.GetService<JobRepository>();
-
-            var lastRun = await jobRepository!.GetLastJobForScheduledJobAsync(scheduledJob.Id, cancellationToken);
-
-            var jobTime = TimeSpan.Parse(scheduledJob.ScheduleOptions.Fields["interval"].StringValue);
-
-            var diff = DateTimeOffset.Now.Subtract(lastRun?.CompletedAt ?? DateTimeOffset.UnixEpoch);
-
-            if (lastRun?.Status == Core.Data.JobStatus.Completed && diff < jobTime)
+            while (!childCancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(jobTime - diff, cancellationToken);
-            }
+                await using var jobRepository = serviceProvider.GetService<JobRepository>();
 
-            await pendingJobChannel.Writer.WriteAsync(scheduledJob.ToJob(), cancellationToken);
-        }
+                var lastRun = await jobRepository!.GetLastJobForScheduledJobAsync(scheduledJob.Id, cancellationToken);
+
+                var jobTime = TimeSpan.Parse(scheduledJob.ScheduleOptions.Fields["interval"].StringValue);
+
+                var diff = DateTimeOffset.Now.Subtract(lastRun?.CompletedAt ?? DateTimeOffset.UnixEpoch);
+
+                if (lastRun?.Status == Core.Data.JobStatus.Completed && diff < jobTime)
+                {
+                    await Task.Delay(jobTime - diff, childCancellationToken);
+                }
+
+                await pendingJobChannel.Writer.WriteAsync(scheduledJob.ToJob(), childCancellationToken);
+            }
+        }, childCancellationToken);
+
+        return new TimedJobInfo(scheduledJob, timerTask, cancellationTokenSource);
     }
 
     private async Task<FileWatcherJobInfo> QueueWatcherJobAsync(Core.Data.ScheduledJob scheduledJob, CancellationToken cancellationToken)
@@ -207,12 +220,100 @@ public class JobSchedulerService : BackgroundService
         return new FileWatcherJobInfo(scheduledJob, watchers);
     }
 
+    private async Task UpdateScheduledJobAsync(Core.Data.ScheduledJob scheduledJob, CancellationToken cancellationToken)
+    {
+        switch (scheduledJob.ScheduleType)
+        {
+            case Core.Data.ScheduleType.Timed:
+                await UpdateTimerScheduledJobAsync(scheduledJob, cancellationToken);
+                break;
+            case Core.Data.ScheduleType.OnFileChange:
+                await UpdateWatcherScheduledJobAsync(scheduledJob, cancellationToken);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
+    private async Task UpdateTimerScheduledJobAsync(Core.Data.ScheduledJob scheduledJob, CancellationToken cancellationToken)
+    {
+        var existing = timerJobs.FirstOrDefault(j => j.ScheduledJob.Id == scheduledJob.Id);
+
+        if (existing != default)
+        {
+            timerJobs.TryRemove(existing);
+            existing.CancellationTokenSource.Cancel();
+            await existing.TimerTask;
+        }
+
+        QueueTimedJob(scheduledJob, cancellationToken);
+    }
+
+    private async Task UpdateWatcherScheduledJobAsync(Core.Data.ScheduledJob scheduledJob, CancellationToken cancellationToken)
+    {
+        var existing = watcherJobs.FirstOrDefault(j => j.ScheduledJob.Id == scheduledJob.Id);
+
+        if (existing != default)
+        {
+            watcherJobs.TryRemove(existing);
+            existing.Watchers.ForEach(w => w.Dispose());
+        }
+
+        await QueueWatcherJobAsync(scheduledJob, cancellationToken);
+    }
+
+    private async Task RemoveScheduledJobAsync(Core.Data.ScheduledJob scheduledJob)
+    {
+        switch (scheduledJob.ScheduleType)
+        {
+            case Core.Data.ScheduleType.Timed:
+                await RemoveTimerScheduledJobAsync(scheduledJob);
+                break;
+            case Core.Data.ScheduleType.OnFileChange:
+                RemoveWatcherScheduledJob(scheduledJob);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
+    private async Task RemoveTimerScheduledJobAsync(Core.Data.ScheduledJob scheduledJob)
+    {
+        var existing = timerJobs.FirstOrDefault(j => j.ScheduledJob.Id == scheduledJob.Id);
+
+        if (existing != default)
+        {
+            timerJobs.TryRemove(existing);
+            existing.CancellationTokenSource.Cancel();
+            await existing.TimerTask;
+        }
+    }
+
+    private void RemoveWatcherScheduledJob(Core.Data.ScheduledJob scheduledJob)
+    {
+        var existing = watcherJobs.FirstOrDefault(j => j.ScheduledJob.Id == scheduledJob.Id);
+
+        if (existing == default) return;
+
+        watcherJobs.TryRemove(existing);
+        existing.Watchers.ForEach(w => w.Dispose());
+    }
+
     private static FileSystemWatcher CreateFileSystemWatcher(string path) => new(path)
     {
         NotifyFilter = NotifyFilters.Size | NotifyFilters.LastWrite | NotifyFilters.CreationTime | NotifyFilters.DirectoryName | NotifyFilters.FileName,
         IncludeSubdirectories = true,
         EnableRaisingEvents = true
     };
+
+    private record TimedJobInfo(Core.Data.ScheduledJob ScheduledJob, Task TimerTask, CancellationTokenSource CancellationTokenSource)
+    {
+        /// <inheritdoc />
+        public override int GetHashCode() => ScheduledJob.Id.GetHashCode();
+
+        /// <inheritdoc />
+        public virtual bool Equals(TimedJobInfo? other) => ScheduledJob.Id == other?.ScheduledJob.Id;
+    }
 
     private record FileWatcherJobInfo(Core.Data.ScheduledJob ScheduledJob, List<FileSystemWatcher> Watchers)
     {

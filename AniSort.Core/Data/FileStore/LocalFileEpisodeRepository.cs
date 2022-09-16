@@ -278,4 +278,28 @@ public class LocalFileEpisodeRepository : IFileEpisodeRepository
     {
         await animeFileStore.SaveAsync();
     }
+
+    /// <inheritdoc />
+    public void Detach(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public void Detach(IEnumerable<EpisodeInfo> entities)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public ValueTask DisposeAsync()
+    {
+        throw new System.NotImplementedException();
+    }
 }

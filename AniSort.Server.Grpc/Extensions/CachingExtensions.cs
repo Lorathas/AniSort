@@ -10,12 +10,13 @@ public static class CachingExtensions
         var entry = cache.Get(key);
 #pragma warning restore CS8604
 
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (entry == null)
         {
             entry = fetch(key);
             cache.Add(key, entry, cacheItemPolicy);
         }
 
-        return entry as T;
+        return (T) entry;
     }
 }

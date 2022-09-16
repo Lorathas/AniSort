@@ -26,6 +26,8 @@ public class ScheduledJob
     public Struct Options { get; set; }
     
     public virtual ICollection<Job> Jobs { get; set; }
+    
+    public bool Deleted { get; set; }
 }
 
 public class ScheduledJobEntityTypeConfiguration : IEntityTypeConfiguration<ScheduledJob>

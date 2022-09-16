@@ -340,4 +340,28 @@ public class LocalFileFileRepository : IFileFileRepository
     {
         await animeFileStore.SaveAsync();
     }
+
+    /// <inheritdoc />
+    public void Detach(FileInfo entity)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public void Detach(IEnumerable<FileInfo> entities)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public ValueTask DisposeAsync()
+    {
+        throw new NotImplementedException();
+    }
 }
