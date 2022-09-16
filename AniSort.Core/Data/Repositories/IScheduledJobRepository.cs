@@ -10,4 +10,10 @@ public interface IScheduledJobRepository : IRepository<ScheduledJob, Guid>
     /// </summary>
     /// <returns></returns>
     IAsyncEnumerable<ScheduledJob> GetAllOrderedByName();
+
+    /// <summary>
+    /// Get scheduled jobs to work with the queue including their existing jobs, detached from the context
+    /// </summary>
+    /// <returns></returns>
+    IAsyncEnumerable<ScheduledJob> GetForQueue();
 }

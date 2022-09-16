@@ -43,8 +43,4 @@
         <ProjectReference Include="..\AniSort\AniSort.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-        <Folder Include="Jobs" />
-    </ItemGroup>
-
 </Project>

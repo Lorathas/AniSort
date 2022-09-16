@@ -2,7 +2,7 @@
 
 namespace AniSort.Server.Extensions;
 
-public static class JobExtensions
+public static class FilterExtensions
 {
     public static JobFilter ToFilter(this FilteredJobsRequest request)
     {

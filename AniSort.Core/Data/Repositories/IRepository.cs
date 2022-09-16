@@ -1,10 +1,12 @@
-﻿using System.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
 namespace AniSort.Core.Data.Repositories;
 
-public interface IRepository<TEntity, in TKey>
+public interface IRepository<TEntity, in TKey> : IDisposable, IAsyncDisposable
 {
     /// <summary>
     /// Get entity for the key
@@ -85,4 +87,15 @@ public interface IRepository<TEntity, in TKey>
     /// Save changes made to the repository
     /// </summary>
     Task SaveChangesAsync();
+
+    /// <summary>
+    /// Detach an entity from the repository
+    /// </summary>
+    void Detach(TEntity entity);
+
+    /// <summary>
+    /// Detach multiple entries from the repository
+    /// </summary>
+    /// <param name="entities"></param>
+    void Detach(IEnumerable<TEntity> entities);
 }

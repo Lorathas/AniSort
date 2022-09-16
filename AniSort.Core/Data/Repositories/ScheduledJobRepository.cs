@@ -19,4 +19,14 @@ public class ScheduledJobRepository : RepositoryBase<ScheduledJob, Guid, AniSort
             .OrderBy(j => j.Name)
             .AsAsyncEnumerable();
     }
+
+    /// <inheritdoc />
+    public IAsyncEnumerable<ScheduledJob> GetForQueue()
+    {
+        return Set
+            .OrderBy(j => j.Name)
+            .Include(j => j.Jobs)
+            .AsNoTracking()
+            .AsAsyncEnumerable();
+    }
 }

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using AniSort.Core.Data.Filtering;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,7 +35,7 @@ public class JobRepository : RepositoryBase<Job, Guid, AniSortContext>, IJobRepo
                 || j.StartedAt >= filter.StartTime.Value
                 || j.CompletedAt >= filter.StartTime.Value);
         }
-        
+
         if (filter.EndTime.HasValue)
         {
             query = query.Where(j =>
@@ -98,7 +100,7 @@ public class JobRepository : RepositoryBase<Job, Guid, AniSortContext>, IJobRepo
             default:
                 throw new ArgumentOutOfRangeException();
         }
-        
+
         return orderedQuery;
     }
 
@@ -115,13 +117,37 @@ public class JobRepository : RepositoryBase<Job, Guid, AniSortContext>, IJobRepo
             .AsAsyncEnumerable();
     }
 
-    public IAsyncEnumerable<Job> GetPendingJobs()
+    private IOrderedQueryable<Job> GetPendingJobsInternal()
     {
-        throw new NotImplementedException();
+        return Set
+            .Where(j => j.Status == JobStatus.Queued)
+            .OrderBy(j => j.QueuedAt);
     }
 
-    public IAsyncEnumerable<Job> GetPendingJobsPaged(int page)
+    public IAsyncEnumerable<Job> GetPendingJobs()
     {
-        throw new NotImplementedException();
+        return GetPendingJobsInternal()
+            .AsNoTracking()
+            .AsAsyncEnumerable();
+    }
+
+    public IAsyncEnumerable<Job> GetPendingJobsPaged(int page, int pageSize)
+    {
+        return GetPendingJobsInternal()
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .AsNoTracking()
+            .AsAsyncEnumerable();
+    }
+
+    /// <inheritdoc />
+    public Task<Job> GetLastJobForScheduledJobAsync(Guid scheduledJobId, CancellationToken? cancellationToken = null)
+    {
+        return (from sj in Context.ScheduledJobs
+            join j in Context.Jobs
+                on sj.Id equals j.Id
+            where sj.Id == scheduledJobId
+            orderby j.QueuedAt descending
+            select j).FirstOrDefaultAsync(cancellationToken ?? CancellationToken.None);
     }
 }

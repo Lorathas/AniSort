@@ -186,4 +186,17 @@ public static class ModelExtensions
             ScheduleOptions = scheduledJob.ScheduleOptions,
         };
     }
+
+    public static string ToJobNamePart(this Core.Data.ScheduleType scheduleType)
+    {
+        switch (scheduleType)
+        {
+            case Core.Data.ScheduleType.Timed:
+                return "timer";
+            case Core.Data.ScheduleType.OnFileChange:
+                return "file change";
+            default:
+                throw new ArgumentOutOfRangeException(nameof(scheduleType), scheduleType, null);
+        }
+    }
 }

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using AniSort.Core;
 using AniSort.Server.Generators;
+using AniSort.Server.HostedServices;
 using AniSort.Server.Hubs;
 using AniSort.Server.Services;
 using OpenTelemetry.Resources;
@@ -18,6 +19,8 @@ builder.Services.AddSingleton<IJobHub, JobHub>();
 builder.Services.AddSingleton<ILocalFileHub, LocalFileHub>();
 builder.Services.AddSingleton<IScheduledJobHub, ScheduledJobHub>();
 builder.Services.AddSingleton(new ActivitySource("AniSort Server"));
+builder.Services.AddHostedService<JobSchedulerService>();
+builder.Services.AddHostedService<JobRunnerService>();
 Startup.InitializeServices(null, builder.Services);
 HubServiceRegistration.RegisterServices(builder.Services);
 

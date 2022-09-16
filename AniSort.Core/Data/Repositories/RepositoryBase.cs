@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace AniSort.Core.Data.Repositories;
 
-public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEntity, TKey>, IDisposable, IAsyncDisposable
+public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEntity, TKey>
     where TContext : DbContext
     where TEntity : class
 {
@@ -97,6 +98,21 @@ public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEnt
     public async Task SaveChangesAsync()
     {
         await Context.SaveChangesAsync();
+    }
+
+    /// <inheritdoc />
+    public void Detach(TEntity entity)
+    {
+        Context.Entry(entity).State = EntityState.Detached;
+    }
+
+    /// <inheritdoc />
+    public void Detach(IEnumerable<TEntity> entities)
+    {
+        foreach (var entity in entities)
+        {
+            Detach(entity);
+        }
     }
 
     /// <inheritdoc />
