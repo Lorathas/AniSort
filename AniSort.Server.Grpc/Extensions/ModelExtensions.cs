@@ -174,7 +174,7 @@ public static class ModelExtensions
         };
     }
 
-    public static ScheduledJob ToReply(this AniSort.Core.Data.ScheduledJob scheduledJob)
+    public static ScheduledJob ToReply(this Core.Data.ScheduledJob scheduledJob)
     {
         return new ScheduledJob
         {
@@ -184,6 +184,20 @@ public static class ModelExtensions
             ScheduleType = (ScheduleType) scheduledJob.ScheduleType,
             Options = scheduledJob.Options,
             ScheduleOptions = scheduledJob.ScheduleOptions,
+        };
+    }
+
+    public static ScheduledJobUpdate ToReply(this Core.Data.ScheduledJob scheduledJob, HubUpdate update)
+    {
+        return new ScheduledJobUpdate
+        {
+            ScheduledJobId = scheduledJob.Id.ToString(),
+            Name = scheduledJob.Name,
+            Type = (JobType) scheduledJob.Type,
+            ScheduleType = (ScheduleType) scheduledJob.ScheduleType,
+            Options = scheduledJob.Options,
+            ScheduleOptions = scheduledJob.ScheduleOptions,
+            Update = update
         };
     }
 

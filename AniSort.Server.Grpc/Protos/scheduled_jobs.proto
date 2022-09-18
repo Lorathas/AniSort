@@ -13,9 +13,13 @@ package anisort;
 service ScheduledJobService {
   rpc ListScheduledJobs(google.protobuf.Empty) returns (stream ScheduledJob);
   
+  rpc ListenForListOfScheduledJobs(google.protobuf.Empty) returns (stream ScheduledJobCollection);
+
   rpc CreateScheduledJob(ScheduledJob) returns (ScheduledJob);
-  
+
   rpc UpdateScheduledJob(ScheduledJob) returns (ScheduledJob);
+
+  rpc ListenForScheduledJobUpdates (ScheduledJobFilterRequest) returns (stream ScheduledJobUpdate);
 }
 
 message ScheduledJob {
@@ -27,7 +31,25 @@ message ScheduledJob {
   google.protobuf.Struct scheduleOptions = 6;
 }
 
+message ScheduledJobCollection {
+  repeated ScheduledJob jobs = 1;
+}
+
+message ScheduledJobUpdate {
+  string scheduledJobId = 1;
+  string name = 2;
+  JobType type = 3;
+  ScheduleType scheduleType = 4;
+  google.protobuf.Struct options = 5;
+  google.protobuf.Struct scheduleOptions = 6;
+  HubUpdate update = 7;
+}
+
 enum ScheduleType {
   Timed = 0;
   FileChange = 1;
+}
+
+message ScheduledJobFilterRequest {
+  string scheduledJobId = 1;
 }

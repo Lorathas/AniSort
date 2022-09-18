@@ -16,6 +16,7 @@ public class ScheduledJobRepository : RepositoryBase<ScheduledJob, Guid, AniSort
     public IAsyncEnumerable<ScheduledJob> GetAllOrderedByName()
     {
         return Set
+            .Where(j => !j.Deleted)
             .OrderBy(j => j.Name)
             .AsAsyncEnumerable();
     }
@@ -24,6 +25,7 @@ public class ScheduledJobRepository : RepositoryBase<ScheduledJob, Guid, AniSort
     public IAsyncEnumerable<ScheduledJob> GetForQueue()
     {
         return Set
+            .Where(j => !j.Deleted)
             .OrderBy(j => j.Name)
             .Include(j => j.Jobs)
             .AsNoTracking()

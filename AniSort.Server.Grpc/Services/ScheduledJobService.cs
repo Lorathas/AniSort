@@ -1,7 +1,9 @@
 ﻿using AniSort.Core.Data.Repositories;
 using AniSort.Server.Extensions;
 using AniSort.Server.Hubs;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using Microsoft.AspNetCore.SignalR;
 
 namespace AniSort.Server.Services;
 
@@ -70,5 +72,48 @@ public class ScheduledJobService : Server.ScheduledJobService.ScheduledJobServic
         await scheduledJobHub.PublishUpdateAsync(existing, HubUpdate.ItemUpdated);
 
         return existing.ToReply();
+    }
+
+    /// <inheritdoc />
+    public override async Task ListenForScheduledJobUpdates(ScheduledJobFilterRequest request, IServerStreamWriter<ScheduledJobUpdate> responseStream, ServerCallContext context)
+    {
+        Guid scheduledJobId = new Guid(request.ScheduledJobId);
+
+        if (!await scheduledJobRepository.ExistsAsync(scheduledJobId))
+        {
+            throw new RpcException(new Status(StatusCode.NotFound, $"No scheduled job found with id {scheduledJobId}"), new Metadata
+            {
+                {"ScheduledJobId", scheduledJobId.ToString()}
+            });
+        }
+        
+        await scheduledJobHub.RegisterListenerAsync(scheduledJobId, async (job, update) =>
+        {
+            var reply = job.ToReply(update);
+            
+            await responseStream.WriteAsync(reply);
+        }, context.CancellationToken);
+    }
+
+    /// <inheritdoc />
+    public override async Task ListenForListOfScheduledJobs(Empty request, IServerStreamWriter<ScheduledJobCollection> responseStream, ServerCallContext context)
+    {
+        async Task SendScheduledJobsAsync()
+        {
+            var reply = new ScheduledJobCollection();
+            
+            await foreach (var scheduledJob in scheduledJobRepository.GetAllOrderedByName())
+            {
+                reply.Jobs.Add(scheduledJob.ToReply());
+            }
+
+            await responseStream.WriteAsync(reply);
+        }
+
+        await SendScheduledJobsAsync();
+        
+        await scheduledJobHub.RegisterListenerAsync(async (_, _) => await SendScheduledJobsAsync(), context.CancellationToken);
+
+        await context.CancellationToken;
     }
 }
