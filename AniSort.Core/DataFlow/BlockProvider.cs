@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using AniDbSharp;
 using AniDbSharp.Data;
@@ -921,15 +922,55 @@ public class BlockProvider
 
     public ITargetBlock<Job> BuildJobTransformBlock(ITargetBlock<MetadataFileJobParams> fileOutput)
     {
-        return new ActionBlock<Job>(job =>
+        return new ActionBlock<Job>(async job =>
         {
+            var jobStepRepository = serviceProvider.GetService<IJobStepRepository>() ?? throw new ApplicationException($"Cannot instantiate type {typeof(IJobStepRepository)}");
+            var jobUpdateProvider = serviceProvider.GetService<IJobUpdateProvider>() ?? throw new ApplicationException($"Cannot instantiate type {typeof(IJobUpdateProvider)}");
+            
             var fileQueue = new Queue<string>();
+            
+            var discoverStep = job.Steps.FirstOrDefault(s => s.Type == StepType.DiscoverFiles);
             
             fileQueue.AddPathsToQueue(job.Options.Fields["path"].StringValue);
 
             int totalFiles = fileQueue.Count;
+
+            if (discoverStep != null)
+            {
+                discoverStep.TotalProgress = totalFiles;
+                discoverStep.Status = JobStatus.Running;
+                await jobStepRepository.UpsertAndDetachAsync(discoverStep);
+            }
+
+            int processed = 0;
+            int lastPercentNotifiedAt = 0;
+
+            while (fileQueue.TryDequeue(out string? path))
+            {
+                await fileOutput.SendAsync(new(new System.IO.FileInfo(path), Job: job));
+                processed++;
+                if (discoverStep != null)
+                {
+                    discoverStep.CurrentProgress = processed;
+                    await jobStepRepository.UpsertAndDetachAsync(discoverStep);
+                }
+
+                int percent = processed / totalFiles;
+                if (percent > lastPercentNotifiedAt)
+                {
+                    await jobUpdateProvider.UpdateJobStatusAsync(job);
+                    
+                    lastPercentNotifiedAt = percent;
+                }
+            }
             
             
+            if (discoverStep != null)
+            {
+                discoverStep.CurrentProgress = discoverStep.TotalProgress;
+                discoverStep.Status = JobStatus.Completed;
+                await jobStepRepository.UpsertAndDetachAsync(discoverStep);
+            }
         });
     }
 

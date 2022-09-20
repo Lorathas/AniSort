@@ -21,7 +21,7 @@ public static class FileImportExtensions
     /// <param name="queue">Queue to add to</param>
     /// <param name="paths">Top level paths to add</param>
     /// <param name="predicate">Optional filtering predicate</param>
-    public static void AddPathsToQueue(this Queue<string> queue, IEnumerable<string> paths, Func<string, bool>? predicate = null)
+    public static void AddPathsToQueue(this Queue<string> queue, IEnumerable<string?> paths, Func<string, bool>? predicate = null)
     {
         foreach (var path in paths)
         {
@@ -42,7 +42,7 @@ public static class FileImportExtensions
     /// <param name="queue">Queue to add to</param>
     /// <param name="path">Top level path to add</param>
     /// <param name="predicate">Optional filtering predicate</param>
-    public static void AddPathsToQueue(this Queue<string> queue, string path, Func<string, bool>? predicate = null) =>
+    public static void AddPathsToQueue(this Queue<string> queue, string? path, Func<string, bool>? predicate = null) =>
         queue.AddPathsToQueue(new[] { path }, predicate);
 
     /// <summary>
@@ -51,7 +51,7 @@ public static class FileImportExtensions
     /// <param name="block">Dataflow block to add to</param>
     /// <param name="paths">Top level paths to add</param>
     /// <param name="predicate">Optional filtering predicate</param>
-    public static void AddPathsToFlow(this ITargetBlock<string> block, IEnumerable<string> paths, Func<string, bool>? predicate = null)
+    public static void AddPathsToFlow(this ITargetBlock<string> block, IEnumerable<string?> paths, Func<string, bool>? predicate = null)
     {
         foreach (var path in paths)
         {
