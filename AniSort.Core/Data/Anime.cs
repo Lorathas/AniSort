@@ -5,7 +5,7 @@ using AniSort.Core.Models;
 
 namespace AniSort.Core.Data;
 
-public class Anime
+public class Anime : IEntity
 {
     [Key]
     public int Id { get; set; }
@@ -30,4 +30,7 @@ public class Anime
     {
         return $"{Id} {RomajiName ?? EnglishName ?? KanjiName ?? OtherName}";
     }
+
+    /// <inheritdoc />
+    public bool IsNew => Id != 0;
 }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using AniDbSharp;
 using AniSort.Core.Commands;
 using AniSort.Core.Data;
@@ -28,7 +27,9 @@ namespace AniSort.Core;
 public class Startup
 {
     public static ServiceProvider ServiceProvider { get; private set; }
+
     private static IImmutableDictionary<string, Type> commands;
+
     private static ILogger<Startup> logger;
 
     public static void InitializeLogging(Config aniSortConfig)
@@ -57,8 +58,14 @@ public class Startup
         }
 
         var nullTarget = new NullTarget();
-        loggingConfig.LoggingRules.Add(new LoggingRule("Microsoft.*", LogLevel.Trace, LogLevel.Fatal, nullTarget) {Final = true});
-        loggingConfig.LoggingRules.Add(new LoggingRule("Grpc.AspNetCore.Server.ServerCallHandler", LogLevel.Info, LogLevel.Error, nullTarget) {Final = true});
+        loggingConfig.LoggingRules.Add(new LoggingRule("Microsoft.*", LogLevel.Trace, LogLevel.Fatal, nullTarget)
+        {
+            Final = true
+        });
+        loggingConfig.LoggingRules.Add(new LoggingRule("Grpc.AspNetCore.Server.ServerCallHandler", LogLevel.Info, LogLevel.Error, nullTarget)
+        {
+            Final = true
+        });
 
         loggingConfig.AddRule(fileAndConsoleMinLevel, LogLevel.Warn, fileLog);
         loggingConfig.AddRule(LogLevel.Error, LogLevel.Fatal, errorFileLog);
@@ -89,6 +96,7 @@ public class Startup
             .AddScoped<ISynonymRepository, SynonymRepository>()
             .AddScoped<IJobRepository, JobRepository>()
             .AddScoped<IScheduledJobRepository, ScheduledJobRepository>()
+            .AddScoped<IJobStepRepository, JobStepRepository>()
             .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
             .AddTransient<LegacyDataStoreProvider>()
             .AddTransient<BlockProvider>()
@@ -136,7 +144,7 @@ public class Startup
     private static void InitializeCommands()
     {
         using var scopedProvider = ServiceProvider.CreateScope();
-        
+
         // ReSharper disable once LocalVariableHidesMember
         var commands = new Dictionary<string, Type>();
         foreach (var commandType in AssemblyHelpers.CommandTypes)

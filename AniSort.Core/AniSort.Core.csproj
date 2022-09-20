@@ -6,6 +6,7 @@
     <LangVersion>default</LangVersion>
     <PackageVersion>2.1.0</PackageVersion>
     <Authors>Lorathas</Authors>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

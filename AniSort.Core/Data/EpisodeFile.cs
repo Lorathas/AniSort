@@ -6,7 +6,7 @@ using AniSort.Core.Models;
 
 namespace AniSort.Core.Data;
 
-public class EpisodeFile
+public class EpisodeFile : IEntity
 {
     [Key]
     public int Id { get; set; }
@@ -49,4 +49,7 @@ public class EpisodeFile
             VideoHeight = value.Height;
         }
     }
+
+    /// <inheritdoc />
+    public bool IsNew => Id != 0;
 }

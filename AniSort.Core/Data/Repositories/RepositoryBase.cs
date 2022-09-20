@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,7 +6,7 @@ namespace AniSort.Core.Data.Repositories;
 
 public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEntity, TKey>
     where TContext : DbContext
-    where TEntity : class
+    where TEntity : class, IEntity
 {
     protected readonly TContext Context;
     protected readonly DbSet<TEntity> Set;
@@ -19,13 +18,13 @@ public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEnt
     }
 
     /// <inheritdoc />
-    public TEntity GetById(TKey key)
+    public TEntity? GetById(TKey key)
     {
         return Set.Find(key);
     }
 
     /// <inheritdoc />
-    public async Task<TEntity> GetByIdAsync(TKey key)
+    public async Task<TEntity?> GetByIdAsync(TKey key)
     {
         return await Set.FindAsync(key);
     }
@@ -54,7 +53,41 @@ public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEnt
     }
 
     /// <inheritdoc />
-    public TEntity Remove(TKey key)
+    public TEntity Upsert(TEntity entity)
+    {
+        Context.Entry(entity).State = entity.IsNew ? EntityState.Added : EntityState.Modified;
+
+        return entity;
+    }
+
+    /// <inheritdoc />
+    public Task<TEntity> UpsertAsync(TEntity entity)
+    {
+        Context.Entry(entity).State = entity.IsNew ? EntityState.Added : EntityState.Modified;
+
+        return Task.FromResult(entity);
+    }
+
+    /// <inheritdoc />
+    public TEntity UpsertAndDetach(TEntity entity)
+    {
+        Context.Entry(entity).State = entity.IsNew ? EntityState.Added : EntityState.Modified;
+        Context.SaveChanges();
+        Detach(entity);
+        return entity;
+    }
+
+    /// <inheritdoc />
+    public async Task<TEntity> UpsertAndDetachAsync(TEntity entity)
+    {
+        Context.Entry(entity).State = entity.IsNew ? EntityState.Added : EntityState.Modified;
+        await Context.SaveChangesAsync();
+        Detach(entity);
+        return entity;
+    }
+
+    /// <inheritdoc />
+    public TEntity? Remove(TKey key)
     {
         var entity = GetById(key);
         if (entity != null)
@@ -65,7 +98,7 @@ public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEnt
     }
 
     /// <inheritdoc />
-    public async Task<TEntity> RemoveAsync(TKey key)
+    public async Task<TEntity?> RemoveAsync(TKey key)
     {
         var entity = await GetByIdAsync(key);
         if (entity != null)
@@ -118,12 +151,12 @@ public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEnt
     /// <inheritdoc />
     public void Dispose()
     {
-        Context?.Dispose();
+        Context.Dispose();
     }
 
     /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
-        return Context?.DisposeAsync() ?? ValueTask.CompletedTask;
+        return Context.DisposeAsync();
     }
 }

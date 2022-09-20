@@ -17,8 +17,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using AniDbSharp;
 using AniDbSharp.Data;
@@ -42,6 +40,7 @@ namespace AniSort.Core.DataFlow;
 public class BlockProvider
 {
     private readonly Config config;
+
     private readonly IServiceProvider serviceProvider;
 
     public BlockProvider(Config config, IServiceProvider serviceProvider)
@@ -55,26 +54,33 @@ public class BlockProvider
     /// </summary>
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
-    public TransformBlock<string, LocalFile> BuildFetchLocalFileBlock(ExecutionDataflowBlockOptions options = null)
+    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams> BuildFetchLocalFileBlock(ExecutionDataflowBlockOptions? options = null)
     {
-        options ??= new ExecutionDataflowBlockOptions();
+        options ??= new();
 
-        int calls = 0;
-
-        return new TransformBlock<string, LocalFile>(async path =>
+        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(async parameters =>
         {
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
+            var jobStepRepository = serviceProvider.GetService<IJobStepRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IJobStepRepository)}");
+
+            var hashStep = parameters.Job?.Steps.FirstOrDefault(s => s.Type == StepType.Hash);
+
+            JobStep? existingStep = null;
+            if (hashStep != null)
+            {
+                existingStep = await jobStepRepository.GetByIdAsync(hashStep.Id);
+            }
 
             using var logScope = logger.BeginScope("FetchLocalFileBlock");
 
             try
             {
-                LocalFile localFile;
+                LocalFile? localFile;
                 await AniSortContext.DatabaseLock.WaitAsync();
                 try
                 {
-                    localFile = await localFileRepository!.GetForPathAsync(path);
+                    localFile = await localFileRepository.GetForPathAsync(parameters.FileInfo.FullName);
                 }
                 finally
                 {
@@ -83,7 +89,7 @@ public class BlockProvider
 
                 if (localFile == null)
                 {
-                    localFile = new LocalFile { Path = path, Status = ImportStatus.NotYetImported, EpisodeFile = null };
+                    localFile = new LocalFile { Path = parameters.FileInfo.FullName, Status = ImportStatus.NotYetImported, EpisodeFile = null };
                     if (!config.Debug)
                     {
                         await AniSortContext.DatabaseLock.WaitAsync();
@@ -101,18 +107,29 @@ public class BlockProvider
 
                 if (localFile.Status == ImportStatus.Imported)
                 {
-                    logger!.LogDebug("File \"{FilePath}\" has already been imported. Skipping...", path);
+                    logger.LogDebug("File \"{FilePath}\" has already been imported. Skipping...", parameters);
 
-                    return null;
+                    return parameters with { Failed = true };
                 }
 
-                return localFile;
+                if (existingStep != null)
+                {
+                    existingStep.CurrentProgress++;
+                    await jobStepRepository.SaveChangesAsync();
+                }
+
+                return parameters with { LocalFile = localFile };
             }
             catch (AniDbConnectionRefusedException ex)
             {
-                logger.LogCritical(ex, "AniDB connection timed out. Please wait or switch to a different IP address");
+                if (existingStep != null)
+                {
+                    existingStep.Logs.Add(new StepLog(ex, AniDbErrorMessages.AniDbTimeout));
+                }
+
+                logger.LogCritical(ex, AniDbErrorMessages.AniDbTimeout);
                 Environment.Exit(ExitCodes.AniDbConnectionRefused);
-                return default;
+                return parameters with { Failed = true };
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -120,13 +137,13 @@ public class BlockProvider
                 {
                     logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
                 }
-                return default;
+                return parameters with { Failed = true };
             }
             catch (Exception ex)
             {
                 // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                 logger.LogError(ex, ex.Message);
-                return default;
+                return parameters with { Failed = true };
             }
         }, options);
     }
@@ -134,37 +151,41 @@ public class BlockProvider
     /// <summary>
     /// Build a transform block to hash a file
     /// </summary>
+    /// <param name="onNewHashStarted"></param>
     /// <param name="onProgressUpdate">Progress update function to call when hashing</param>
+    /// <param name="onHashFinished"></param>
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
-    public TransformBlock<LocalFile, LocalFile> BuildHashFileBlock(Action<string, long> onNewHashStarted, Action<long> onProgressUpdate, Action onHashFinished, ExecutionDataflowBlockOptions options = null)
+    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams> BuildHashFileBlock(Action<string, long> onNewHashStarted, Action<long> onProgressUpdate, Action onHashFinished, ExecutionDataflowBlockOptions? options = null)
     {
-        options ??= new ExecutionDataflowBlockOptions();
+        options ??= new();
 
-        return new TransformBlock<LocalFile, LocalFile>(async localFile =>
+        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(async parameters =>
         {
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
             var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
+            var jobUpdateProvider = serviceProvider.GetService<IJobUpdateProvider>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IJobUpdateProvider)}");
+            var jobStepRepository = serviceProvider.GetService<IJobStepRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IJobStepRepository)}");
 
             using var logScope = logger.BeginScope("HashFileBlock");
 
             try
             {
-                if (localFile.Ed2kHash != null)
+                if (parameters.LocalFile!.Ed2kHash != null)
                 {
-                    return localFile;
+                    return parameters;
                 }
 
-                string filename = Path.GetFileName(localFile.Path);
+                string filename = parameters.FileInfo.Name;
 
-                if (localFile.Ed2kHash != null)
+                if (parameters.LocalFile!.Ed2kHash != null)
                 {
-                    logger.LogDebug("File \"{FilePath}\" already hashed. Skipping hashing process...", localFile.Path);
+                    logger.LogDebug("File \"{FilePath}\" already hashed. Skipping hashing process...", parameters.LocalFile.Path);
                 }
                 else
                 {
-                    var hashAction = new FileAction { Type = FileActionType.Hash, Success = false, FileId = localFile.Id };
+                    var hashAction = new FileAction { Type = FileActionType.Hash, Success = false, FileId = parameters.LocalFile!.Id };
                     if (!config.Debug)
                     {
                         await AniSortContext.DatabaseLock.WaitAsync();
@@ -179,10 +200,10 @@ public class BlockProvider
                         }
                     }
 
-                    await using var fs = new BufferedStream(File.OpenRead(localFile.Path!));
+                    await using var fs = new BufferedStream(parameters.FileInfo.OpenRead());
                     long totalBytes;
-                    localFile.FileLength = totalBytes = fs.Length;
-                    localFile.UpdatedAt = DateTimeOffset.Now;
+                    parameters.LocalFile.FileLength = totalBytes = fs.Length;
+                    parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                     if (!config.Debug)
                     {
                         await AniSortContext.DatabaseLock.WaitAsync();
@@ -196,15 +217,26 @@ public class BlockProvider
                         }
                     }
 
-                    onNewHashStarted(localFile.Path, localFile.FileLength);
+                    onNewHashStarted(parameters.LocalFile.Path, parameters.FileInfo.Length);
 
                     var sw = Stopwatch.StartNew();
 
-                    localFile.Ed2kHash = await Ed2k.HashMultiAsync(fs, new Progress<long>(onProgressUpdate));
-                    localFile.Status = ImportStatus.Hashed;
-                    localFile.UpdatedAt = DateTimeOffset.Now;
+                    void OnHashProgress(long progress)
+                    {
+                        if (parameters.Job != null)
+                        {
+                        }
+
+                        onProgressUpdate(progress);
+                    }
+
+                    ;
+
+                    parameters.LocalFile.Ed2kHash = await Ed2k.HashMultiAsync(fs, new Progress<long>(OnHashProgress));
+                    parameters.LocalFile.Status = ImportStatus.Hashed;
+                    parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                     hashAction.Success = true;
-                    hashAction.Info = $"Successfully hashed file with hash of {localFile.Ed2kHash.ToHexString()}";
+                    hashAction.Info = $"Successfully hashed file with hash of {parameters.LocalFile.Ed2kHash.ToHexString()}";
                     hashAction.UpdatedAt = DateTimeOffset.Now;
 
                     onHashFinished();
@@ -230,23 +262,23 @@ public class BlockProvider
 
                     if (EnvironmentHelpers.IsConsolePresent)
                     {
-                        logger!.LogInformation("Hashed: {TruncatedFilename}", (localFile.Path.Length + 8 > Console.WindowWidth ? filename : localFile.Path).Truncate(Console.WindowWidth));
+                        logger.LogInformation("Hashed: {TruncatedFilename}", (parameters.LocalFile.Path.Length + 8 > Console.WindowWidth ? filename : parameters.LocalFile.Path).Truncate(Console.WindowWidth));
                     }
                     else
                     {
-                        logger!.LogInformation("Hashed: {Filename}", localFile.Path);
+                        logger.LogInformation("Hashed: {Filename}", parameters.LocalFile.Path);
                     }
-                    logger.LogDebug("  eD2k hash: {HashInHex}", localFile.Ed2kHash.ToHexString());
+                    logger.LogDebug("  eD2k hash: {HashInHex}", parameters.LocalFile.Ed2kHash.ToHexString());
 
                     if (config.Verbose)
                     {
                         logger.LogTrace(
-                            "  Processed {SizeInMB:###,###,##0.00}MB in {ElapsedTime} at a rate of {HashRate:F2}MB/s", (double)totalBytes / 1024 / 1024, sw.Elapsed,
-                            Math.Round((double)totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds));
+                            "  Processed {SizeInMB:###,###,##0.00}MB in {ElapsedTime} at a rate of {HashRate:F2}MB/s", (double) totalBytes / 1024 / 1024, sw.Elapsed,
+                            Math.Round((double) totalBytes / 1024 / 1024 / sw.Elapsed.TotalSeconds));
                     }
                 }
 
-                return localFile;
+                return parameters;
             }
             catch (AniDbConnectionRefusedException ex)
             {
@@ -260,13 +292,13 @@ public class BlockProvider
                 {
                     logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
                 }
-                return default;
+                return parameters with {Failed = true};
             }
             catch (Exception ex)
             {
                 // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                 logger.LogError(ex, ex.Message);
-                return default;
+                return parameters with {Failed = true};
             }
         }, options);
     }
@@ -276,12 +308,17 @@ public class BlockProvider
     /// </summary>
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
-    public TransformBlock<LocalFile, LocalFile> BuildFilterCoolingDownFilesBlock(ExecutionDataflowBlockOptions options = null)
+    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams> BuildFilterCoolingDownFilesBlock(ExecutionDataflowBlockOptions? options = null)
     {
-        options ??= new ExecutionDataflowBlockOptions();
+        options ??= new();
 
-        return new TransformBlock<LocalFile, LocalFile>(async localFile =>
+        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(async parameters =>
         {
+            if (parameters.LocalFile == null)
+            {
+                return parameters with { Failed = true };
+            }
+
             var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
 
@@ -289,13 +326,13 @@ public class BlockProvider
 
             try
             {
-                string filename = Path.GetFileName(localFile.Path);
+                string filename = Path.GetFileName(parameters.LocalFile.Path);
 
                 List<FileAction> fileActions;
                 await AniSortContext.DatabaseLock.WaitAsync();
                 try
                 {
-                    fileActions = actionRepository!.GetForFile(localFile.Id).ToList().OrderBy(a => a.CreatedAt).ToList();
+                    fileActions = actionRepository.GetForFile(parameters.LocalFile.Id).ToList().OrderBy(a => a.CreatedAt).ToList();
                 }
                 finally
                 {
@@ -306,14 +343,14 @@ public class BlockProvider
                 {
                     if (EnvironmentHelpers.IsConsolePresent)
                     {
-                        logger!.LogDebug("File {TruncatedFilename} has hit the retry limit, skipping",
-                            (localFile!.Path!.Length + 40 > Console.WindowWidth ? filename : localFile.Path).Truncate(Console.WindowWidth));
+                        logger.LogDebug("File {TruncatedFilename} has hit the retry limit, skipping",
+                            (parameters.FileInfo.FullName.Length + 40 > Console.WindowWidth ? filename : parameters.FileInfo.FullName).Truncate(Console.WindowWidth));
                     }
                     else
                     {
-                        logger!.LogDebug("File {Filename} has hit the retry limit, skipping", localFile.Path);
+                        logger!.LogDebug("File {Filename} has hit the retry limit, skipping", parameters.FileInfo.FullName);
                     }
-                    return null;
+                    return parameters with { IsCoolingDown = true };
                 }
 
                 var lastSearchAction = fileActions.LastOrDefault(a => a.Type == FileActionType.Search);
@@ -322,23 +359,23 @@ public class BlockProvider
                 {
                     if (EnvironmentHelpers.IsConsolePresent)
                     {
-                        logger!.LogDebug("File {TruncatedFilename} is still cooling down from last search, skipping",
-                            (localFile!.Path!.Length + 49 + 5 > Console.WindowWidth ? filename : localFile.Path).Truncate(Console.WindowWidth));
+                        logger.LogDebug("File {TruncatedFilename} is still cooling down from last search, skipping",
+                            (parameters.LocalFile!.Path.Length + 49 + 5 > Console.WindowWidth ? filename : parameters.LocalFile.Path).Truncate(Console.WindowWidth));
                     }
                     else
                     {
-                        logger!.LogDebug("File {Filename} is still cooling down from last search, skipping", localFile.Path);
+                        logger.LogDebug("File {Filename} is still cooling down from last search, skipping", parameters.LocalFile.Path);
                     }
-                    return null;
+                    return parameters with { IsCoolingDown = true };
                 }
 
-                return localFile;
+                return parameters;
             }
             catch (AniDbConnectionRefusedException ex)
             {
                 logger.LogCritical(ex, "AniDB connection timed out. Please wait or switch to a different IP address");
                 Environment.Exit(ExitCodes.AniDbConnectionRefused);
-                return default;
+                return parameters with { Failed = true };
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -346,13 +383,13 @@ public class BlockProvider
                 {
                     logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
                 }
-                return default;
+                return parameters with { Failed = true };
             }
             catch (Exception ex)
             {
                 // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                 logger.LogError(ex, ex.Message);
-                return default;
+                return parameters with { Failed = true };
             }
         }, options);
     }
@@ -364,92 +401,53 @@ public class BlockProvider
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
-    public TransformBlock<LocalFile, (LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo, VideoResolution Resolution)> BuildSearchFileBlock(AniDbClient client,
-        ExecutionDataflowBlockOptions options = null)
+    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams> BuildSearchFileBlock(AniDbClient client,
+        ExecutionDataflowBlockOptions? options = null)
     {
-        options ??= new ExecutionDataflowBlockOptions();
+        options ??= new();
 
         // Annoying, but for some reason it doesn't infer the type correctly so we need to wrap it in a Func
-        return new TransformBlock<LocalFile, (LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo, VideoResolution Resolution)>(
-            async localFile =>
+        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(async parameters =>
+        {
+            var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
+            var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
+            var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
+            var animeRepository = serviceProvider.GetService<IAnimeRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IAnimeRepository)}");
+            var episodeRepository = serviceProvider.GetService<IEpisodeRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IEpisodeRepository)}");
+            var releaseGroupRepository = serviceProvider.GetService<IReleaseGroupRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IReleaseGroupRepository)}");
+            var episodeFileRepository = serviceProvider.GetService<IEpisodeFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IEpisodeFileRepository)}");
+            var pathBuilderRepository = serviceProvider.GetService<IPathBuilderRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(PathBuilderRepository)}");
+
+            using var logScope = logger.BeginScope("SearchFileBlock");
+
+            try
             {
-                var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
-                var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
-                var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
-                var animeRepository = serviceProvider.GetService<IAnimeRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IAnimeRepository)}");
-                var episodeRepository = serviceProvider.GetService<IEpisodeRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IEpisodeRepository)}");
-                var releaseGroupRepository = serviceProvider.GetService<IReleaseGroupRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IReleaseGroupRepository)}");
-                var episodeFileRepository = serviceProvider.GetService<IEpisodeFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IEpisodeFileRepository)}");
-                var pathBuilderRepository = serviceProvider.GetService<IPathBuilderRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(PathBuilderRepository)}");
+                string filename = parameters.FileInfo.Name;
 
-                using var logScope = logger.BeginScope("SearchFileBlock");
+                var searchAction = new FileAction { Type = FileActionType.Search, Success = false, FileId = parameters.LocalFile!.Id };
 
+                await AniSortContext.DatabaseLock.WaitAsync();
                 try
                 {
-                    string filename = Path.GetFileName(localFile.Path);
+                    await actionRepository.AddAsync(searchAction);
+                    await actionRepository.SaveChangesAsync();
+                }
+                finally
+                {
+                    AniSortContext.DatabaseLock.Release();
+                }
 
-                    var searchAction = new FileAction { Type = FileActionType.Search, Success = false, FileId = localFile.Id };
+                var pathBuilder = pathBuilderRepository.GetPathBuilderForPath(parameters.FileInfo.FullName);
 
+                var result = await client.SearchForFile(parameters.LocalFile.FileLength, parameters.LocalFile.Ed2kHash!, pathBuilder.FileMask, pathBuilder.AnimeMask);
+
+                if (!result.FileFound)
+                {
                     await AniSortContext.DatabaseLock.WaitAsync();
                     try
                     {
-                        await actionRepository.AddAsync(searchAction);
-                        await actionRepository.SaveChangesAsync();
-                    }
-                    finally
-                    {
-                        AniSortContext.DatabaseLock.Release();
-                    }
-
-                    var pathBuilder = pathBuilderRepository.GetPathBuilderForPath(localFile.Path);
-
-                    var result = await client.SearchForFile(localFile.FileLength, localFile.Ed2kHash, pathBuilder.FileMask, pathBuilder.AnimeMask);
-
-                    if (!result.FileFound)
-                    {
-                        await AniSortContext.DatabaseLock.WaitAsync();
-                        try
-                        {
-                            searchAction.Info = "No file found for hash";
-                            searchAction.UpdatedAt = DateTimeOffset.Now;
-                            await localFileRepository.SaveChangesAsync();
-                        }
-                        finally
-                        {
-                            AniSortContext.DatabaseLock.Release();
-                        }
-
-                        if (EnvironmentHelpers.IsConsolePresent)
-                        {
-                            // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
-                            logger.LogWarning($"No file found for {filename}".Truncate(Console.WindowWidth));
-                        }
-                        else
-                        {
-                            logger.LogWarning("No file found for {FilePath}", filename);
-                        }
-
-                        await AniSortContext.DatabaseLock.WaitAsync();
-                        try
-                        {
-                            localFile.Status = ImportStatus.NoFileFound;
-                            localFile.UpdatedAt = DateTimeOffset.Now;
-                            await localFileRepository.SaveChangesAsync();
-                        }
-                        finally
-                        {
-                            AniSortContext.DatabaseLock.Release();
-                        }
-                        return default;
-                    }
-
-                    await AniSortContext.DatabaseLock.WaitAsync();
-                    try
-                    {
-                        searchAction.Success = true;
-                        searchAction.Info = $"Found file {result.FileInfo.FileId} for file hash {localFile.Ed2kHash.ToHexString()}";
+                        searchAction.Info = "No file found for hash";
                         searchAction.UpdatedAt = DateTimeOffset.Now;
-                        await actionRepository.SaveChangesAsync();
                         await localFileRepository.SaveChangesAsync();
                     }
                     finally
@@ -457,41 +455,21 @@ public class BlockProvider
                         AniSortContext.DatabaseLock.Release();
                     }
 
-                    // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
-                    logger.LogInformation($"File found for {filename}");
-
-                    if (config.Verbose)
+                    if (EnvironmentHelpers.IsConsolePresent)
                     {
-                        logger.LogTrace("  Anime: {AnimeNameInRomaji}", result.AnimeInfo.RomajiName);
-                        logger.LogTrace("  Episode: {EpisodeNumber:##} {EpisodeName}", result.AnimeInfo.EpisodeNumber, result.AnimeInfo.EpisodeName);
-                        logger.LogTrace("  CRC32: {Crc32Hash}", result.FileInfo.Crc32Hash.ToHexString());
-                        logger.LogTrace("  Group: {SubGroupName}", result.AnimeInfo.GroupShortName);
+                        // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
+                        logger.LogWarning($"No file found for {filename}".Truncate(Console.WindowWidth));
+                    }
+                    else
+                    {
+                        logger.LogWarning("No file found for {FilePath}", filename);
                     }
 
                     await AniSortContext.DatabaseLock.WaitAsync();
                     try
                     {
-                        var (anime, episode, episodeFile, releaseGroup) = await animeRepository.MergeSertAsync(result, false);
-                        await animeRepository.SaveChangesAsync();
-                        if (!await episodeRepository.ExistsAsync(episode.Id))
-                        {
-                            episode.AnimeId = anime.Id;
-                            await episodeRepository.AddAsync(episode);
-                            await episodeRepository.SaveChangesAsync();
-                        }
-                        if (releaseGroup != null && !await releaseGroupRepository.ExistsForShortNameAsync(releaseGroup.ShortName))
-                        {
-                            await releaseGroupRepository.AddAsync(releaseGroup);
-                            await releaseGroupRepository.SaveChangesAsync();
-                            episodeFile.GroupId = releaseGroup.Id;
-                        }
-                        if (!await episodeFileRepository.ExistsAsync(episodeFile.Id))
-                        {
-                            episodeFile.EpisodeId = episode.Id;
-                            await episodeFileRepository.AddAsync(episodeFile);
-                            await episodeFileRepository.SaveChangesAsync();
-                        }
-                        localFile.EpisodeFileId = episodeFile.Id;
+                        parameters.LocalFile.Status = ImportStatus.NoFileFound;
+                        parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                         await localFileRepository.SaveChangesAsync();
                     }
                     finally
@@ -499,37 +477,96 @@ public class BlockProvider
                         AniSortContext.DatabaseLock.Release();
                     }
 
-                    var resolution = !string.IsNullOrWhiteSpace(result.FileInfo.VideoResolution) ? result.FileInfo.VideoResolution.ParseVideoResolution() : null;
+                    return parameters with { Failed = true };
+                }
 
-                    if (resolution?.Width == 0 || resolution?.Height == 0)
-                    {
-                        resolution = null;
-                    }
+                await AniSortContext.DatabaseLock.WaitAsync();
+                try
+                {
+                    searchAction.Success = true;
+                    searchAction.Info = $"Found file {result.FileInfo.FileId} for file hash {parameters.LocalFile.Ed2kHash!.ToHexString()}";
+                    searchAction.UpdatedAt = DateTimeOffset.Now;
+                    await actionRepository.SaveChangesAsync();
+                    await localFileRepository.SaveChangesAsync();
+                }
+                finally
+                {
+                    AniSortContext.DatabaseLock.Release();
+                }
 
-                    return (localFile, result.AnimeInfo, result.FileInfo, resolution);
-                }
-                catch (AniDbConnectionRefusedException ex)
+                // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
+                logger.LogInformation($"File found for {filename}");
+
+                if (config.Verbose)
                 {
-                    // ReSharper disable once LogMessageIsSentenceProblem
-                    logger.LogCritical(ex, "AniDB connection timed out. Please wait or switch to a different IP address.");
-                    Environment.Exit(ExitCodes.AniDbConnectionRefused);
-                    return default;
+                    logger.LogTrace("  Anime: {AnimeNameInRomaji}", result.AnimeInfo.RomajiName);
+                    logger.LogTrace("  Episode: {EpisodeNumber:##} {EpisodeName}", result.AnimeInfo.EpisodeNumber, result.AnimeInfo.EpisodeName);
+                    logger.LogTrace("  CRC32: {Crc32Hash}", result.FileInfo.Crc32Hash.ToHexString());
+                    logger.LogTrace("  Group: {SubGroupName}", result.AnimeInfo.GroupShortName);
                 }
-                catch (DbUpdateConcurrencyException ex)
+
+                await AniSortContext.DatabaseLock.WaitAsync();
+                try
                 {
-                    foreach (var entry in ex.Entries)
+                    var (anime, episode, episodeFile, releaseGroup) = await animeRepository.MergeSertAsync(result, false);
+                    await animeRepository.SaveChangesAsync();
+                    if (!await episodeRepository.ExistsAsync(episode.Id))
                     {
-                        logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
+                        episode.AnimeId = anime.Id;
+                        await episodeRepository.AddAsync(episode);
+                        await episodeRepository.SaveChangesAsync();
                     }
-                    return default;
+                    if (releaseGroup != null && !await releaseGroupRepository.ExistsForShortNameAsync(releaseGroup.ShortName))
+                    {
+                        await releaseGroupRepository.AddAsync(releaseGroup);
+                        await releaseGroupRepository.SaveChangesAsync();
+                        episodeFile.GroupId = releaseGroup.Id;
+                    }
+                    if (!await episodeFileRepository.ExistsAsync(episodeFile.Id))
+                    {
+                        episodeFile.EpisodeId = episode.Id;
+                        await episodeFileRepository.AddAsync(episodeFile);
+                        await episodeFileRepository.SaveChangesAsync();
+                    }
+                    parameters.LocalFile.EpisodeFileId = episodeFile.Id;
+                    await localFileRepository.SaveChangesAsync();
                 }
-                catch (Exception ex)
+                finally
                 {
-                    // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
-                    logger.LogError(ex, ex.Message);
-                    return default;
+                    AniSortContext.DatabaseLock.Release();
                 }
-            }, options);
+
+                var resolution = !string.IsNullOrWhiteSpace(result.FileInfo.VideoResolution) ? result.FileInfo.VideoResolution.ParseVideoResolution() : null;
+
+                if (resolution?.Width == 0 || resolution?.Height == 0)
+                {
+                    resolution = null;
+                }
+
+                return new(parameters.FileInfo, parameters.LocalFile, parameters.IsCoolingDown, result.AnimeInfo, result.FileInfo, resolution, parameters.Job);
+            }
+            catch (AniDbConnectionRefusedException ex)
+            {
+                // ReSharper disable once LogMessageIsSentenceProblem
+                logger.LogCritical(ex, "AniDB connection timed out. Please wait or switch to a different IP address.");
+                Environment.Exit(ExitCodes.AniDbConnectionRefused);
+                return new(parameters.FileInfo, parameters.LocalFile, parameters.IsCoolingDown, default, default, default, parameters.Job, true);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                foreach (var entry in ex.Entries)
+                {
+                    logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
+                }
+                return new(parameters.FileInfo, parameters.LocalFile, parameters.IsCoolingDown, default, default, default, parameters.Job, true);
+            }
+            catch (Exception ex)
+            {
+                // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
+                logger.LogError(ex, ex.Message);
+                return new(parameters.FileInfo, parameters.LocalFile, parameters.IsCoolingDown, default, default, default, parameters.Job, true);
+            }
+        }, options);
     }
 
     /// <summary>
@@ -538,15 +575,13 @@ public class BlockProvider
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
-    public TransformBlock<(LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo, VideoResolution Resolution), (LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo,
-            VideoResolution Resolution)>
-        BuildGetFileVideoResolutionBlock(ExecutionDataflowBlockOptions options = null)
+    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams>
+        BuildGetFileVideoResolutionBlock(ExecutionDataflowBlockOptions? options = null)
     {
-        options ??= new ExecutionDataflowBlockOptions();
+        options ??= new();
 
-        return new TransformBlock<(LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo, VideoResolution Resolution), (LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo,
-            VideoResolution Resolution)>(
-            async tuple =>
+        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(
+            async parameters =>
             {
                 var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
 
@@ -554,27 +589,27 @@ public class BlockProvider
 
                 try
                 {
-                    var (localFile, animeInfo, fileInfo, resolution) = tuple;
+                    var resolution = parameters.VideoResolution;
 
-                    if (!fileInfo.HasResolution)
+                    if (!parameters.AnimeFileInfo!.HasResolution)
                     {
-                        var mediaInfo = await FFProbe.AnalyseAsync(localFile.Path);
+                        var mediaInfo = await FFProbe.AnalyseAsync(parameters.FileInfo.FullName);
 
                         if (mediaInfo.PrimaryVideoStream == null)
                         {
-                            return (localFile, animeInfo, fileInfo, null);
+                            return parameters with { Failed = true };
                         }
 
                         resolution = new VideoResolution(mediaInfo.PrimaryVideoStream.Width, mediaInfo.PrimaryVideoStream.Height);
                     }
 
-                    return (localFile, animeInfo, fileInfo, resolution);
+                    return parameters with { VideoResolution = resolution };
                 }
                 catch (Exception ex)
                 {
                     // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                     logger.LogError(ex, ex.Message);
-                    return default;
+                    return parameters with { Failed = true };
                 }
             }, options);
     }
@@ -585,11 +620,11 @@ public class BlockProvider
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
     /// <returns></returns>
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
-    public ActionBlock<(LocalFile LocalFile, FileAnimeInfo AnimeInfo, FileInfo FileInfo, VideoResolution Resolution)> BuildRenameFileBlock(ExecutionDataflowBlockOptions options = null)
+    public ActionBlock<MetadataFileJobParams> BuildRenameFileBlock(ExecutionDataflowBlockOptions? options = null)
     {
-        options ??= new ExecutionDataflowBlockOptions();
+        options ??= new();
 
-        return new ActionBlock<(LocalFile LocalFile, FileAnimeInfo AnimeInfo, FileInfo FileInfo, VideoResolution Resolution)>(async (tuple) =>
+        return new ActionBlock<MetadataFileJobParams>(async parameters =>
         {
             var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
@@ -598,21 +633,19 @@ public class BlockProvider
 
             using var logScope = logger.BeginScope("RenameFileBlock");
 
-            var (localFile, animeInfo, fileInfo, resolution) = tuple;
-
             try
             {
-                string filename = Path.GetFileName(localFile.Path);
+                string filename = Path.GetFileName(parameters.LocalFile!.Path);
                 string extension = Path.GetExtension(filename);
                 if (extension == null)
                 {
-                    throw new ApplicationException($"Video file {localFile.Path} has no extension");
+                    throw new ApplicationException($"Video file {parameters.LocalFile.Path} has no extension");
                 }
-                var pathBuilder = pathBuilderRepository.GetPathBuilderForPath(localFile.Path);
+                var pathBuilder = pathBuilderRepository.GetPathBuilderForPath(parameters.FileInfo.FullName);
 
                 // Trailing dot is there to prevent Path.ChangeExtension from screwing with the path if it has been ellipsized or has ellipsis in it
-                var destinationPathWithoutExtension = pathBuilder.BuildPath(fileInfo, animeInfo,
-                    PlatformUtils.MaxPathLength - extension.Length, resolution);
+                var destinationPathWithoutExtension = pathBuilder.BuildPath(parameters.AnimeFileInfo!, parameters.AnimeInfo!,
+                    PlatformUtils.MaxPathLength - extension.Length, parameters.VideoResolution!);
 
                 var destinationPath = destinationPathWithoutExtension + extension;
                 var destinationDirectory = Path.GetDirectoryName(destinationPathWithoutExtension);
@@ -631,8 +664,8 @@ public class BlockProvider
                         await AniSortContext.DatabaseLock.WaitAsync();
                         try
                         {
-                            localFile.Status = ImportStatus.Error;
-                            localFile.UpdatedAt = DateTimeOffset.Now;
+                            parameters.LocalFile.Status = ImportStatus.Error;
+                            parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                             await localFileRepository.SaveChangesAsync();
                         }
                         finally
@@ -648,24 +681,24 @@ public class BlockProvider
                     await AniSortContext.DatabaseLock.WaitAsync();
                     try
                     {
-                        localFile.Status = fileInfo.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
-                        localFile.UpdatedAt = DateTimeOffset.Now;
-                        await actionRepository.AddAsync(new FileAction { Type = FileActionType.Copied, Success = true, Info = $"File already exists at {destinationPath}", FileId = localFile.Id });
+                        parameters.LocalFile.Status = parameters.AnimeFileInfo!.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
+                        parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
+                        await actionRepository.AddAsync(new FileAction { Type = FileActionType.Copied, Success = true, Info = $"File already exists at {destinationPath}", FileId = parameters.LocalFile.Id });
                         await actionRepository.SaveChangesAsync();
                     }
                     finally
                     {
                         AniSortContext.DatabaseLock.Release();
                     }
-                    if (!await localFileRepository.ExistsForPathAsync(localFile.Path))
+                    if (!await localFileRepository.ExistsForPathAsync(parameters.LocalFile.Path))
                     {
                         await localFileRepository.AddAsync(new LocalFile
                         {
-                            Path = localFile.Path,
-                            Status = localFile.Status,
-                            Ed2kHash = localFile.Ed2kHash,
-                            EpisodeFileId = localFile.EpisodeFileId,
-                            FileLength = localFile.FileLength,
+                            Path = parameters.LocalFile.Path,
+                            Status = parameters.LocalFile.Status,
+                            Ed2kHash = parameters.LocalFile.Ed2kHash,
+                            EpisodeFileId = parameters.LocalFile.EpisodeFileId,
+                            FileLength = parameters.LocalFile.FileLength,
                             FileActions = new List<FileAction> { new() { Type = FileActionType.Copied, Success = true, Info = $"File already exists at {destinationPath}" } }
                         });
                     }
@@ -691,7 +724,7 @@ public class BlockProvider
                                 logger.LogTrace("Destination Path: {DestinationPath}", destinationPath);
                             }
 
-                            File.Copy(localFile.Path!, destinationPath);
+                            File.Copy(parameters.FileInfo.FullName, destinationPath);
                         }
                         catch (UnauthorizedAccessException ex)
                         {
@@ -700,11 +733,10 @@ public class BlockProvider
                             await AniSortContext.DatabaseLock.WaitAsync();
                             try
                             {
-                                localFile.Status = ImportStatus.Error;
-                                localFile.UpdatedAt = DateTimeOffset.Now;
+                                parameters.LocalFile.Status = ImportStatus.Error;
+                                parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction
-                                    { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -721,11 +753,10 @@ public class BlockProvider
                             await AniSortContext.DatabaseLock.WaitAsync();
                             try
                             {
-                                localFile.Status = ImportStatus.Error;
-                                localFile.UpdatedAt = DateTimeOffset.Now;
+                                parameters.LocalFile.Status = ImportStatus.Error;
+                                parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction
-                                    { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -741,11 +772,10 @@ public class BlockProvider
                             await AniSortContext.DatabaseLock.WaitAsync();
                             try
                             {
-                                localFile.Status = ImportStatus.Error;
-                                localFile.UpdatedAt = DateTimeOffset.Now;
+                                parameters.LocalFile.Status = ImportStatus.Error;
+                                parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction
-                                    { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -758,26 +788,20 @@ public class BlockProvider
                         await AniSortContext.DatabaseLock.WaitAsync();
                         try
                         {
-                            localFile.Status = fileInfo.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
+                            parameters.LocalFile.Status = parameters.AnimeFileInfo!.HasResolution ? ImportStatus.Imported : ImportStatus.ImportedMissingData;
                             await localFileRepository.AddAsync(new LocalFile
                             {
-                                Path = localFile.Path,
-                                Status = localFile.Status,
-                                Ed2kHash = localFile.Ed2kHash,
-                                EpisodeFileId = localFile.EpisodeFileId,
-                                FileLength = localFile.FileLength,
+                                Path = parameters.LocalFile.Path,
+                                Status = parameters.LocalFile.Status,
+                                Ed2kHash = parameters.LocalFile.Ed2kHash,
+                                EpisodeFileId = parameters.LocalFile.EpisodeFileId,
+                                FileLength = parameters.LocalFile.FileLength,
                                 FileActions = new List<FileAction> { new() { Type = FileActionType.Copied, Success = true, Info = $"Source file copied to {destinationPath}" } }
                             });
-                            localFile.Path = destinationPath;
-                            localFile.UpdatedAt = DateTimeOffset.Now;
+                            parameters.LocalFile.Path = destinationPath;
+                            parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                             await localFileRepository.SaveChangesAsync();
-                            await actionRepository.AddAsync(new FileAction
-                            {
-                                Type = FileActionType.Copy,
-                                Success = true,
-                                Info = $"File {localFile.Path} copied to {destinationPath}",
-                                FileId = localFile.Id
-                            });
+                            await actionRepository.AddAsync(new FileAction { Type = FileActionType.Copy, Success = true, Info = $"File {parameters.LocalFile.Path} copied to {destinationPath}", FileId = parameters.LocalFile.Id });
                             await actionRepository.SaveChangesAsync();
                         }
                         finally
@@ -794,7 +818,7 @@ public class BlockProvider
                     {
                         try
                         {
-                            File.Move(localFile.Path!, destinationPath);
+                            File.Move(parameters.FileInfo.FullName, destinationPath);
                         }
                         catch (UnauthorizedAccessException ex)
                         {
@@ -804,11 +828,10 @@ public class BlockProvider
                             await AniSortContext.DatabaseLock.WaitAsync();
                             try
                             {
-                                localFile.Status = ImportStatus.Error;
-                                localFile.UpdatedAt = DateTimeOffset.Now;
+                                parameters.LocalFile.Status = ImportStatus.Error;
+                                parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction
-                                    { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -825,11 +848,10 @@ public class BlockProvider
                             await AniSortContext.DatabaseLock.WaitAsync();
                             try
                             {
-                                localFile.Status = ImportStatus.Error;
-                                localFile.UpdatedAt = DateTimeOffset.Now;
+                                parameters.LocalFile.Status = ImportStatus.Error;
+                                parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction
-                                    { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -845,11 +867,10 @@ public class BlockProvider
                             await AniSortContext.DatabaseLock.WaitAsync();
                             try
                             {
-                                localFile.Status = ImportStatus.Error;
-                                localFile.UpdatedAt = DateTimeOffset.Now;
+                                parameters.LocalFile.Status = ImportStatus.Error;
+                                parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction
-                                    { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = localFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -862,17 +883,11 @@ public class BlockProvider
                         await AniSortContext.DatabaseLock.WaitAsync();
                         try
                         {
-                            localFile.Status = ImportStatus.Imported;
-                            localFile.UpdatedAt = DateTimeOffset.Now;
-                            localFile.Path = destinationPath;
+                            parameters.LocalFile.Status = ImportStatus.Imported;
+                            parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
+                            parameters.LocalFile.Path = destinationPath;
                             await localFileRepository.SaveChangesAsync();
-                            await actionRepository.AddAsync(new FileAction
-                            {
-                                Type = FileActionType.Move,
-                                Success = true,
-                                Info = $"File {localFile.Path} moved to {destinationPath}",
-                                FileId = localFile.Id
-                            });
+                            await actionRepository.AddAsync(new FileAction { Type = FileActionType.Move, Success = true, Info = $"File {parameters.FileInfo.FullName} moved to {destinationPath}", FileId = parameters.LocalFile!.Id });
                             await actionRepository.SaveChangesAsync();
                         }
                         finally
@@ -903,4 +918,21 @@ public class BlockProvider
             }
         }, options);
     }
+
+    public ITargetBlock<Job> BuildJobTransformBlock(ITargetBlock<MetadataFileJobParams> fileOutput)
+    {
+        return new ActionBlock<Job>(job =>
+        {
+            var fileQueue = new Queue<string>();
+            
+            fileQueue.AddPathsToQueue(job.Options.Fields["path"].StringValue);
+
+            int totalFiles = fileQueue.Count;
+            
+            
+        });
+    }
+
+    public record MetadataFileJobParams(System.IO.FileInfo FileInfo, LocalFile? LocalFile = default, bool IsCoolingDown = false, FileAnimeInfo? AnimeInfo = default, FileInfo? AnimeFileInfo = default, VideoResolution? VideoResolution = null, Job? Job = null,
+        bool Failed = false);
 }

@@ -14,14 +14,14 @@ public interface ILocalFileRepository : IRepository<LocalFile, Guid>
     /// </summary>
     /// <param name="hash">Hash to match</param>
     /// <returns>First local file with the matching hash if it exists, otherwise null</returns>
-    LocalFile GetFirstForEd2kHash(byte[] hash);
+    LocalFile? GetFirstForEd2kHash(byte[] hash);
     
     /// <summary>
     /// Gets first file with a matching ED2k hash
     /// </summary>
     /// <param name="hash">Hash to match</param>
     /// <returns>First local file with the matching hash if it exists, otherwise null</returns>
-    Task<LocalFile> GetFirstForEd2kHashAsync(byte[] hash);
+    Task<LocalFile?> GetFirstForEd2kHashAsync(byte[] hash);
 
     /// <summary>
     /// Gets files with a matching ED2k hash
@@ -56,14 +56,14 @@ public interface ILocalFileRepository : IRepository<LocalFile, Guid>
     /// </summary>
     /// <param name="path">Path to match</param>
     /// <returns>File if it exists, otherwise default</returns>
-    LocalFile GetForPath(string path);
+    LocalFile? GetForPath(string path);
     
     /// <summary>
     /// Get file that matches the path
     /// </summary>
     /// <param name="path">Path to match</param>
     /// <returns>File if it exists, otherwise default</returns>
-    Task<LocalFile> GetForPathAsync(string path);
+    Task<LocalFile?> GetForPathAsync(string path);
     
     /// <summary>
     /// Check if any files exists that match the path
@@ -119,12 +119,12 @@ public interface ILocalFileRepository : IRepository<LocalFile, Guid>
     /// </summary>
     /// <param name="id">Id of the file</param>
     /// <returns>File with prefetched related data</returns>
-    LocalFile GetByIdWithRelated(Guid id);
+    LocalFile? GetByIdWithRelated(Guid id);
 
     /// <summary>
     /// Get a file by id with it's related data
     /// </summary>
     /// <param name="id">Id of the file</param>
     /// <returns>File with prefetched related data</returns>
-    Task<LocalFile> GetByIdWithRelatedAsync(Guid id);
+    Task<LocalFile?> GetByIdWithRelatedAsync(Guid id);
 }

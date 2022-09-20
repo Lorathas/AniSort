@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AniSort.Core.Data;
 
-public class FileAction
+public class FileAction : IEntity
 {
     [Key]
     public Guid Id { get; set; }
@@ -25,4 +25,7 @@ public class FileAction
 
     /// <inheritdoc />
     public override string ToString() => $"File {FileId} Action {Type}:{Success} at {CreatedAt}";
+
+    /// <inheritdoc />
+    public bool IsNew => Id != Guid.Empty;
 }

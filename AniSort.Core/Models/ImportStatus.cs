@@ -8,5 +8,6 @@
         NoFileFound = 3,
         ImportedMissingData = 4,
         Hashed = 5,
+        Unknown = 6,
     }
 }

@@ -73,6 +73,30 @@ public class LocalFileFileRepository : IFileFileRepository
     }
 
     /// <inheritdoc />
+    FileInfo IRepository<FileInfo, int>.Upsert(FileInfo entity)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    Task<FileInfo> IRepository<FileInfo, int>.UpsertAsync(FileInfo entity)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public FileInfo UpsertAndDetach(FileInfo entity)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public Task<FileInfo> UpsertAndDetachAsync(FileInfo entity)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
     FileInfo IRepository<FileInfo, int>.Remove(int key)
     {
         throw new NotImplementedException();

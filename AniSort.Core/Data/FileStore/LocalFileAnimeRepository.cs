@@ -51,6 +51,30 @@ public class LocalFileAnimeRepository : IFileAnimeRepository
     }
 
     /// <inheritdoc />
+    AnimeInfo IRepository<AnimeInfo, int>.Upsert(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    Task<AnimeInfo> IRepository<AnimeInfo, int>.UpsertAsync(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public AnimeInfo UpsertAndDetach(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public Task<AnimeInfo> UpsertAndDetachAsync(AnimeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
     AnimeInfo IRepository<AnimeInfo, int>.Remove(int key)
     {
         throw new System.NotImplementedException();

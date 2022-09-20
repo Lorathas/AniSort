@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AniSort.Core.Data;
 
-public class ScheduledJob
+public class ScheduledJob  : IEntity
 {
     [Key]
     public Guid Id { get; set; }
@@ -28,6 +28,9 @@ public class ScheduledJob
     public virtual ICollection<Job> Jobs { get; set; }
     
     public bool Deleted { get; set; }
+
+    /// <inheritdoc />
+    public bool IsNew => Id != Guid.Empty;
 }
 
 public class ScheduledJobEntityTypeConfiguration : IEntityTypeConfiguration<ScheduledJob>

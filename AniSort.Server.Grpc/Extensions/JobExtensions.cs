@@ -29,6 +29,8 @@ public static class JobExtensions
     // ReSharper disable once MemberCanBePrivate.Global
     public const string DefragmentSeriesStep = "Defragment Series Step";
 
+    public const string DiscoverFilesStep = "Discover Files";
+
     #endregion
 
     #region Job Metadata Keys
@@ -77,33 +79,33 @@ public static class JobExtensions
             Name = $"Scheduled {scheduledJob.Type} from {scheduledJob.ScheduleType}",
             Type = scheduledJob.Type,
             QueuedAt = DateTimeOffset.Now,
-            Status = Core.Data.JobStatus.Queued,
+            Status = Core.Data.JobStatus.Created,
             Options = options,
             Steps = new List<Core.Data.JobStep>
             {
                 new()
                 {
                     Name = HashStepStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.Hash,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = LookupExistingMetadataStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.FetchLocalFile,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = FetchFileMetadataStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.FetchMetadata,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = MoveFileStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.Sort,
+                    Status = Core.Data.JobStatus.Created,
                 }
             }
         };
@@ -117,33 +119,39 @@ public static class JobExtensions
             Name = $"Scheduled {scheduledJob.Type} from {scheduledJob.ScheduleType}",
             Type = scheduledJob.Type,
             QueuedAt = DateTimeOffset.Now,
-            Status = Core.Data.JobStatus.Queued,
+            Status = Core.Data.JobStatus.Created,
             Options = scheduledJob.Options,
             Steps = new List<Core.Data.JobStep>
             {
                 new()
                 {
+                    Name = DiscoverFilesStep,
+                    Type = StepType.DiscoverFiles,
+                    Status = Core.Data.JobStatus.Created,
+                },
+                new()
+                {
                     Name = HashStepStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.Hash,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = LookupExistingMetadataStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.FetchLocalFile,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = FetchFileMetadataStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.FetchMetadata,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = MoveFileStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.Sort,
+                    Status = Core.Data.JobStatus.Created,
                 }
             }
         };
@@ -164,21 +172,21 @@ public static class JobExtensions
             Name = $"Scheduled {scheduledJob.Type} from {scheduledJob.ScheduleType}",
             Type = scheduledJob.Type,
             QueuedAt = DateTimeOffset.Now,
-            Status = Core.Data.JobStatus.Queued,
+            Status = Core.Data.JobStatus.Created,
             Options = options,
             Steps = new List<Core.Data.JobStep>
             {
                 new()
                 {
                     Name = HashStepStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.Hash,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = LookupExistingMetadataStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.FetchLocalFile,
+                    Status = Core.Data.JobStatus.Created,
                 }
             }
         };
@@ -192,21 +200,27 @@ public static class JobExtensions
             Name = $"Scheduled {scheduledJob.Type} from {scheduledJob.ScheduleType}",
             Type = scheduledJob.Type,
             QueuedAt = DateTimeOffset.Now,
-            Status = Core.Data.JobStatus.Queued,
+            Status = Core.Data.JobStatus.Created,
             Options = scheduledJob.Options,
             Steps = new List<Core.Data.JobStep>
             {
                 new()
                 {
+                    Name = DiscoverFilesStep,
+                    Type = StepType.DiscoverFiles,
+                    Status = Core.Data.JobStatus.Created,
+                },
+                new()
+                {
                     Name = HashStepStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.FetchLocalFile,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = LookupExistingMetadataStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.FetchLocalFile,
+                    Status = Core.Data.JobStatus.Created,
                 }
             }
         };
@@ -220,29 +234,48 @@ public static class JobExtensions
             Name = $"Scheduled {scheduledJob.Type} from {scheduledJob.ScheduleType}",
             Type = scheduledJob.Type,
             QueuedAt = DateTimeOffset.Now,
-            Status = Core.Data.JobStatus.Queued,
+            Status = Core.Data.JobStatus.Created,
             Options = scheduledJob.Options,
             Steps = new List<Core.Data.JobStep>
             {
                 new()
                 {
                     Name = DiscoverFragmentedSeriesStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.DiscoverFragmentedSeries,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = DetermineDefragmentFolderStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.DetermineDefragmentFolder,
+                    Status = Core.Data.JobStatus.Created,
                 },
                 new()
                 {
                     Name = DefragmentSeriesStep,
-                    Status = Core.Data.JobStatus.Queued,
-                    PercentComplete = 0
+                    Type = StepType.DefragmentSeries,
+                    Status = Core.Data.JobStatus.Created,
                 }
             }
         };
+    }
+
+    public static JobUpdate ToJobUpdate(this Job job)
+    {
+        switch (job.Status)
+        {
+            case Core.Data.JobStatus.Created:
+                return JobUpdate.JobCreated;
+            case Core.Data.JobStatus.Queued:
+                return JobUpdate.JobStarted;
+            case Core.Data.JobStatus.Running:
+                return job.PercentComplete == 0 ? JobUpdate.JobStarted : JobUpdate.JobProgress;
+            case Core.Data.JobStatus.Completed:
+                return JobUpdate.JobCompleted;
+            case Core.Data.JobStatus.Failed:
+                return JobUpdate.JobFailed;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(job.Status), job.Status, null);
+        }
     }
 }

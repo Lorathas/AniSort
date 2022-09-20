@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using AniSort.Core.Data;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Helpers;
 using AniSort.Core.MaintenanceTasks;
@@ -17,6 +18,7 @@ namespace AniSort.Core.Commands;
 public class MaintenanceCommand : ICommand
 {
     private readonly IServiceProvider serviceProvider;
+
     private readonly ILogger<MaintenanceCommand> logger;
 
     public MaintenanceCommand(IServiceProvider serviceProvider, ILogger<MaintenanceCommand> logger)
@@ -48,6 +50,9 @@ public class MaintenanceCommand : ICommand
 
     /// <inheritdoc />
     public IEnumerable<string> CommandNames => new[] { "maint", "maintenance" };
+
+    /// <inheritdoc />
+    public JobType[] Types => new[] { JobType.Maintenance };
 
     /// <inheritdoc />
     public string HelpOption => "-h --help";

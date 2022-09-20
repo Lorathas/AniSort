@@ -16,7 +16,7 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     }
 
     /// <inheritdoc />
-    public new LocalFile GetById(Guid key)
+    public new LocalFile? GetById(Guid key)
     {
         return Set
             .Include(f => f.FileActions)
@@ -24,7 +24,7 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     }
 
     /// <inheritdoc />
-    public new async Task<LocalFile> GetByIdAsync(Guid key)
+    public new async Task<LocalFile?> GetByIdAsync(Guid key)
     {
         return await Set
             .Include(f => f.FileActions)
@@ -32,13 +32,13 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     }
 
     /// <inheritdoc />
-    public LocalFile GetFirstForEd2kHash(byte[] hash)
+    public LocalFile? GetFirstForEd2kHash(byte[] hash)
     {
         return Set.FirstOrDefault(f => f.Ed2kHash == hash);
     }
 
     /// <inheritdoc />
-    public async Task<LocalFile> GetFirstForEd2kHashAsync(byte[] hash)
+    public async Task<LocalFile?> GetFirstForEd2kHashAsync(byte[] hash)
     {
         return await Set.FirstOrDefaultAsync(f => f.Ed2kHash == hash);
     }
@@ -68,13 +68,13 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     }
 
     /// <inheritdoc />
-    public LocalFile GetForPath(string path)
+    public LocalFile? GetForPath(string path)
     {
         return Set.FirstOrDefault(f => f.Path == path);
     }
 
     /// <inheritdoc />
-    public async Task<LocalFile> GetForPathAsync(string path)
+    public async Task<LocalFile?> GetForPathAsync(string path)
     {
         return await Set.FirstOrDefaultAsync(f => f.Path == path);
     }
@@ -174,7 +174,7 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
     {
         return SearchForFilesInternal(filter)
             .Skip((filter.Page - 1) * pageSize)
-            .Take(pageSize);;
+            .Take(pageSize);
     }
 
     public IEnumerable<LocalFile> SearchForFilesPaged(LocalFileFilter filter, int pageSize)
@@ -193,7 +193,7 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
         return SearchForFilesInternal(filter).CountAsync();
     }
 
-    public LocalFile GetByIdWithRelated(Guid id)
+    public LocalFile? GetByIdWithRelated(Guid id)
     {
         return Set.Where(f => f.Id == id)
             .Include(f => f.FileActions)
@@ -201,7 +201,7 @@ public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContex
             .FirstOrDefault();
     }
 
-    public async Task<LocalFile> GetByIdWithRelatedAsync(Guid id)
+    public async Task<LocalFile?> GetByIdWithRelatedAsync(Guid id)
     {
         return await Set.Where(f => f.Id == id)
             .Include(f => f.FileActions)

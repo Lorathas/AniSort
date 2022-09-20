@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AniSort.Core.Data;
 
-public class Job
+public class Job : IEntity
 {
     [Key] public Guid Id { get; set; }
     public string Name { get; set; }
@@ -29,6 +29,11 @@ public class Job
     public virtual ICollection<JobLog> Logs { get; set; } = new List<JobLog>();
     public Guid? ScheduledJobId { get; set; }
     public virtual ScheduledJob ScheduledJob { get; set; }
+
+    public string Path => Options.Fields["path"].StringValue;
+
+    /// <inheritdoc />
+    public bool IsNew => Id != Guid.Empty;
 }
 
 public class JobEntityTypeConfiguration : IEntityTypeConfiguration<Job>

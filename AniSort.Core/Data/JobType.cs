@@ -7,4 +7,5 @@ public enum JobType
     HashFile = 2,
     HashDirectory = 3,
     Defragment = 4,
+    Maintenance = 5,
 }

@@ -4,7 +4,7 @@ using AniSort.Core.Models;
 
 namespace AniSort.Core.Data;
 
-public class Episode
+public class Episode : IEntity
 {
     [Key]
     public int Id { get; set; }
@@ -23,4 +23,7 @@ public class Episode
     {
         return $"{Number} {EnglishName ?? RomajiName ?? KanjiName}";
     }
+
+    /// <inheritdoc />
+    public bool IsNew => Id != 0;
 }

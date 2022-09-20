@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AniSort.Core.Data;
 
-public class AudioCodec
+public class AudioCodec : IEntity
 {
     [Key]
     public Guid Id { get; set; }
@@ -11,4 +11,7 @@ public class AudioCodec
     public virtual EpisodeFile File { get; set; }
     public string Codec { get; set; }
     public int Bitrate { get; set; }
+
+    /// <inheritdoc />
+    public bool IsNew => Id != Guid.Empty;
 }

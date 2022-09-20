@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using AniSort.Core;
+using AniSort.Core.DataFlow;
 using AniSort.Server.Generators;
 using AniSort.Server.HostedServices;
 using AniSort.Server.Hubs;
+using AniSort.Server.Jobs;
 using AniSort.Server.Services;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -15,13 +17,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddGrpc(options => options.EnableDetailedErrors = true);
 
-builder.Services.AddSingleton<IJobHub, JobHub>();
-builder.Services.AddSingleton<ILocalFileHub, LocalFileHub>();
-builder.Services.AddSingleton<IScheduledJobHub, ScheduledJobHub>();
-builder.Services.AddSingleton(new ActivitySource("AniSort Server"));
-builder.Services.AddHostedService<JobSchedulerService>();
-builder.Services.AddHostedService<JobRunnerService>();
 Startup.InitializeServices(null, builder.Services);
+builder.Services.AddSingleton<IJobHub, JobHub>()
+    .AddSingleton<ILocalFileHub, LocalFileHub>()
+    .AddSingleton<IScheduledJobHub, ScheduledJobHub>()
+    .AddSingleton(new ActivitySource("AniSort Server"))
+    .AddHostedService<JobSchedulerService>()
+    .AddHostedService<JobRunnerService>()
+    .AddTransient<IJobUpdateProvider, JobHubUpdateProvider>();
 HubServiceRegistration.RegisterServices(builder.Services);
 
 builder.Services.AddOpenTelemetryTracing(b =>

@@ -13,14 +13,14 @@ public interface IRepository<TEntity, in TKey> : IDisposable, IAsyncDisposable
     /// </summary>
     /// <param name="key">Primary key to match</param>
     /// <returns>Entity if it exists, otherwise false</returns>
-    TEntity GetById(TKey key);
+    TEntity? GetById(TKey key);
 
     /// <summary>
     /// Get entity for the key
     /// </summary>
     /// <param name="key">Primary key to match</param>
     /// <returns>Entity if it exists, otherwise false</returns>
-    Task<TEntity> GetByIdAsync(TKey key);
+    Task<TEntity?> GetByIdAsync(TKey key);
 
     /// <summary>
     /// Check if entity exists for primary key
@@ -51,18 +51,46 @@ public interface IRepository<TEntity, in TKey> : IDisposable, IAsyncDisposable
     Task<TEntity> AddAsync(TEntity entity);
 
     /// <summary>
-    /// Remove an entity from the repository
+    /// Upsert an entity into repository
     /// </summary>
-    /// <param name="key">Key to match the primary key</param>
-    /// <returns>The removed entity</returns>
-    TEntity Remove(TKey key);
+    /// <param name="entity">Entity to upsert</param>
+    /// <returns>Attached entity</returns>
+    TEntity Upsert(TEntity entity);
+
+    /// <summary>
+    /// Upsert an entity into repository
+    /// </summary>
+    /// <param name="entity">Entity to upsert</param>
+    /// <returns>Attached entity</returns>
+    Task<TEntity> UpsertAsync(TEntity entity);
+
+    /// <summary>
+    /// Upsert an entity, save it, and detach it from the repository
+    /// </summary>
+    /// <param name="entity">Entity to upsert and detach</param>
+    /// <returns>Detached entity</returns>
+    TEntity UpsertAndDetach(TEntity entity);
+
+    /// <summary>
+    /// Upsert an entity, save it, and detach it from the repository
+    /// </summary>
+    /// <param name="entity">Entity to upsert and detach</param>
+    /// <returns>Detached entity</returns>
+    Task<TEntity> UpsertAndDetachAsync(TEntity entity);
 
     /// <summary>
     /// Remove an entity from the repository
     /// </summary>
     /// <param name="key">Key to match the primary key</param>
     /// <returns>The removed entity</returns>
-    Task<TEntity> RemoveAsync(TKey key);
+    TEntity? Remove(TKey key);
+
+    /// <summary>
+    /// Remove an entity from the repository
+    /// </summary>
+    /// <param name="key">Key to match the primary key</param>
+    /// <returns>The removed entity</returns>
+    Task<TEntity?> RemoveAsync(TKey key);
 
     /// <summary>
     /// Remove an entity from the repository

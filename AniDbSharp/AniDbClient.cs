@@ -28,21 +28,40 @@ namespace AniDbSharp
     public class AniDbClient : IAniDbClient
     {
         private const int ClientPort = 32569;
+
         private const int ServerPort = 9000;
+
         private const string Endpoint = "api.anidb.net";
+
         private const string SupportedApiVersion = "3";
-        private static readonly List<string> UnauthWhitelist = new() { "PING", "ENCRYPT", "ENCODING", "AUTH", "VERSION" };
+
+        private static readonly List<string> UnauthWhitelist = new()
+        {
+            "PING",
+            "ENCRYPT",
+            "ENCODING",
+            "AUTH",
+            "VERSION"
+        };
+
         private static readonly TimeSpan RequestCooldownTime = TimeSpan.FromSeconds(2);
+
         private static readonly AsyncPolicy RateLimitPolicy = Policy.RateLimitAsync(1, RequestCooldownTime);
 
-        private readonly string username;
-        private readonly string password;
+        private string username;
+
+        private string password;
+
         private readonly string clientName;
+
         private readonly int clientVersion;
 
         private bool isConnected;
+
         private bool isAuthenticated;
+
         private string? sessionToken;
+
         private UdpClient? udpClient;
 
         /// <summary>
@@ -112,7 +131,7 @@ namespace AniDbSharp
             {
                 throw new AniDbException("Request size greater than 1,400 bytes. Please ensure that you are formatting the request correctly.");
             }
-            
+
             async Task<AniDbResponse> SendCommandInternal()
             {
                 await udpClient.SendAsync(bytes, bytes.Length);
@@ -141,7 +160,7 @@ namespace AniDbSharp
                         throw new AniDbException($"Invalid response code \"{parsedResponseCode}\". Please check response code enum to ensure the value exists");
                     }
 
-                    responseStatus = (CommandStatus)parsedResponseCode;
+                    responseStatus = (CommandStatus) parsedResponseCode;
                 }
                 else
                 {
@@ -337,6 +356,28 @@ namespace AniDbSharp
         public async Task LogoutAsync()
         {
             await SendCommandAsync("LOGOUT");
+        }
+
+        /// <summary>
+        /// Login with a specified username and password
+        /// </summary>
+        /// <param name="username">Username to login with</param>
+        /// <param name="password">Password to login with</param>
+        /// <returns></returns>
+
+        // ReSharper disable ParameterHidesMember
+        public async Task<AuthResult> LoginAsync(string username, string password)
+        {
+            // ReSharper enable ParameterHidesMember
+            this.username = username;
+            this.password = password;
+
+            if (!isConnected)
+            {
+                Connect();
+            }
+            
+            return await AuthAsync();
         }
 
         /// <summary>

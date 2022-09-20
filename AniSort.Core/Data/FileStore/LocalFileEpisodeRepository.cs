@@ -63,6 +63,30 @@ public class LocalFileEpisodeRepository : IFileEpisodeRepository
     }
 
     /// <inheritdoc />
+    EpisodeInfo IRepository<EpisodeInfo, int>.Upsert(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    Task<EpisodeInfo> IRepository<EpisodeInfo, int>.UpsertAsync(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public EpisodeInfo UpsertAndDetach(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public Task<EpisodeInfo> UpsertAndDetachAsync(EpisodeInfo entity)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    /// <inheritdoc />
     EpisodeInfo IRepository<EpisodeInfo, int>.Remove(int key)
     {
         throw new System.NotImplementedException();
