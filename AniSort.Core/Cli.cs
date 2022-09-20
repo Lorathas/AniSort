@@ -5,6 +5,7 @@ using AniSort.Core.Commands;
 using AniSort.Core.Exceptions;
 using AniSort.Core.Helpers;
 using Microsoft.Extensions.CommandLineUtils;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -117,7 +118,7 @@ public class Cli
                             }
                         }
 
-                        var configServiceProvider = Startup.InitializeServices(config);
+                        var configServiceProvider = Startup.InitializeServices(config, new ConfigurationManager());
 
                         using var scope = configServiceProvider.CreateScope();
 

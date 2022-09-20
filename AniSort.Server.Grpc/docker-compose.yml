@@ -1,0 +1,11 @@
+﻿version: "3.9"
+
+name: AniSort
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: testpass
+    ports:
+      - "5432:5432"

@@ -13,5 +13,6 @@
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using AniSort.Core;
+using Microsoft.Extensions.Configuration;
 
-new Cli(Startup.Initialize(null)).Main(args);
+new Cli(Startup.Initialize(null, new ConfigurationManager())).Main(args);

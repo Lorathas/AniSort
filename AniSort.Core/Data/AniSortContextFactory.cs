@@ -1,17 +1,25 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.IO;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
 
 namespace AniSort.Core.Data;
 
-public class AniSortContextFactory: IDesignTimeDbContextFactory<AniSortContext>
+public class AniSortContextFactory : IDesignTimeDbContextFactory<AniSortContext>
 {
-
     /// <inheritdoc />
     public AniSortContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<AniSortContext>();
-        optionsBuilder.UseSqlite($"Data Source={AppPaths.DatabasePath}");
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json")
+            .Build();
 
-        return new AniSortContext(optionsBuilder.Options);
+        var builder = new DbContextOptionsBuilder<AniSortContext>();
+        var connectionString = configuration.GetConnectionString("Postgres");
+
+        builder.UseNpgsql(connectionString);
+
+        return new AniSortContext(builder.Options);
     }
 }

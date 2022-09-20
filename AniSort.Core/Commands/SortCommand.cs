@@ -1,42 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using System.Windows.Input;
 using AniDbSharp;
-using AniDbSharp.Data;
-using AniDbSharp.Exceptions;
-using AniSort.Core.Crypto;
 using AniSort.Core.Data;
-using AniSort.Core.Data.Repositories;
 using AniSort.Core.DataFlow;
-using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
 using AniSort.Core.Helpers;
 using AniSort.Core.IO;
-using AniSort.Core.Models;
-using AniSort.Core.Utils;
-using FFMpegCore;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.CommandLineUtils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using FileInfo = AniDbSharp.Data.FileInfo;
 
 namespace AniSort.Core.Commands;
 
+// ReSharper disable once ClassNeverInstantiated.Global
 public class SortCommand : IPipelineCommand
 {
-    private readonly Config config;
-    private readonly ILogger<SortCommand> logger;
     private readonly AniDbClient client;
-    private readonly IServiceProvider serviceProvider;
+
+    private readonly Config config;
+
+    private readonly ILogger<SortCommand> logger;
+
     private readonly IPathBuilderRepository pathBuilderRepository;
+
+    private readonly IServiceProvider serviceProvider;
+
     private ConsoleProgressBar? hashProgressBar;
 
     public SortCommand(Config config, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider, IPathBuilderRepository pathBuilderRepository)
@@ -89,9 +81,9 @@ public class SortCommand : IPipelineCommand
             {
                 logger.LogWarning("A new version of the software is available. Please download it when possible");
             }
-            
+
             var updateHashBarCancellationSource = new CancellationTokenSource();
-            Task updateHashBarTask = null;
+            Task? updateHashBarTask = null;
 
             if (EnvironmentHelpers.IsConsolePresent)
             {
@@ -122,9 +114,9 @@ public class SortCommand : IPipelineCommand
 
             int fileCount = queue.Count;
 
-            while (queue.TryDequeue(out string path))
+            while (queue.TryDequeue(out string? path))
             {
-                first.Post(new(new System.IO.FileInfo(path)));
+                first.Post(new BlockProvider.MetadataFileJobParams(new FileInfo(path)));
             }
 
             await last.Completion;
@@ -140,6 +132,30 @@ public class SortCommand : IPipelineCommand
         {
             await client.DisposeAsync();
         }
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<string> CommandNames => new[] { "sort" };
+
+    /// <inheritdoc />
+    public JobType[] Types => new[] { JobType.SortDirectory, JobType.SortFile };
+
+    /// <inheritdoc />
+    public string HelpOption => "-h --help";
+
+    /// <inheritdoc />
+    public bool IncludeCredentialOptions => true;
+
+    /// <inheritdoc />
+    public List<CommandOption> SetupCommand(CommandLineApplication command)
+    {
+        return new();
+    }
+
+    /// <inheritdoc />
+    public ITargetBlock<Job> BuildPipeline()
+    {
+        return BuildPipelineInternal().JobTarget;
     }
 
     private void OnHashStarted(string path, long totalBytes)
@@ -174,21 +190,6 @@ public class SortCommand : IPipelineCommand
         Console.WriteLine();
     }
 
-    /// <inheritdoc />
-    public IEnumerable<string> CommandNames => new[] { "sort" };
-
-    /// <inheritdoc />
-    public JobType[] Types => new [] { JobType.SortDirectory, JobType.SortFile };
-
-    /// <inheritdoc />
-    public string HelpOption => "-h --help";
-
-    /// <inheritdoc />
-    public bool IncludeCredentialOptions => true;
-
-    /// <inheritdoc />
-    public List<CommandOption> SetupCommand(CommandLineApplication command) => new();
-
     private (ITargetBlock<Job> JobTarget, ITargetBlock<BlockProvider.MetadataFileJobParams> FirstBlock, ITargetBlock<BlockProvider.MetadataFileJobParams> LastBlock) BuildPipelineInternal()
     {
         var blockProvider = serviceProvider.GetService<BlockProvider>() ?? throw new ApplicationException($"Unable to instantiate {typeof(BlockProvider)}");
@@ -197,7 +198,7 @@ public class SortCommand : IPipelineCommand
 
         var jobTarget = blockProvider.BuildJobTransformBlock(bufferBlock);
 
-        var fetchFileBlock = blockProvider!.BuildFetchLocalFileBlock();
+        var fetchFileBlock = blockProvider.BuildFetchLocalFileBlock();
         var hashFileBlock = blockProvider.BuildHashFileBlock(OnHashStarted, OnProgressUpdate, OnHashFinished);
         var filterCoolingDownFiles = blockProvider.BuildFilterCoolingDownFilesBlock();
         var searchFileBlock = blockProvider.BuildSearchFileBlock(client);
@@ -205,10 +206,10 @@ public class SortCommand : IPipelineCommand
         var renameBlock = blockProvider.BuildRenameFileBlock();
 
         var options = new DataflowLinkOptions { PropagateCompletion = true };
-        
+
         bufferBlock.LinkTo(fetchFileBlock, options);
 
-        fetchFileBlock.LinkTo(hashFileBlock, options, f => f.LocalFile is { Ed2kHash: null });
+        fetchFileBlock.LinkTo(hashFileBlock, options, f => !f.Failed && f.LocalFile is { Ed2kHash: null });
         fetchFileBlock.LinkTo(filterCoolingDownFiles, options, f => !f.Failed);
         fetchFileBlock.LinkTo(DataflowBlock.NullTarget<BlockProvider.MetadataFileJobParams>());
 
@@ -223,11 +224,5 @@ public class SortCommand : IPipelineCommand
         getVideoResolutionBlock.LinkTo(renameBlock, options);
 
         return (jobTarget, bufferBlock, renameBlock);
-    }
-    
-    /// <inheritdoc />
-    public ITargetBlock<Job> BuildPipeline()
-    {
-        return BuildPipelineInternal().JobTarget;
     }
 }

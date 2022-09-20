@@ -13,6 +13,7 @@ using AniSort.Core.IO;
 using AniSort.Core.MaintenanceTasks;
 using AniSort.Core.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog;
@@ -30,9 +31,7 @@ public class Startup
 
     private static IImmutableDictionary<string, Type> commands;
 
-    private static ILogger<Startup> logger;
-
-    public static void InitializeLogging(Config aniSortConfig)
+    public static void InitializeLogging(Config? aniSortConfig)
     {
         var loggingConfig = new LoggingConfiguration();
 
@@ -79,7 +78,7 @@ public class Startup
         LogManager.Configuration = loggingConfig;
     }
 
-    private static IServiceCollection InitializeServicesInternal(IServiceCollection builder = null)
+    private static IServiceCollection InitializeServicesInternal(ConfigurationManager configuration, IServiceCollection? builder = null)
     {
         builder ??= new ServiceCollection();
         builder
@@ -100,7 +99,7 @@ public class Startup
             .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
             .AddTransient<LegacyDataStoreProvider>()
             .AddTransient<BlockProvider>()
-            .AddDbContext<AniSortContext>(b => b.UseSqlite($"Data Source={AppPaths.DatabasePath}"))
+            .AddDbContext<AniSortContext>(b => b.UseNpgsql(configuration.GetConnectionString("Postgres")))
             .AddTransient(p =>
             {
                 // ReSharper disable once VariableHidesOuterVariable
@@ -133,10 +132,10 @@ public class Startup
         return builder;
     }
 
-    public static ServiceProvider InitializeServices(Config config, IServiceCollection serviceCollection = null)
+    public static ServiceProvider InitializeServices(Config? config, ConfigurationManager configuration, IServiceCollection? serviceCollection = null)
     {
         InitializeLogging(config);
-        return InitializeServicesInternal(serviceCollection)
+        return InitializeServicesInternal(configuration, serviceCollection)
             .AddSingleton(config ?? new Config())
             .BuildServiceProvider();
     }
@@ -177,11 +176,10 @@ public class Startup
         Startup.commands = commands.ToImmutableDictionary();
     }
 
-    public static IServiceProvider Initialize(Config config, IServiceCollection serviceCollection = null)
+    public static IServiceProvider Initialize(Config? config, ConfigurationManager configuration, IServiceCollection? serviceCollection = null)
     {
         AppPaths.Initialize();
-        ServiceProvider = InitializeServices(config, serviceCollection);
-        logger = ServiceProvider.GetService<ILogger<Startup>>();
+        ServiceProvider = InitializeServices(config, configuration, serviceCollection);
         InitializeCommands();
         return ServiceProvider;
     }
