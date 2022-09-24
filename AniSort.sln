@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AniSort.CoreTests", "AniSor
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AniSort.Cli", "AniSort.Cli\AniSort.Cli.csproj", "{6848154B-2D64-42EE-8887-F7869C0B09BB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AniSort.Sdk", "AniSort.Sdk\AniSort.Sdk.csproj", "{1AA25400-7391-4457-8893-9E6E9C6465D3}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "AniSort.Trackers.AniList", "AniSort.Trackers.AniList\AniSort.Trackers.AniList.fsproj", "{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +75,22 @@ Global
 		{6848154B-2D64-42EE-8887-F7869C0B09BB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{6848154B-2D64-42EE-8887-F7869C0B09BB}.Release|x64.ActiveCfg = Release|Any CPU
 		{6848154B-2D64-42EE-8887-F7869C0B09BB}.Release|x64.Build.0 = Release|Any CPU
+		{1AA25400-7391-4457-8893-9E6E9C6465D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AA25400-7391-4457-8893-9E6E9C6465D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AA25400-7391-4457-8893-9E6E9C6465D3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1AA25400-7391-4457-8893-9E6E9C6465D3}.Debug|x64.Build.0 = Debug|Any CPU
+		{1AA25400-7391-4457-8893-9E6E9C6465D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AA25400-7391-4457-8893-9E6E9C6465D3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AA25400-7391-4457-8893-9E6E9C6465D3}.Release|x64.ActiveCfg = Release|Any CPU
+		{1AA25400-7391-4457-8893-9E6E9C6465D3}.Release|x64.Build.0 = Release|Any CPU
+		{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}.Debug|x64.Build.0 = Debug|Any CPU
+		{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}.Release|x64.ActiveCfg = Release|Any CPU
+		{1AE21474-5B70-4AC1-A2C9-A6785E56DAE2}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
