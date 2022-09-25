@@ -96,7 +96,7 @@ public class Startup
             .AddScoped<IJobRepository, JobRepository>()
             .AddScoped<IScheduledJobRepository, ScheduledJobRepository>()
             .AddScoped<IJobStepRepository, JobStepRepository>()
-            .AddTransient<ISettingRepository, SettingRepository>()
+            .AddTransient<ISettingsRepository, SettingsRepository>()
             .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
             .AddTransient<LegacyDataStoreProvider>()
             .AddTransient<BlockProvider>()

@@ -8,18 +8,18 @@ public class RepositoryConfigProvider : IConfigProvider
 {
     private Config? config;
 
-    private readonly ISettingRepository settingRepository;
+    private readonly ISettingsRepository settingsRepository;
 
-    public RepositoryConfigProvider(ISettingRepository settingRepository)
+    public RepositoryConfigProvider(ISettingsRepository settingsRepository)
     {
-        this.settingRepository = settingRepository;
+        this.settingsRepository = settingsRepository;
     }
 
     /// <inheritdoc />
     public Config? Config
     {
         // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
-        get => config ??= settingRepository.GetSettings()?.Config ?? new Config();
-        set => settingRepository.UpsertSettings(new Setting { Config = value ?? throw new ArgumentNullException(nameof(value)) });
+        get => config ??= settingsRepository.GetSettings()?.Config ?? new Config();
+        set => settingsRepository.UpsertSettings(new Setting { Config = value ?? throw new ArgumentNullException(nameof(value)) });
     }
 }

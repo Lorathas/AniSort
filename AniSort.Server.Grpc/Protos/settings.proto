@@ -1,0 +1,38 @@
+﻿syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option csharp_namespace = "AniSort.Server.Data.Settings";
+
+service SettingsService {
+  rpc GetSettings(google.protobuf.Empty) returns (SettingsReply);
+  rpc SaveSettings(SettingsReply) returns (SettingsReply);
+  rpc ActiveUpdates(stream SettingsReply) returns (stream SettingsReply);
+}
+
+message SettingsReply {
+  bool debug = 1;
+  bool verbose = 2;
+  bool copy = 3;
+  bool incrementalCleanup = 4;
+  AniDbConfigReply aniDb = 5;
+  repeated string sources = 6;
+  repeated string libraryPaths = 7;
+  bool ignoreLibraryFiles = 8;
+  DestinationConfigReply destination = 9;
+}
+
+message AniDbConfigReply {
+  string username = 1;
+  string password = 2;
+  optional int32 maxFileSearchRetries = 3;
+  int32 fileSearchCooldownMinutes = 4;
+}
+
+message DestinationConfigReply {
+  string path = 1;
+  bool fragmentSeries = 2;
+  string format = 3;
+  string tvPath = 4;
+  string moviePath = 5;
+}

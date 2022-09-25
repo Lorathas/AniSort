@@ -5,11 +5,11 @@ using Polly;
 
 namespace AniSort.Core.Data.Repositories;
 
-public class SettingRepository : ISettingRepository
+public class SettingsRepository : ISettingsRepository
 {
     private readonly AniSortContext context;
     
-    public SettingRepository(AniSortContext context)
+    public SettingsRepository(AniSortContext context)
     {
         this.context = context;
     }

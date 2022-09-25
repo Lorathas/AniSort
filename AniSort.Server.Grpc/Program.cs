@@ -17,7 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddGrpc(options => options.EnableDetailedErrors = true);
 
-Startup.InitializeServices(null, builder.Configuration, builder.Services, DatabaseType.Postgres);
+Startup.InitializeServices(null, builder.Configuration, builder.Services);
 builder.Services.AddSingleton<IJobHub, JobHub>()
     .AddSingleton<ILocalFileHub, LocalFileHub>()
     .AddSingleton<IScheduledJobHub, ScheduledJobHub>()

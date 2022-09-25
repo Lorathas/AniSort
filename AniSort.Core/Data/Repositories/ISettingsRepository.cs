@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace AniSort.Core.Data.Repositories;
 
-public interface ISettingRepository : IDisposable, IAsyncDisposable
+public interface ISettingsRepository : IDisposable, IAsyncDisposable
 {
     /// <summary>
     /// Get the current settings if they exist
