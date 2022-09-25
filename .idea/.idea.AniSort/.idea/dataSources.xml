@@ -15,11 +15,11 @@
       <jdbc-url>jdbc:sqlite:$USER_HOME$/AppData/Roaming/AniSort/anisort.sqlite3</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
-    <data-source source="LOCAL" name="anisort@localhost" uuid="13809146-29f6-4fe3-954a-cbdbba2fd168">
+    <data-source source="LOCAL" name="postgres@localhost" uuid="13809146-29f6-4fe3-954a-cbdbba2fd168">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
-      <jdbc-url>jdbc:postgresql://localhost:5432/anisort</jdbc-url>
+      <jdbc-url>jdbc:postgresql://localhost:5432/postgres</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

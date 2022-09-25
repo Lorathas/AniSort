@@ -96,6 +96,7 @@ public class Startup
             .AddScoped<IJobRepository, JobRepository>()
             .AddScoped<IScheduledJobRepository, ScheduledJobRepository>()
             .AddScoped<IJobStepRepository, JobStepRepository>()
+            .AddTransient<ISettingRepository, SettingRepository>()
             .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
             .AddTransient<LegacyDataStoreProvider>()
             .AddTransient<BlockProvider>()
@@ -135,9 +136,19 @@ public class Startup
     public static ServiceProvider InitializeServices(Config? config, ConfigurationManager configuration, IServiceCollection? serviceCollection = null)
     {
         InitializeLogging(config);
-        return InitializeServicesInternal(configuration, serviceCollection)
-            .AddSingleton(config ?? new Config())
-            .BuildServiceProvider();
+        var builder = InitializeServicesInternal(configuration, serviceCollection);
+
+        if (config != null)
+        {
+            builder = builder.AddSingleton(config)
+                .AddSingleton<IConfigProvider, LocalConfigProvider>();
+        }
+        else
+        {
+            builder = builder.AddSingleton<IConfigProvider, RepositoryConfigProvider>();
+        }
+
+        return builder.BuildServiceProvider();
     }
 
     private static void InitializeCommands()

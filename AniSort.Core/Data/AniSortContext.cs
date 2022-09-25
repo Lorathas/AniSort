@@ -50,6 +50,8 @@ public class AniSortContext : DbContext
     public DbSet<JobLog> JobLogs { get; set; }
 
     public DbSet<StepLog> JobStepLogs { get; set; }
+    
+    public DbSet<Setting?> Setting { get; set; }
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -96,6 +98,7 @@ public class AniSortContext : DbContext
         modelBuilder.ApplyConfiguration(new JobLogEntityTypeConfiguration());
         modelBuilder.ApplyConfiguration(new StepLogEntityTypeConfiguration());
         modelBuilder.ApplyConfiguration(new ScheduledJobEntityTypeConfiguration());
+        modelBuilder.ApplyConfiguration(new SettingEntityTypeConfiguration());
     }
 
     /// <inheritdoc />
