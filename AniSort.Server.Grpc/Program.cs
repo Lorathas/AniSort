@@ -21,6 +21,7 @@ Startup.InitializeServices(null, builder.Configuration, builder.Services);
 builder.Services.AddSingleton<IJobHub, JobHub>()
     .AddSingleton<ILocalFileHub, LocalFileHub>()
     .AddSingleton<IScheduledJobHub, ScheduledJobHub>()
+    .AddSingleton<ISettingsHub, SettingsHub>()
     .AddSingleton(new ActivitySource("AniSort Server"))
     .AddHostedService<JobSchedulerService>()
     .AddHostedService<JobRunnerService>()
