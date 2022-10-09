@@ -6,6 +6,7 @@ using AniSort.Server.Generators;
 using AniSort.Server.HostedServices;
 using AniSort.Server.Hubs;
 using AniSort.Server.Jobs;
+using AniSort.Server.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -48,6 +49,7 @@ var app = builder.Build();
 app.MapGrpcService<JobService>();
 app.MapGrpcService<LocalFileService>();
 app.MapGrpcService<ScheduledJobService>();
+app.MapGrpcService<SettingsService>();
 app.MapGet("/",
     () =>
         "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
