@@ -1,13 +1,17 @@
 using System.Diagnostics;
 using AniSort.Core;
 using AniSort.Core.DataFlow;
+using AniSort.Server;
 using AniSort.Server.Generators;
 using AniSort.Server.HostedServices;
 using AniSort.Server.Hubs;
 using AniSort.Server.Jobs;
-using AniSort.Server.Services;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using JobService = AniSort.Server.Services.JobService;
+using LocalFileService = AniSort.Server.Services.LocalFileService;
+using ScheduledJobService = AniSort.Server.Services.ScheduledJobService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +29,7 @@ builder.Services.AddSingleton<IJobHub, JobHub>()
     .AddSingleton(new ActivitySource("AniSort Server"))
     .AddHostedService<JobSchedulerService>()
     .AddHostedService<JobRunnerService>()
+    .Replace(new ServiceDescriptor(typeof(IConfigProvider), typeof(ConfigHubProvider), ServiceLifetime.Singleton))
     .AddTransient<IJobUpdateProvider, JobHubUpdateProvider>();
 HubServiceRegistration.RegisterServices(builder.Services);
 

@@ -1,4 +1,5 @@
 ﻿using System.Threading;
+using System.Threading.Tasks;
 using AniDbSharp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -9,14 +10,18 @@ namespace AniSort.Core.Data;
 
 public class AniSortContext : DbContext
 {
+    private readonly ILogger<AniSortContext> logger;
+    
     /// <inheritdoc />
-    protected AniSortContext()
+    protected AniSortContext(ILogger<AniSortContext> logger)
     {
+        this.logger = logger;
     }
 
     /// <inheritdoc />
-    public AniSortContext(DbContextOptions options) : base(options)
+    public AniSortContext(DbContextOptions options, ILogger<AniSortContext> logger) : base(options)
     {
+        this.logger = logger;
     }
 
     public static SemaphoreSlim DatabaseLock { get; } = new(1, 1);
@@ -108,5 +113,19 @@ public class AniSortContext : DbContext
             .EnableDetailedErrors()
             .ConfigureWarnings(c => c
                 .Default(WarningBehavior.Ignore));
+    }
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        logger.LogTrace("Disposing AniSortContext");
+        base.Dispose();
+    }
+
+    /// <inheritdoc />
+    public override ValueTask DisposeAsync()
+    {
+        logger.LogTrace("Disposing AniSortContext asynchronously");
+        return base.DisposeAsync();
     }
 }

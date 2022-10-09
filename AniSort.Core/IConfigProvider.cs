@@ -2,5 +2,5 @@
 
 public interface IConfigProvider
 {
-    Config? Config { get; set; }
+    Config Config { get; }
 }

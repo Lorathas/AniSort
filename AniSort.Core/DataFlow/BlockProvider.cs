@@ -17,7 +17,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using AniDbSharp;
 using AniDbSharp.Data;
@@ -40,13 +39,13 @@ namespace AniSort.Core.DataFlow;
 
 public class BlockProvider
 {
-    private readonly Config config;
+    private readonly IConfigProvider configProvider;
 
     private readonly IServiceProvider serviceProvider;
 
-    public BlockProvider(Config config, IServiceProvider serviceProvider)
+    public BlockProvider(IConfigProvider configProvider, IServiceProvider serviceProvider)
     {
-        this.config = config;
+        this.configProvider = configProvider;
         this.serviceProvider = serviceProvider;
     }
 
@@ -91,7 +90,7 @@ public class BlockProvider
                 if (localFile == null)
                 {
                     localFile = new LocalFile { Path = parameters.FileInfo.FullName, Status = ImportStatus.NotYetImported, EpisodeFile = null };
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         await AniSortContext.DatabaseLock.WaitAsync();
                         try
@@ -187,7 +186,7 @@ public class BlockProvider
                 else
                 {
                     var hashAction = new FileAction { Type = FileActionType.Hash, Success = false, FileId = parameters.LocalFile!.Id };
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         await AniSortContext.DatabaseLock.WaitAsync();
                         try
@@ -205,7 +204,7 @@ public class BlockProvider
                     long totalBytes;
                     parameters.LocalFile.FileLength = totalBytes = fs.Length;
                     parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         await AniSortContext.DatabaseLock.WaitAsync();
                         try
@@ -241,7 +240,7 @@ public class BlockProvider
                     hashAction.UpdatedAt = DateTimeOffset.Now;
 
                     onHashFinished();
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         await AniSortContext.DatabaseLock.WaitAsync();
                         try
@@ -271,7 +270,7 @@ public class BlockProvider
                     }
                     logger.LogDebug("  eD2k hash: {HashInHex}", parameters.LocalFile.Ed2kHash.ToHexString());
 
-                    if (config.Verbose)
+                    if (configProvider.Config.Verbose)
                     {
                         logger.LogTrace(
                             "  Processed {SizeInMB:###,###,##0.00}MB in {ElapsedTime} at a rate of {HashRate:F2}MB/s", (double) totalBytes / 1024 / 1024, sw.Elapsed,
@@ -340,7 +339,7 @@ public class BlockProvider
                     AniSortContext.DatabaseLock.Release();
                 }
 
-                if (config.AniDb.MaxFileSearchRetries.HasValue && fileActions.Count(a => a.Type == FileActionType.Search) >= config.AniDb.MaxFileSearchRetries)
+                if (configProvider.Config.AniDb.MaxFileSearchRetries.HasValue && fileActions.Count(a => a.Type == FileActionType.Search) >= configProvider.Config.AniDb.MaxFileSearchRetries)
                 {
                     if (EnvironmentHelpers.IsConsolePresent)
                     {
@@ -356,7 +355,7 @@ public class BlockProvider
 
                 var lastSearchAction = fileActions.LastOrDefault(a => a.Type == FileActionType.Search);
 
-                if (config.AniDb.FileSearchCooldown != TimeSpan.Zero && (lastSearchAction?.IsCoolingDown(config.AniDb.FileSearchCooldown) ?? false))
+                if (configProvider.Config.AniDb.FileSearchCooldown != TimeSpan.Zero && (lastSearchAction?.IsCoolingDown(configProvider.Config.AniDb.FileSearchCooldown) ?? false))
                 {
                     if (EnvironmentHelpers.IsConsolePresent)
                     {
@@ -498,7 +497,7 @@ public class BlockProvider
                 // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                 logger.LogInformation($"File found for {filename}");
 
-                if (config.Verbose)
+                if (configProvider.Config.Verbose)
                 {
                     logger.LogTrace("  Anime: {AnimeNameInRomaji}", result.AnimeInfo.RomajiName);
                     logger.LogTrace("  Episode: {EpisodeNumber:##} {EpisodeName}", result.AnimeInfo.EpisodeNumber, result.AnimeInfo.EpisodeName);
@@ -651,7 +650,7 @@ public class BlockProvider
                 var destinationPath = destinationPathWithoutExtension + extension;
                 var destinationDirectory = Path.GetDirectoryName(destinationPathWithoutExtension);
 
-                if (!config.Debug && !Directory.Exists(destinationDirectory))
+                if (!configProvider.Config.Debug && !Directory.Exists(destinationDirectory))
                 {
                     try
                     {
@@ -714,13 +713,13 @@ public class BlockProvider
                     }
                     logger.LogDebug("Destination file \"{DestinationPath}\" already exists. Skipping...", destinationPath);
                 }
-                else if (config.Copy)
+                else if (configProvider.Config.Copy)
                 {
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         try
                         {
-                            if (config.Verbose)
+                            if (configProvider.Config.Verbose)
                             {
                                 logger.LogTrace("Destination Path: {DestinationPath}", destinationPath);
                             }
@@ -737,7 +736,7 @@ public class BlockProvider
                                 parameters.LocalFile.Status = ImportStatus.Error;
                                 parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = configProvider.Config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -757,7 +756,7 @@ public class BlockProvider
                                 parameters.LocalFile.Status = ImportStatus.Error;
                                 parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = configProvider.Config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -776,7 +775,7 @@ public class BlockProvider
                                 parameters.LocalFile.Status = ImportStatus.Error;
                                 parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = configProvider.Config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -815,7 +814,7 @@ public class BlockProvider
                 }
                 else
                 {
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         try
                         {
@@ -832,7 +831,7 @@ public class BlockProvider
                                 parameters.LocalFile.Status = ImportStatus.Error;
                                 parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = configProvider.Config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -852,7 +851,7 @@ public class BlockProvider
                                 parameters.LocalFile.Status = ImportStatus.Error;
                                 parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = configProvider.Config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally
@@ -871,7 +870,7 @@ public class BlockProvider
                                 parameters.LocalFile.Status = ImportStatus.Error;
                                 parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
                                 await localFileRepository.SaveChangesAsync();
-                                await actionRepository.AddAsync(new FileAction { Type = config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
+                                await actionRepository.AddAsync(new FileAction { Type = configProvider.Config.Copy ? FileActionType.Copy : FileActionType.Move, Success = false, Exception = $"{ex.Message}\n{ex.StackTrace}", FileId = parameters.LocalFile.Id });
                                 await actionRepository.SaveChangesAsync();
                             }
                             finally

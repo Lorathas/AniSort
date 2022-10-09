@@ -42,7 +42,8 @@ public class JobSchedulerService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         List<Core.Data.ScheduledJob> scheduledJobs;
-        await using (var scheduledJobRepository = serviceProvider.GetService<IScheduledJobRepository>())
+        await using (var scope = serviceProvider.CreateAsyncScope())
+        await using (var scheduledJobRepository = scope.ServiceProvider.GetService<IScheduledJobRepository>())
         {
             scheduledJobs = await scheduledJobRepository!.GetForQueue().ToListAsync(cancellationToken: stoppingToken);
         }

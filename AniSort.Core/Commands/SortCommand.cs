@@ -21,7 +21,7 @@ public class SortCommand : IPipelineCommand
 {
     private readonly AniDbClient client;
 
-    private readonly Config config;
+    private readonly IConfigProvider configProvider;
 
     private readonly ILogger<SortCommand> logger;
 
@@ -31,9 +31,9 @@ public class SortCommand : IPipelineCommand
 
     private ConsoleProgressBar? hashProgressBar;
 
-    public SortCommand(Config config, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider, IPathBuilderRepository pathBuilderRepository)
+    public SortCommand(IConfigProvider configProvider, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider, IPathBuilderRepository pathBuilderRepository)
     {
-        this.config = config;
+        this.configProvider = configProvider;
         this.logger = logger;
         this.client = client;
         this.serviceProvider = serviceProvider;
@@ -45,13 +45,13 @@ public class SortCommand : IPipelineCommand
     {
         var fileQueue = new Queue<string>();
 
-        fileQueue.AddPathsToQueue(config.Sources);
-        if (!config.IgnoreLibraryFiles)
+        fileQueue.AddPathsToQueue(configProvider.Config.Sources);
+        if (!configProvider.Config.IgnoreLibraryFiles)
         {
-            fileQueue.AddPathsToQueue(config.LibraryPaths);
+            fileQueue.AddPathsToQueue(configProvider.Config.LibraryPaths);
         }
 
-        if (config.Verbose)
+        if (configProvider.Config.Verbose)
         {
             if (EnvironmentHelpers.IsConsolePresent)
             {
@@ -60,8 +60,8 @@ public class SortCommand : IPipelineCommand
 
             using (logger.BeginScope("Config setup to write to following directories for files:"))
             {
-                logger.LogTrace("TV:     {TvPath}", Path.Combine(config.Destination.Path, config.Destination.TvPath));
-                logger.LogTrace("Movies: {MoviePath}", Path.Combine(config.Destination.Path, config.Destination.MoviePath));
+                logger.LogTrace("TV:     {TvPath}", Path.Combine(configProvider.Config.Destination.Path, configProvider.Config.Destination.TvPath));
+                logger.LogTrace("Movies: {MoviePath}", Path.Combine(configProvider.Config.Destination.Path, configProvider.Config.Destination.MoviePath));
                 logger.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilderRepository.DefaultPathBuilder.Root);
             }
         }
@@ -106,10 +106,10 @@ public class SortCommand : IPipelineCommand
 
             var queue = new Queue<string>();
 
-            queue.AddPathsToQueue(config.Sources);
-            if (!config.IgnoreLibraryFiles)
+            queue.AddPathsToQueue(configProvider.Config.Sources);
+            if (!configProvider.Config.IgnoreLibraryFiles)
             {
-                queue.AddPathsToQueue(config.LibraryPaths);
+                queue.AddPathsToQueue(configProvider.Config.LibraryPaths);
             }
 
             int fileCount = queue.Count;

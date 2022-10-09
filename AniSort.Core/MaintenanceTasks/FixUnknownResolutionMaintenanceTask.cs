@@ -24,14 +24,14 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
     
     private readonly ILocalFileRepository localFileRepository;
     private readonly ILogger<FixUnknownResolutionMaintenanceTask> logger;
-    private readonly Config config;
+    private readonly IConfigProvider configProvider;
     private readonly IPathBuilderRepository pathBuilderRepository;
 
-    public FixUnknownResolutionMaintenanceTask(ILocalFileRepository localFileRepository, ILogger<FixUnknownResolutionMaintenanceTask> logger, Config config, IPathBuilderRepository pathBuilderRepository)
+    public FixUnknownResolutionMaintenanceTask(ILocalFileRepository localFileRepository, ILogger<FixUnknownResolutionMaintenanceTask> logger, IConfigProvider configProvider, IPathBuilderRepository pathBuilderRepository)
     {
         this.localFileRepository = localFileRepository;
         this.logger = logger;
-        this.config = config;
+        this.configProvider = configProvider;
         this.pathBuilderRepository = pathBuilderRepository;
     }
 
@@ -45,7 +45,7 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
             if (!File.Exists(file.Path) || file.EpisodeFile == null)
             {
                 logger.LogWarning("File {FilePath} no longer exists, removing from database", file.Path);
-                if (!config.Debug)
+                if (!configProvider.Config.Debug)
                 {
                     await localFileRepository.RemoveAsync(file);
                     await localFileRepository.SaveChangesAsync();
@@ -74,18 +74,18 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
             var destinationPath = destinationPathWithoutExtension + extension;
             var destinationDirectory = Path.GetDirectoryName(destinationPathWithoutExtension);
             
-            if (!Directory.Exists(destinationDirectory) && !config.Debug)
+            if (!Directory.Exists(destinationDirectory) && !configProvider.Config.Debug)
             {
                 Debug.Assert(destinationDirectory != null, nameof(destinationDirectory) + " != null");
                 Directory.CreateDirectory(destinationDirectory);
             }
             
-            if (config.Copy)
+            if (configProvider.Config.Copy)
             {
                 if (!File.Exists(destinationPath))
                 {
                     logger.LogInformation("Copying {FilePath} to {DestinationPath}", file.Path, destinationPath);
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         File.Copy(file.Path, destinationPath);
                         file.FileActions.Add(new FileAction { Type = FileActionType.Copy });
@@ -95,7 +95,7 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
                 else
                 {
                     logger.LogWarning("File {FilePath} already exists at {DestinationPath}", file.Path, destinationPath);
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         file.FileActions.Add(new FileAction { Type = FileActionType.Copied, Success = true, Info = "File already exists, skipping" });
                     }
@@ -106,7 +106,7 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
                 if (!File.Exists(destinationPath))
                 {
                     logger.LogDebug("Moving {FilePath} to {DestinationPath}", file.Path, destinationPath);
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         File.Move(file.Path, destinationPath);
                         file.Path = destinationPath;
@@ -116,7 +116,7 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
                 else
                 {
                     logger.LogWarning("File {FilePath} already exists at {DestinationPath}", file.Path, destinationPath);
-                    if (!config.Debug)
+                    if (!configProvider.Config.Debug)
                     {
                         var existing = await localFileRepository.GetForPathAsync(destinationPath);
 
@@ -142,7 +142,7 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
                 }
             }
 
-            if (!config.Debug)
+            if (!configProvider.Config.Debug)
             {
                 await localFileRepository.SaveChangesAsync();
             }
@@ -152,8 +152,8 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
         {
             var flow = BuildProcessingFlow();
 
-            flow.AddPathsToFlow(config.Sources, p => ResolutionReplacementRegex.IsMatch(p));
-            flow.AddPathsToFlow(config.LibraryPaths, p => ResolutionReplacementRegex.IsMatch(p));
+            flow.AddPathsToFlow(configProvider.Config.Sources, p => ResolutionReplacementRegex.IsMatch(p));
+            flow.AddPathsToFlow(configProvider.Config.LibraryPaths, p => ResolutionReplacementRegex.IsMatch(p));
             flow.Complete();
 
             await flow.Completion;
@@ -186,7 +186,7 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
             if (localFile == default)
             {
                 logger.LogDebug("New file {FilePath} found", path);
-                if (!config.Debug)
+                if (!configProvider.Config.Debug)
                 {
                     localFile = await localFileRepository.AddAsync(new LocalFile { Path = path, Status = ImportStatus.NotYetImported });
                     await localFileRepository.SaveChangesAsync();
@@ -202,7 +202,7 @@ public class FixUnknownResolutionMaintenanceTask : IMaintenanceTask
             if (!File.Exists(newPath))
             {
                 logger.LogInformation("Moving file {OldPath} to {NewPath}", path, newPath);
-                if (!config.Debug)
+                if (!configProvider.Config.Debug)
                 {
                     File.Move(path, newPath);
                     localFile.Path = newPath;

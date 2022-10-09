@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AniSort.Core.Data;
 
@@ -20,6 +21,6 @@ public class AniSortContextFactory : IDesignTimeDbContextFactory<AniSortContext>
 
         builder.UseNpgsql(connectionString);
 
-        return new AniSortContext(builder.Options);
+        return new AniSortContext(builder.Options, NullLogger<AniSortContext>.Instance);
     }
 }

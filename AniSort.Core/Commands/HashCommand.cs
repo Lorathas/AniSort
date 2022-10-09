@@ -18,7 +18,7 @@ namespace AniSort.Core.Commands;
 
 public class HashCommand : IPipelineCommand
 {
-    private readonly Config config;
+    private readonly IConfigProvider configProvider;
 
     private readonly ILogger<HashCommand> logger;
 
@@ -26,9 +26,9 @@ public class HashCommand : IPipelineCommand
 
     private ConsoleProgressBar? hashProgressBar;
 
-    public HashCommand(Config config, ILogger<HashCommand> logger, IServiceProvider serviceProvider)
+    public HashCommand(IConfigProvider configProvider, ILogger<HashCommand> logger, IServiceProvider serviceProvider)
     {
-        this.config = config;
+        this.configProvider = configProvider;
         this.logger = logger;
         this.serviceProvider = serviceProvider;
     }
@@ -38,11 +38,11 @@ public class HashCommand : IPipelineCommand
     {
         var fileQueue = new Queue<string>();
 
-        fileQueue.AddPathsToQueue(config.Sources);
+        fileQueue.AddPathsToQueue(configProvider.Config.Sources);
 
-        if (!config.IgnoreLibraryFiles)
+        if (!configProvider.Config.IgnoreLibraryFiles)
         {
-            fileQueue.AddPathsToQueue(config.LibraryPaths);
+            fileQueue.AddPathsToQueue(configProvider.Config.LibraryPaths);
         }
 
         while (fileQueue.TryDequeue(out var path))

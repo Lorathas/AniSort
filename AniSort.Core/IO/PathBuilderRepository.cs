@@ -23,33 +23,33 @@ public class PathBuilderRepository : IPathBuilderRepository
 {
     private readonly Dictionary<string, PathBuilder> libraryPathBuilders = new();
 
-    public PathBuilderRepository(Config config)
+    public PathBuilderRepository(IConfigProvider configProvider)
     {
-        if (config.LibraryPaths != null)
+        if (configProvider.Config.LibraryPaths != null)
         {
-            foreach (string path in config.LibraryPaths)
+            foreach (string path in configProvider.Config.LibraryPaths)
             {
                 libraryPathBuilders[path] = PathBuilder.Compile(
                     path,
-                    config.Destination.TvPath,
-                    config.Destination.MoviePath,
-                    config.Destination.Format,
+                    configProvider.Config.Destination.TvPath,
+                    configProvider.Config.Destination.MoviePath,
+                    configProvider.Config.Destination.Format,
                     new FileMask { FirstByteFlags = FileMaskFirstByte.AnimeId | FileMaskFirstByte.GroupId | FileMaskFirstByte.EpisodeId, SecondByteFlags = FileMaskSecondByte.Ed2k });
             }
         }
 
 
-        if (string.IsNullOrWhiteSpace(config.Destination.Path))
+        if (string.IsNullOrWhiteSpace(configProvider.Config.Destination.Path))
         {
             DefaultPathBuilder = libraryPathBuilders.Values.FirstOrDefault();
         }
         else
         {
             DefaultPathBuilder = PathBuilder.Compile(
-                config.Destination.Path,
-                config.Destination.TvPath,
-                config.Destination.MoviePath,
-                config.Destination.Format,
+                configProvider.Config.Destination.Path,
+                configProvider.Config.Destination.TvPath,
+                configProvider.Config.Destination.MoviePath,
+                configProvider.Config.Destination.Format,
                 new FileMask { FirstByteFlags = FileMaskFirstByte.AnimeId | FileMaskFirstByte.GroupId | FileMaskFirstByte.EpisodeId, SecondByteFlags = FileMaskSecondByte.Ed2k });
         }
     }
