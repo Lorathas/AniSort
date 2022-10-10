@@ -17,6 +17,19 @@ public interface ISettingsRepository : IDisposable, IAsyncDisposable
     /// <returns></returns>
     Task<Setting?> GetSettingsAsync();
 
+
+    /// <summary>
+    /// Get the current settings if they exist, detached from the context
+    /// </summary>
+    /// <returns></returns>
+    Setting? GetSettingsDetached();
+    
+    /// <summary>
+    /// Get the current settings if they exist, detached from the context
+    /// </summary>
+    /// <returns></returns>
+    Task<Setting?> GetSettingsDetachedAsync();
+
     /// <summary>
     /// Upsert the settings
     /// </summary>

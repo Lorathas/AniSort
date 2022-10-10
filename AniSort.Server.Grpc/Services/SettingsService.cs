@@ -30,7 +30,7 @@ public class SettingsService : Data.Settings.SettingsService.SettingsServiceBase
     /// <inheritdoc />
     public override async Task<SettingsReply> GetSettings(Empty request, ServerCallContext context)
     {
-        var settings = await settingsRepository.GetSettingsAsync();
+        var settings = await settingsRepository.GetSettingsDetachedAsync();
 
         if (settings == null)
         {
@@ -45,7 +45,7 @@ public class SettingsService : Data.Settings.SettingsService.SettingsServiceBase
     {
         var config = request.ToModel();
 
-        var settings = new Setting { Id = 1, Config = config };
+        var settings = new Setting { Config = config };
 
         config = (await settingsRepository.UpsertSettingsAsync(settings)).Config;
 
@@ -61,24 +61,20 @@ public class SettingsService : Data.Settings.SettingsService.SettingsServiceBase
         
         await settingsHub.RegisterListenerAsync(SendSettingsAsync, context.CancellationToken);
         
-        var settings = await settingsRepository.GetSettingsAsync();
+        var settings = await settingsRepository.GetSettingsDetachedAsync();
 
         if (settings != null)
         {
             await SendSettingsAsync(settings.Config, HubUpdate.Initial);
         }
-        else
-        {
-            await SendSettingsAsync(new Config(), HubUpdate.Initial);
-        }
 
         while (!context.CancellationToken.IsCancellationRequested)
         {
-            await requestStream.MoveNext();
+            await requestStream.MoveNext(context.CancellationToken);
             
             var config = requestStream.Current.ToModel();
 
-            settings = new Setting { Id = 1, Config = config };
+            settings = new Setting { Config = config };
 
             config = (await settingsRepository.UpsertSettingsAsync(settings)).Config;
 
