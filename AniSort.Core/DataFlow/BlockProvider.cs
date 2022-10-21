@@ -21,6 +21,7 @@ using System.Threading.Tasks.Dataflow;
 using AniDbSharp;
 using AniDbSharp.Data;
 using AniDbSharp.Exceptions;
+using AniSort.Core.Commands;
 using AniSort.Core.Crypto;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
@@ -54,11 +55,11 @@ public class BlockProvider
     /// </summary>
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
-    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams> BuildFetchLocalFileBlock(ExecutionDataflowBlockOptions? options = null)
+    public TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>> BuildFetchLocalFileBlock(ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new();
 
-        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(async parameters =>
+        return new TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>>(ResultHelpers.MapAsync<MetadataFileJobParams>(async parameters =>
         {
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
@@ -109,7 +110,7 @@ public class BlockProvider
                 {
                     logger.LogDebug("File \"{FilePath}\" has already been imported. Skipping...", parameters);
 
-                    return parameters with { Failed = true };
+                    return $"File \"{parameters.FileInfo.Name}\" has already been imported. Skipping...".Error<MetadataFileJobParams>();
                 }
 
                 if (existingStep != null)
@@ -118,7 +119,7 @@ public class BlockProvider
                     await jobStepRepository.SaveChangesAsync();
                 }
 
-                return parameters with { LocalFile = localFile };
+                return (parameters with { LocalFile = localFile }).Ok();
             }
             catch (AniDbConnectionRefusedException ex)
             {
@@ -129,7 +130,7 @@ public class BlockProvider
 
                 logger.LogCritical(ex, AniDbErrorMessages.AniDbTimeout);
                 Environment.Exit(ExitCodes.AniDbConnectionRefused);
-                return parameters with { Failed = true };
+                return AniDbErrorMessages.AniDbTimeout.Error<MetadataFileJobParams>();
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -137,15 +138,15 @@ public class BlockProvider
                 {
                     logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
                 }
-                return parameters with { Failed = true };
+                return "An issue occurred while trying to update the entities".Error<MetadataFileJobParams>();
             }
             catch (Exception ex)
             {
                 // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                 logger.LogError(ex, ex.Message);
-                return parameters with { Failed = true };
+                return ex.Message.Error<MetadataFileJobParams>();
             }
-        }, options);
+        }), options);
     }
 
     /// <summary>
@@ -156,12 +157,19 @@ public class BlockProvider
     /// <param name="onHashFinished"></param>
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
-    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams> BuildHashFileBlock(Action<string, long> onNewHashStarted, Action<long> onProgressUpdate, Action onHashFinished, ExecutionDataflowBlockOptions? options = null)
+    public TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>> BuildHashFileBlock(Action<string, long> onNewHashStarted, Action<long> onProgressUpdate, Action onHashFinished, ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new();
 
-        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(async parameters =>
+        return new TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>>(async result =>
         {
+            if (result is Error<MetadataFileJobParams>)
+            {
+                return result;
+            }
+            
+            var parameters = result.OkValue;
+
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
             var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
@@ -174,7 +182,7 @@ public class BlockProvider
             {
                 if (parameters.LocalFile!.Ed2kHash != null)
                 {
-                    return parameters;
+                    return parameters.Ok();
                 }
 
                 string filename = parameters.FileInfo.Name;
@@ -230,8 +238,6 @@ public class BlockProvider
                         onProgressUpdate(progress);
                     }
 
-                    ;
-
                     parameters.LocalFile.Ed2kHash = await Ed2k.HashMultiAsync(fs, new Progress<long>(OnHashProgress));
                     parameters.LocalFile.Status = ImportStatus.Hashed;
                     parameters.LocalFile.UpdatedAt = DateTimeOffset.Now;
@@ -278,13 +284,13 @@ public class BlockProvider
                     }
                 }
 
-                return parameters;
+                return parameters.Ok();
             }
             catch (AniDbConnectionRefusedException ex)
             {
                 logger.LogCritical(ex, "AniDB connection timed out. Please wait or switch to a different IP address");
                 Environment.Exit(ExitCodes.AniDbConnectionRefused);
-                return default;
+                return "AniDB connection timed out. Please wait or switch to a different IP address".Error<MetadataFileJobParams>();
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -292,13 +298,13 @@ public class BlockProvider
                 {
                     logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
                 }
-                return parameters with {Failed = true};
+                return "An issue occurred while trying to update the entity".Error<MetadataFileJobParams>();
             }
             catch (Exception ex)
             {
                 // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                 logger.LogError(ex, ex.Message);
-                return parameters with {Failed = true};
+                return ex.Message.Error<MetadataFileJobParams>();
             }
         }, options);
     }
@@ -308,15 +314,22 @@ public class BlockProvider
     /// </summary>
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
-    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams> BuildFilterCoolingDownFilesBlock(ExecutionDataflowBlockOptions? options = null)
+    public TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>> BuildFilterCoolingDownFilesBlock(ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new();
 
-        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(async parameters =>
+        return new TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>>(async result =>
         {
+            if (result is Error<MetadataFileJobParams>)
+            {
+                return result;
+            }
+            
+            var parameters = result.OkValue;
+            
             if (parameters.LocalFile == null)
             {
-                return parameters with { Failed = true };
+                return new Error<MetadataFileJobParams>("Local file not found");
             }
 
             var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
@@ -350,7 +363,7 @@ public class BlockProvider
                     {
                         logger!.LogDebug("File {Filename} has hit the retry limit, skipping", parameters.FileInfo.FullName);
                     }
-                    return parameters with { IsCoolingDown = true };
+                    return "File {Filename} has hit the retry limit, skipping".Error<MetadataFileJobParams>();
                 }
 
                 var lastSearchAction = fileActions.LastOrDefault(a => a.Type == FileActionType.Search);
@@ -366,16 +379,16 @@ public class BlockProvider
                     {
                         logger.LogDebug("File {Filename} is still cooling down from last search, skipping", parameters.LocalFile.Path);
                     }
-                    return parameters with { IsCoolingDown = true };
+                    return $"File {parameters.LocalFile.Path} is still cooling down from last search, skipping".Error<MetadataFileJobParams>();
                 }
 
-                return parameters;
+                return parameters.Ok();
             }
             catch (AniDbConnectionRefusedException ex)
             {
                 logger.LogCritical(ex, "AniDB connection timed out. Please wait or switch to a different IP address");
                 Environment.Exit(ExitCodes.AniDbConnectionRefused);
-                return parameters with { Failed = true };
+                return "AniDB connection timed out. Please wait or switch to a different IP address".Error<MetadataFileJobParams>();
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -383,13 +396,13 @@ public class BlockProvider
                 {
                     logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
                 }
-                return parameters with { Failed = true };
+                return "An issue occurred while trying to update the entities".Error<MetadataFileJobParams>();
             }
             catch (Exception ex)
             {
                 // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                 logger.LogError(ex, ex.Message);
-                return parameters with { Failed = true };
+                return ex.Message.Error<MetadataFileJobParams>();
             }
         }, options);
     }
@@ -401,14 +414,21 @@ public class BlockProvider
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
-    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams> BuildSearchFileBlock(AniDbClient client,
+    public TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>> BuildSearchFileBlock(AniDbClient client,
         ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new();
 
         // Annoying, but for some reason it doesn't infer the type correctly so we need to wrap it in a Func
-        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(async parameters =>
+        return new TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>>(async result =>
         {
+            if (result is Error<MetadataFileJobParams>)
+            {
+                return result;
+            }
+
+            var parameters = result.OkValue;
+
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
             var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
@@ -439,9 +459,9 @@ public class BlockProvider
 
                 var pathBuilder = pathBuilderRepository.GetPathBuilderForPath(parameters.FileInfo.FullName);
 
-                var result = await client.SearchForFile(parameters.LocalFile.FileLength, parameters.LocalFile.Ed2kHash!, pathBuilder.FileMask, pathBuilder.AnimeMask);
+                var searchResult = await client.SearchForFile(parameters.LocalFile.FileLength, parameters.LocalFile.Ed2kHash!, pathBuilder.FileMask, pathBuilder.AnimeMask);
 
-                if (!result.FileFound)
+                if (!searchResult.FileFound)
                 {
                     await AniSortContext.DatabaseLock.WaitAsync();
                     try
@@ -477,14 +497,14 @@ public class BlockProvider
                         AniSortContext.DatabaseLock.Release();
                     }
 
-                    return parameters with { Failed = true };
+                    return "No file found".Error<MetadataFileJobParams>();
                 }
 
                 await AniSortContext.DatabaseLock.WaitAsync();
                 try
                 {
                     searchAction.Success = true;
-                    searchAction.Info = $"Found file {result.FileInfo.FileId} for file hash {parameters.LocalFile.Ed2kHash!.ToHexString()}";
+                    searchAction.Info = $"Found file {searchResult.FileInfo.FileId} for file hash {parameters.LocalFile.Ed2kHash!.ToHexString()}";
                     searchAction.UpdatedAt = DateTimeOffset.Now;
                     await actionRepository.SaveChangesAsync();
                     await localFileRepository.SaveChangesAsync();
@@ -499,16 +519,16 @@ public class BlockProvider
 
                 if (configProvider.Config.Verbose)
                 {
-                    logger.LogTrace("  Anime: {AnimeNameInRomaji}", result.AnimeInfo.RomajiName);
-                    logger.LogTrace("  Episode: {EpisodeNumber:##} {EpisodeName}", result.AnimeInfo.EpisodeNumber, result.AnimeInfo.EpisodeName);
-                    logger.LogTrace("  CRC32: {Crc32Hash}", result.FileInfo.Crc32Hash.ToHexString());
-                    logger.LogTrace("  Group: {SubGroupName}", result.AnimeInfo.GroupShortName);
+                    logger.LogTrace("  Anime: {AnimeNameInRomaji}", searchResult.AnimeInfo.RomajiName);
+                    logger.LogTrace("  Episode: {EpisodeNumber:##} {EpisodeName}", searchResult.AnimeInfo.EpisodeNumber, searchResult.AnimeInfo.EpisodeName);
+                    logger.LogTrace("  CRC32: {Crc32Hash}", searchResult.FileInfo.Crc32Hash.ToHexString());
+                    logger.LogTrace("  Group: {SubGroupName}", searchResult.AnimeInfo.GroupShortName);
                 }
 
                 await AniSortContext.DatabaseLock.WaitAsync();
                 try
                 {
-                    var (anime, episode, episodeFile, releaseGroup) = await animeRepository.MergeSertAsync(result, false);
+                    var (anime, episode, episodeFile, releaseGroup) = await animeRepository.MergeSertAsync(searchResult, false);
                     await animeRepository.SaveChangesAsync();
                     if (!await episodeRepository.ExistsAsync(episode.Id))
                     {
@@ -536,21 +556,21 @@ public class BlockProvider
                     AniSortContext.DatabaseLock.Release();
                 }
 
-                var resolution = !string.IsNullOrWhiteSpace(result.FileInfo.VideoResolution) ? result.FileInfo.VideoResolution.ParseVideoResolution() : null;
+                var resolution = !string.IsNullOrWhiteSpace(searchResult.FileInfo.VideoResolution) ? searchResult.FileInfo.VideoResolution.ParseVideoResolution() : null;
 
                 if (resolution?.Width == 0 || resolution?.Height == 0)
                 {
                     resolution = null;
                 }
 
-                return new(parameters.FileInfo, parameters.LocalFile, parameters.IsCoolingDown, result.AnimeInfo, result.FileInfo, resolution, parameters.Job);
+                return (parameters with {AnimeInfo = searchResult.AnimeInfo, AnimeFileInfo = searchResult.FileInfo, VideoResolution = resolution}).Ok();
             }
             catch (AniDbConnectionRefusedException ex)
             {
                 // ReSharper disable once LogMessageIsSentenceProblem
                 logger.LogCritical(ex, "AniDB connection timed out. Please wait or switch to a different IP address.");
                 Environment.Exit(ExitCodes.AniDbConnectionRefused);
-                return new(parameters.FileInfo, parameters.LocalFile, parameters.IsCoolingDown, default, default, default, parameters.Job, true);
+                return "AniDB connection timed out. Please wait or switch to a different IP address.".Error<MetadataFileJobParams>();
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -558,13 +578,13 @@ public class BlockProvider
                 {
                     logger.LogError(ex, "An issue occurred while trying to update the entity {Entity}", entry);
                 }
-                return new(parameters.FileInfo, parameters.LocalFile, parameters.IsCoolingDown, default, default, default, parameters.Job, true);
+                return "An issue occurred while trying to update the entities".Error<MetadataFileJobParams>();
             }
             catch (Exception ex)
             {
                 // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                 logger.LogError(ex, ex.Message);
-                return new(parameters.FileInfo, parameters.LocalFile, parameters.IsCoolingDown, default, default, default, parameters.Job, true);
+                return ex.Message.Error<MetadataFileJobParams>();
             }
         }, options);
     }
@@ -575,14 +595,20 @@ public class BlockProvider
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
-    public TransformBlock<MetadataFileJobParams, MetadataFileJobParams>
-        BuildGetFileVideoResolutionBlock(ExecutionDataflowBlockOptions? options = null)
+    public TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>> BuildGetFileVideoResolutionBlock(ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new();
 
-        return new TransformBlock<MetadataFileJobParams, MetadataFileJobParams>(
-            async parameters =>
+        return new TransformBlock<Result<MetadataFileJobParams>, Result<MetadataFileJobParams>>(
+            async result =>
             {
+                if (result is Error<MetadataFileJobParams>)
+                {
+                    return result;
+                }
+                
+                var parameters = result.OkValue;
+                
                 var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
 
                 using var logScope = logger.BeginScope("GetFileVideoResolutionBlock");
@@ -597,19 +623,19 @@ public class BlockProvider
 
                         if (mediaInfo.PrimaryVideoStream == null)
                         {
-                            return parameters with { Failed = true };
+                            return "No video stream found".Error<MetadataFileJobParams>();
                         }
 
                         resolution = new VideoResolution(mediaInfo.PrimaryVideoStream.Width, mediaInfo.PrimaryVideoStream.Height);
                     }
 
-                    return parameters with { VideoResolution = resolution };
+                    return (parameters with { VideoResolution = resolution }).Ok();
                 }
                 catch (Exception ex)
                 {
                     // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
                     logger.LogError(ex, ex.Message);
-                    return parameters with { Failed = true };
+                    return ex.Message.Error<MetadataFileJobParams>();
                 }
             }, options);
     }
@@ -620,12 +646,19 @@ public class BlockProvider
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
     /// <returns></returns>
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
-    public ActionBlock<MetadataFileJobParams> BuildRenameFileBlock(ExecutionDataflowBlockOptions? options = null)
+    public ActionBlock<Result<MetadataFileJobParams>> BuildRenameFileBlock(ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new();
 
-        return new ActionBlock<MetadataFileJobParams>(async parameters =>
+        return new ActionBlock<Result<MetadataFileJobParams>>(async result =>
         {
+            if (result is Error<MetadataFileJobParams>)
+            {
+                return;
+            }
+            
+            var parameters = result.OkValue;
+            
             var actionRepository = serviceProvider.GetService<IFileActionRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(IFileActionRepository)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
@@ -919,18 +952,82 @@ public class BlockProvider
         }, options);
     }
 
+    public IPropagatorBlock<Job, Result<MetadataFileJobParams>> BuildSingleJobTransformBlock(ExecutionDataflowBlockOptions? blockOptions = null)
+    {
+        blockOptions ??= new ExecutionDataflowBlockOptions();
+
+        return new TransformBlock<Job, Result<MetadataFileJobParams>>(async job =>
+        {
+            await using var scope = serviceProvider.CreateAsyncScope();
+
+            var jobRepository = scope.ServiceProvider.GetService<IJobRepository>() ?? throw new ApplicationException($"Cannot instantiate type {typeof(IJobRepository)}");
+            var updateProvider = scope.ServiceProvider.GetService<IJobUpdateProvider>() ?? throw new ApplicationException($"Cannot instantiate type {typeof(IJobUpdateProvider)}");
+
+            job.Status = JobStatus.Running;
+            job.StartedAt = DateTimeOffset.Now;
+
+            foreach (var step in job.Steps)
+            {
+                step.Status = JobStatus.Queued;
+            }
+
+            await jobRepository.UpsertAndDetachAsync(job);
+
+            await updateProvider.UpdateJobStatusAsync(job);
+
+            var discoveryStep = job.Steps.FirstOrDefault(s => s.Type == StepType.DiscoverFiles);
+
+            if (discoveryStep != null)
+            {
+                discoveryStep.Status = JobStatus.Running;
+                discoveryStep.StartedAt = DateTimeOffset.Now;
+
+                await jobRepository.UpsertAndDetachAsync(job);
+            }
+
+            string path = job.Options.Fields[JobData.Path].StringValue;
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                job.FailWith("Path is empty");
+                discoveryStep?.FailWith("Path is empty");
+                await jobRepository.UpsertAndDetachAsync(job);
+                await updateProvider.UpdateJobStatusAsync(job);
+                return "Path is empty".Error<MetadataFileJobParams>();
+            }
+
+            var fileInfo = new System.IO.FileInfo(path);
+
+            if (!fileInfo.Exists)
+            {
+                job.FailWith("File {Path} does not exist", path);
+                discoveryStep?.FailWith("File {Path} does not exist", path);
+                await jobRepository.UpsertAndDetachAsync(job);
+                await updateProvider.UpdateJobStatusAsync(job);
+                return $"File {path} does not exist".Error<MetadataFileJobParams>();
+            }
+
+            job.Succeed();
+            discoveryStep?.Succeed();
+
+            await jobRepository.UpsertAndDetachAsync(job);
+
+            return new MetadataFileJobParams(fileInfo, Job: job).Ok();
+        }, blockOptions);
+    }
+
     public ITargetBlock<Job> BuildJobTransformBlock(ITargetBlock<MetadataFileJobParams> fileOutput)
     {
         return new ActionBlock<Job>(async job =>
         {
             var jobStepRepository = serviceProvider.GetService<IJobStepRepository>() ?? throw new ApplicationException($"Cannot instantiate type {typeof(IJobStepRepository)}");
             var jobUpdateProvider = serviceProvider.GetService<IJobUpdateProvider>() ?? throw new ApplicationException($"Cannot instantiate type {typeof(IJobUpdateProvider)}");
-            
+
             var fileQueue = new Queue<string>();
-            
+
             var discoverStep = job.Steps.FirstOrDefault(s => s.Type == StepType.DiscoverFiles);
-            
-            fileQueue.AddPathsToQueue(job.Options.Fields["path"].StringValue);
+
+            fileQueue.AddPathsToQueue(job.Options.Fields[JobData.Path].StringValue);
 
             int totalFiles = fileQueue.Count;
 
@@ -958,12 +1055,12 @@ public class BlockProvider
                 if (percent > lastPercentNotifiedAt)
                 {
                     await jobUpdateProvider.UpdateJobStatusAsync(job);
-                    
+
                     lastPercentNotifiedAt = percent;
                 }
             }
-            
-            
+
+
             if (discoverStep != null)
             {
                 discoverStep.CurrentProgress = discoverStep.TotalProgress;

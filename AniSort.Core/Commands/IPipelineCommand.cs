@@ -1,9 +1,10 @@
-﻿using System.Threading.Tasks.Dataflow;
+﻿using System.Threading;
+using System.Threading.Tasks.Dataflow;
 using AniSort.Core.Data;
 
 namespace AniSort.Core.Commands;
 
 public interface IPipelineCommand : ICommand
 {
-    ITargetBlock<Job> BuildPipeline();
+    ITargetBlock<Job> BuildPipeline(CancellationToken? cancellationToken = null);
 }

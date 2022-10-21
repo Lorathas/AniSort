@@ -35,4 +35,35 @@ public class JobStep : IEntity
 
     /// <inheritdoc />
     public bool IsNew => Id != Guid.Empty;
+
+    public void Succeed()
+    {
+        Status = JobStatus.Completed;
+        CompletedAt = DateTimeOffset.Now;
+        CurrentProgress = TotalProgress;
+    }
+    
+    public void SucceedWith(string message, params object[] parameters)
+    {
+        Status = JobStatus.Completed;
+        CompletedAt = DateTimeOffset.Now;
+        Logs.Add(new StepLog(message, parameters));
+        CurrentProgress = TotalProgress;
+    }
+    
+    public void FailWith(string message, params object[] parameters)
+    {
+        Status = JobStatus.Failed;
+        CompletedAt = DateTimeOffset.Now;
+        Logs.Add(new StepLog(message, parameters));
+        CurrentProgress = TotalProgress;
+    }
+
+    public void FailWith(Exception exception, string message, params object[] parameters)
+    {
+        Status = JobStatus.Failed;
+        CompletedAt = DateTimeOffset.Now;
+        Logs.Add(new StepLog(exception, message, parameters));
+        CurrentProgress = TotalProgress;
+    }
 }

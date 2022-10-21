@@ -16,6 +16,10 @@ public class JobRunnerService : BackgroundService
 
     private readonly IServiceProvider serviceProvider;
 
+    private readonly HashCommand hashCommand;
+
+    private readonly SortCommand sortCommand;
+
     private ConcurrentDictionary<Core.Data.JobType, ITargetBlock<Job>> jobQueues = new();
 
     /// <inheritdoc />
@@ -23,21 +27,20 @@ public class JobRunnerService : BackgroundService
     {
         this.jobHub = jobHub;
         this.serviceProvider = serviceProvider;
-
-        var hashPipeline = hashCommand.BuildPipeline();
-
-        jobQueues[Core.Data.JobType.HashDirectory] = hashPipeline;
-        jobQueues[Core.Data.JobType.HashFile] = hashPipeline;
-            
-        var sortPipeline = sortCommand.BuildPipeline();
-
-        jobQueues[Core.Data.JobType.SortDirectory] = sortPipeline;
-        jobQueues[Core.Data.JobType.SortFile] = sortPipeline;
+        this.hashCommand = hashCommand;
+        this.sortCommand = sortCommand;
     }
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var hashPipeline = hashCommand.BuildPipeline(stoppingToken);
+        var sortPipeline = sortCommand.BuildPipeline(stoppingToken);
+        
+        jobQueues[Core.Data.JobType.HashFile] = hashPipeline;
+        jobQueues[Core.Data.JobType.SortFile] = sortPipeline;
+        
+        
         List<Job> unstarted;
         await using (var jobRepository = serviceProvider.GetService<IJobRepository>())
         {

@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AniSort.Core.Commands;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.EntityFrameworkCore;
@@ -30,10 +31,37 @@ public class Job : IEntity
     public Guid? ScheduledJobId { get; set; }
     public virtual ScheduledJob ScheduledJob { get; set; }
 
-    public string Path => Options.Fields["path"].StringValue;
+    public string Path => Options.Fields[JobData.Path].StringValue;
 
     /// <inheritdoc />
     public bool IsNew => Id != Guid.Empty;
+
+    public void Succeed()
+    {
+        Status = JobStatus.Completed;
+        CompletedAt = DateTimeOffset.Now;
+    }
+    
+    public void SucceedWith(string message, params object[] parameters)
+    {
+        Status = JobStatus.Completed;
+        CompletedAt = DateTimeOffset.Now;
+        Logs.Add(new JobLog(message, parameters));
+    }
+
+    public void FailWith(string message, params object[] parameters)
+    {
+        Status = JobStatus.Failed;
+        CompletedAt = DateTimeOffset.Now;
+        Logs.Add(new JobLog(message, parameters));
+    }
+
+    public void FailWith(Exception exception, string message, params object[] parameters)
+    {
+        Status = JobStatus.Failed;
+        CompletedAt = DateTimeOffset.Now;
+        Logs.Add(new JobLog(exception, message, parameters));
+    }
 }
 
 public class JobEntityTypeConfiguration : IEntityTypeConfiguration<Job>

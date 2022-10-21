@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using AniSort.Core.Extensions;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.EntityFrameworkCore;
@@ -25,15 +26,25 @@ public class StepLog : IEntity
     {
         Message = exception.Message;
         Params ??= new Struct();
+        Params.Fields["exception"].StringValue = exception.Message;
         Params.Fields["stackTrace"].StringValue = exception.StackTrace;
+        Params.Fields["parameters"].ListValue = new ListValue();
     }
 
-    public StepLog(Exception exception, string message, params string[] parameters)
+    public StepLog(Exception exception, string message, params object[] parameters)
     {
         Message = message;
         Params ??= new Struct();
         Params.Fields["exception"].StringValue = exception.Message;
         Params.Fields["stackTrace"].StringValue = exception.StackTrace;
+        Params.Fields["parameters"].ListValue = parameters.ToListValue();
+    }
+
+    public StepLog(string message, params object[] parameters)
+    {
+        Message = message;
+        Params ??= new Struct();
+        Params.Fields["parameters"].ListValue = parameters.ToListValue();
     }
 
     /// <inheritdoc />

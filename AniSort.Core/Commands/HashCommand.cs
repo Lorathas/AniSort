@@ -123,29 +123,32 @@ public class HashCommand : IPipelineCommand
     public List<CommandOption> SetupCommand(CommandLineApplication command) => new();
 
     /// <inheritdoc />
-    public ITargetBlock<Job> BuildPipeline()
+    public ITargetBlock<Job> BuildPipeline(CancellationToken? cancellationToken = null)
     {
         var blockProvider = serviceProvider.GetService<BlockProvider>() ?? throw new ApplicationException($"Unable to instantiate {typeof(BlockProvider)}");
 
-        var bufferBlock = new BufferBlock<BlockProvider.MetadataFileJobParams>();
+        var bufferBlock = new BufferBlock<Result<BlockProvider.MetadataFileJobParams>>();
+        var options = new ExecutionDataflowBlockOptions { CancellationToken = cancellationToken ?? CancellationToken.None };
 
-        var jobTransformBlock = blockProvider.BuildJobTransformBlock(bufferBlock);
+        var jobTransformBlock = blockProvider.BuildSingleJobTransformBlock(options);
 
-        var fetchFileBlock = blockProvider!.BuildFetchLocalFileBlock();
+        var fetchFileBlock = blockProvider!.BuildFetchLocalFileBlock(options);
         var hashFileBlock = blockProvider.BuildHashFileBlock((_, _) =>
         {
         }, OnProgressUpdate, () =>
         {
-        });
+        }, options);
 
-        var options = new DataflowLinkOptions { PropagateCompletion = true };
+        var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
+        
+        var nullBlock = DataflowBlock.NullTarget<Result<BlockProvider.MetadataFileJobParams>>();
 
-        bufferBlock.LinkTo(fetchFileBlock, options);
+        bufferBlock.LinkTo(fetchFileBlock, linkOptions);
 
-        fetchFileBlock.LinkTo(hashFileBlock, options, f => f.LocalFile is { Ed2kHash: null });
-        fetchFileBlock.LinkTo(DataflowBlock.NullTarget<BlockProvider.MetadataFileJobParams>());
+        fetchFileBlock.LinkTo(hashFileBlock, linkOptions, r => r is Ok<BlockProvider.MetadataFileJobParams>);
+        fetchFileBlock.LinkTo(nullBlock);
 
-        hashFileBlock.LinkTo(DataflowBlock.NullTarget<BlockProvider.MetadataFileJobParams>());
+        hashFileBlock.LinkTo(nullBlock);
 
         return jobTransformBlock;
     }

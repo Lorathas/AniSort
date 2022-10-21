@@ -98,6 +98,7 @@ public class Startup
             .AddScoped<IJobStepRepository, JobStepRepository>()
             .AddTransient<ISettingsRepository, SettingsRepository>()
             .AddTransient<IPathBuilderRepository, PathBuilderRepository>()
+            .AddTransient<IJobFactory, JobFactory>()
             .AddTransient<LegacyDataStoreProvider>()
             .AddTransient<BlockProvider>()
             .AddDbContext<AniSortContext>(b => b.UseNpgsql(configuration.GetConnectionString("Postgres")))

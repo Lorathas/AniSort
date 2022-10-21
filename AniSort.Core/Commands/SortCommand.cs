@@ -23,7 +23,7 @@ public class SortCommand : IPipelineCommand
 
     private readonly IConfigProvider configProvider;
 
-    private readonly ILogger<SortCommand> logger;
+    private readonly ILogger<SortCommand> log;
 
     private readonly IPathBuilderRepository pathBuilderRepository;
 
@@ -31,10 +31,10 @@ public class SortCommand : IPipelineCommand
 
     private ConsoleProgressBar? hashProgressBar;
 
-    public SortCommand(IConfigProvider configProvider, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider, IPathBuilderRepository pathBuilderRepository)
+    public SortCommand(IConfigProvider configProvider, ILogger<SortCommand> log, AniDbClient client, IServiceProvider serviceProvider, IPathBuilderRepository pathBuilderRepository)
     {
         this.configProvider = configProvider;
-        this.logger = logger;
+        this.log = log;
         this.client = client;
         this.serviceProvider = serviceProvider;
         this.pathBuilderRepository = pathBuilderRepository;
@@ -58,11 +58,11 @@ public class SortCommand : IPipelineCommand
                 Console.WriteLine();
             }
 
-            using (logger.BeginScope("Config setup to write to following directories for files:"))
+            using (log.BeginScope("Config setup to write to following directories for files:"))
             {
-                logger.LogTrace("TV:     {TvPath}", Path.Combine(configProvider.Config.Destination.Path, configProvider.Config.Destination.TvPath));
-                logger.LogTrace("Movies: {MoviePath}", Path.Combine(configProvider.Config.Destination.Path, configProvider.Config.Destination.MoviePath));
-                logger.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilderRepository.DefaultPathBuilder.Root);
+                log.LogTrace("TV:     {TvPath}", Path.Combine(configProvider.Config.Destination.Path, configProvider.Config.Destination.TvPath));
+                log.LogTrace("Movies: {MoviePath}", Path.Combine(configProvider.Config.Destination.Path, configProvider.Config.Destination.MoviePath));
+                log.LogTrace("Path builder base path: {PathBuilderBasePath}", pathBuilderRepository.DefaultPathBuilder.Root);
             }
         }
 
@@ -73,13 +73,13 @@ public class SortCommand : IPipelineCommand
 
             if (!auth.Success)
             {
-                logger.LogCritical("Invalid auth credentials. Unable to connect to AniDb");
+                log.LogCritical("Invalid auth credentials. Unable to connect to AniDb");
                 Environment.Exit(ExitCodes.InvalidAuthCredentials);
             }
 
             if (auth.HasNewVersion)
             {
-                logger.LogWarning("A new version of the software is available. Please download it when possible");
+                log.LogWarning("A new version of the software is available. Please download it when possible");
             }
 
             var updateHashBarCancellationSource = new CancellationTokenSource();
@@ -116,7 +116,7 @@ public class SortCommand : IPipelineCommand
 
             while (queue.TryDequeue(out string? path))
             {
-                first.Post(new BlockProvider.MetadataFileJobParams(new FileInfo(path)));
+                first.Post(new Ok<BlockProvider.MetadataFileJobParams>(new BlockProvider.MetadataFileJobParams(new FileInfo(path))));
             }
 
             await last.Completion;
@@ -126,7 +126,7 @@ public class SortCommand : IPipelineCommand
             {
                 await updateHashBarTask;
             }
-            logger.LogInformation("Finished processing {FileCount} files", fileCount);
+            log.LogInformation("Finished processing {FileCount} files", fileCount);
         }
         finally
         {
@@ -153,9 +153,9 @@ public class SortCommand : IPipelineCommand
     }
 
     /// <inheritdoc />
-    public ITargetBlock<Job> BuildPipeline()
+    public ITargetBlock<Job> BuildPipeline(CancellationToken? cancellationToken = null)
     {
-        return BuildPipelineInternal().JobTarget;
+        return BuildPipelineInternal(cancellationToken).JobTarget;
     }
 
     private void OnHashStarted(string path, long totalBytes)
@@ -190,39 +190,46 @@ public class SortCommand : IPipelineCommand
         Console.WriteLine();
     }
 
-    private (ITargetBlock<Job> JobTarget, ITargetBlock<BlockProvider.MetadataFileJobParams> FirstBlock, ITargetBlock<BlockProvider.MetadataFileJobParams> LastBlock) BuildPipelineInternal()
+    private (ITargetBlock<Job> JobTarget, ITargetBlock<Result<BlockProvider.MetadataFileJobParams>> FirstBlock, ITargetBlock<Result<BlockProvider.MetadataFileJobParams>> LastBlock) BuildPipelineInternal(CancellationToken? cancellationToken = null)
     {
         var blockProvider = serviceProvider.GetService<BlockProvider>() ?? throw new ApplicationException($"Unable to instantiate {typeof(BlockProvider)}");
+        
+        var blockOptions = new ExecutionDataflowBlockOptions { CancellationToken = cancellationToken ?? CancellationToken.None };
 
-        var bufferBlock = new BufferBlock<BlockProvider.MetadataFileJobParams>();
+        var bufferBlock = new BufferBlock<Job>();
 
-        var jobTarget = blockProvider.BuildJobTransformBlock(bufferBlock);
+        var nullBlock = DataflowBlock.NullTarget<Result<BlockProvider.MetadataFileJobParams>>();
+        
+        var transformBlock = blockProvider.BuildSingleJobTransformBlock(blockOptions);
+        var fetchFileBlock = blockProvider.BuildFetchLocalFileBlock(blockOptions);
+        var hashFileBlock = blockProvider.BuildHashFileBlock(OnHashStarted, OnProgressUpdate, OnHashFinished, blockOptions);
+        var filterCoolingDownFiles = blockProvider.BuildFilterCoolingDownFilesBlock(blockOptions);
+        var searchFileBlock = blockProvider.BuildSearchFileBlock(client, blockOptions);
+        var getVideoResolutionBlock = blockProvider.BuildGetFileVideoResolutionBlock(blockOptions);
+        var renameBlock = blockProvider.BuildRenameFileBlock(blockOptions);
 
-        var fetchFileBlock = blockProvider.BuildFetchLocalFileBlock();
-        var hashFileBlock = blockProvider.BuildHashFileBlock(OnHashStarted, OnProgressUpdate, OnHashFinished);
-        var filterCoolingDownFiles = blockProvider.BuildFilterCoolingDownFilesBlock();
-        var searchFileBlock = blockProvider.BuildSearchFileBlock(client);
-        var getVideoResolutionBlock = blockProvider.BuildGetFileVideoResolutionBlock();
-        var renameBlock = blockProvider.BuildRenameFileBlock();
+        var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
 
-        var options = new DataflowLinkOptions { PropagateCompletion = true };
+        bufferBlock.LinkTo(transformBlock, linkOptions);
 
-        bufferBlock.LinkTo(fetchFileBlock, options);
+        transformBlock.LinkTo(fetchFileBlock, linkOptions, Result<BlockProvider.MetadataFileJobParams>.IsOk);
+        transformBlock.LinkTo(nullBlock);
 
-        fetchFileBlock.LinkTo(hashFileBlock, options, f => !f.Failed && f.LocalFile is { Ed2kHash: null });
-        fetchFileBlock.LinkTo(filterCoolingDownFiles, options, f => !f.Failed);
-        fetchFileBlock.LinkTo(DataflowBlock.NullTarget<BlockProvider.MetadataFileJobParams>());
+        fetchFileBlock.LinkTo(hashFileBlock, linkOptions, r => r is Ok<BlockProvider.MetadataFileJobParams> && r.OkValue is {LocalFile: {Ed2kHash: null}});
+        fetchFileBlock.LinkTo(filterCoolingDownFiles, linkOptions, Result<BlockProvider.MetadataFileJobParams>.IsOk);
+        fetchFileBlock.LinkTo(nullBlock);
 
-        filterCoolingDownFiles.LinkTo(searchFileBlock, options, f => !f.IsCoolingDown);
-        filterCoolingDownFiles.LinkTo(DataflowBlock.NullTarget<BlockProvider.MetadataFileJobParams>());
-        hashFileBlock.LinkTo(searchFileBlock, options, f => !f.Failed);
-        hashFileBlock.LinkTo(DataflowBlock.NullTarget<BlockProvider.MetadataFileJobParams>());
+        filterCoolingDownFiles.LinkTo(searchFileBlock, linkOptions, r => r is Ok<BlockProvider.MetadataFileJobParams>);
+        filterCoolingDownFiles.LinkTo(nullBlock);
+        
+        hashFileBlock.LinkTo(searchFileBlock, linkOptions, Result<BlockProvider.MetadataFileJobParams>.IsOk);
+        hashFileBlock.LinkTo(nullBlock);
 
-        searchFileBlock.LinkTo(getVideoResolutionBlock, options, a => a.VideoResolution == default);
-        searchFileBlock.LinkTo(renameBlock, options, t => t.Failed);
-        searchFileBlock.LinkTo(DataflowBlock.NullTarget<BlockProvider.MetadataFileJobParams>());
-        getVideoResolutionBlock.LinkTo(renameBlock, options);
+        searchFileBlock.LinkTo(getVideoResolutionBlock, linkOptions, r => r is Ok<BlockProvider.MetadataFileJobParams> && r.OkValue.VideoResolution == default);
+        searchFileBlock.LinkTo(renameBlock, linkOptions, Result<BlockProvider.MetadataFileJobParams>.IsOk);
+        searchFileBlock.LinkTo(nullBlock);
+        getVideoResolutionBlock.LinkTo(renameBlock, linkOptions);
 
-        return (jobTarget, bufferBlock, renameBlock);
+        return (transformBlock, fetchFileBlock, renameBlock);
     }
 }
