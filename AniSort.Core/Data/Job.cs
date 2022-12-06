@@ -62,6 +62,24 @@ public class Job : IEntity
         CompletedAt = DateTimeOffset.Now;
         Logs.Add(new JobLog(exception, message, parameters));
     }
+    
+    public Result UpdateStepStatus(StepType stepType, JobStatus status)
+    {
+        var step = Steps.FirstOrDefault(s => s.Type == stepType);
+
+        if (step == null)
+        {
+            return new Error($"Step {stepType} not found");
+        }
+        
+        step.Status = status;
+        if (status == JobStatus.Completed)
+        {
+            step.CompletedAt = DateTimeOffset.Now;
+        }
+
+        return new Ok();
+    }
 }
 
 public class JobEntityTypeConfiguration : IEntityTypeConfiguration<Job>

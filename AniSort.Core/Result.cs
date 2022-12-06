@@ -8,6 +8,18 @@ public enum Results
     Error
 }
 
+public abstract record Result(Results Status)
+{
+    public string ErrorValue => ((Error) this).Message;
+
+    public static bool IsOk(Result result) => result is Ok;
+    public static bool IsError(Result result) => result is Error;
+}
+
+public record Ok() : Result(Results.Ok);
+
+public record Error(string Message) : Result(Results.Error);
+
 public abstract record Result<T>(Results Status) where T : notnull
 {
     public T OkValue => ((Ok<T>) this).Value;
