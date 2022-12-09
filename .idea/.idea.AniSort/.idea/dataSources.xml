@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:sqlite://SERVEY/AniSort/AniSort/anisort.sqlite3</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="Servey Backup" uuid="289d5be3-0783-422e-868b-0416deb6a5cd">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite://SERVEY/AniSort/anisort.sqlite3</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

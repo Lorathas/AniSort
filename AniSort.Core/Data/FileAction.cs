@@ -9,8 +9,8 @@ public class FileAction
     public Guid Id { get; set; }
     public FileActionType Type { get; set; }
     public bool Success { get; set; }
-    public string Info { get; set; }
-    public string Exception { get; set; }
+    public string Info { get; set; } = string.Empty;
+    public string Exception { get; set; } = string.Empty;
     public Guid FileId { get; set; }
     public virtual LocalFile File { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;

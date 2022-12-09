@@ -8,6 +8,13 @@
         <Company>Lorathas</Company>
         <Product>anicli</Product>
         <AssemblyName>anicli</AssemblyName>
+        <AssemblyVersion>2.1.1</AssemblyVersion>
+        <FileVersion>2.1.1</FileVersion>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DebugSymbols>true</DebugSymbols>
+      <DebugType>embedded</DebugType>
     </PropertyGroup>
 
     <ItemGroup>

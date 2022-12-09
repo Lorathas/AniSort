@@ -11,9 +11,9 @@ public class LocalFile
     public Guid Id { get; set; }
     public int? EpisodeFileId { get; set; }
     public virtual EpisodeFile EpisodeFile { get; set; }
-    public string Path { get; set; }
+    public string? Path { get; set; }
     // ReSharper disable once InconsistentNaming
-    public byte[] Ed2kHash { get; set; }
+    public byte[]? Ed2kHash { get; set; }
     public long FileLength { get; set; }
     public virtual ICollection<FileAction> FileActions { get; set; } = new List<FileAction>();
     public ImportStatus Status { get; set; }

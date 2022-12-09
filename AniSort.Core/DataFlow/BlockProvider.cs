@@ -17,8 +17,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using AniDbSharp;
 using AniDbSharp.Data;
@@ -55,13 +53,13 @@ public class BlockProvider
     /// </summary>
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
-    public TransformBlock<string, LocalFile> BuildFetchLocalFileBlock(ExecutionDataflowBlockOptions options = null)
+    public TransformBlock<string, LocalFile> BuildFetchLocalFileBlock(ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new ExecutionDataflowBlockOptions();
 
         int calls = 0;
 
-        return new TransformBlock<string, LocalFile>(async path =>
+        return new TransformBlock<string, LocalFile?>(async path =>
         {
             var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
             var localFileRepository = serviceProvider.GetService<ILocalFileRepository>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILocalFileRepository)}");
@@ -70,11 +68,11 @@ public class BlockProvider
 
             try
             {
-                LocalFile localFile;
+                LocalFile? localFile;
                 await AniSortContext.DatabaseLock.WaitAsync();
                 try
                 {
-                    localFile = await localFileRepository!.GetForPathAsync(path);
+                    localFile = await localFileRepository.GetForPathAsync(path);
                 }
                 finally
                 {
@@ -137,7 +135,7 @@ public class BlockProvider
     /// <param name="onProgressUpdate">Progress update function to call when hashing</param>
     /// <param name="options">Optional dataflow execution options</param>
     /// <returns></returns>
-    public TransformBlock<LocalFile, LocalFile> BuildHashFileBlock(Action<string, long> onNewHashStarted, Action<long> onProgressUpdate, Action onHashFinished, ExecutionDataflowBlockOptions options = null)
+    public TransformBlock<LocalFile, LocalFile> BuildHashFileBlock(Action<string, long> onNewHashStarted, Action<long> onProgressUpdate, Action onHashFinished, ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new ExecutionDataflowBlockOptions();
 
@@ -156,7 +154,7 @@ public class BlockProvider
                     return localFile;
                 }
 
-                string filename = Path.GetFileName(localFile.Path);
+                string? filename = Path.GetFileName(localFile.Path);
 
                 if (localFile.Ed2kHash != null)
                 {
@@ -540,12 +538,12 @@ public class BlockProvider
     /// <exception cref="ApplicationException">Thrown when dependencies aren't instantiable via the IoC container</exception>
     public TransformBlock<(LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo, VideoResolution Resolution), (LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo,
             VideoResolution Resolution)>
-        BuildGetFileVideoResolutionBlock(ExecutionDataflowBlockOptions options = null)
+        BuildGetFileVideoResolutionBlock(ExecutionDataflowBlockOptions? options = null)
     {
         options ??= new ExecutionDataflowBlockOptions();
 
-        return new TransformBlock<(LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo, VideoResolution Resolution), (LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo,
-            VideoResolution Resolution)>(
+        return new TransformBlock<(LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo, VideoResolution? Resolution), (LocalFile LocalFile, FileAnimeInfo FileAnimeInfo, FileInfo FileInfo,
+            VideoResolution? Resolution)>(
             async tuple =>
             {
                 var logger = serviceProvider.GetService<ILogger<BlockProvider>>() ?? throw new ApplicationException($"Unable to instantiate type {typeof(ILogger)}");
@@ -573,7 +571,7 @@ public class BlockProvider
                 catch (Exception ex)
                 {
                     // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
-                    logger.LogError(ex, ex.Message);
+                    logger.LogError(ex, ex.Message + ex.StackTrace);
                     return default;
                 }
             }, options);
