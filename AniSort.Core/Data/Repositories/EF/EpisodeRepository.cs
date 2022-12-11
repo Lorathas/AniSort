@@ -1,4 +1,4 @@
-﻿namespace AniSort.Core.Data.Repositories;
+﻿namespace AniSort.Core.Data.Repositories.EF;
 
 public class EpisodeRepository : RepositoryBase<Episode, int, AniSortContext>, IEpisodeRepository
 {

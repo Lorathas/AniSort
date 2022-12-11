@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AniSort.Core.Data.Filtering;
-using AniSort.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace AniSort.Core.Data.Repositories;
+namespace AniSort.Core.Data.Repositories.EF;
 
 public class LocalFileRepository : RepositoryBase<LocalFile, Guid, AniSortContext>, ILocalFileRepository
 {

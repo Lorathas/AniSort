@@ -532,7 +532,7 @@ public class BlockProvider
                     await animeRepository.SaveChangesAsync();
                     if (!await episodeRepository.ExistsAsync(episode.Id))
                     {
-                        episode.AnimeId = anime.Id;
+                        episode.AnimeId = anime.AniDbId;
                         await episodeRepository.AddAsync(episode);
                         await episodeRepository.SaveChangesAsync();
                     }

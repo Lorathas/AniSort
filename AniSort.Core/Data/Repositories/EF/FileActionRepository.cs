@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 
-namespace AniSort.Core.Data.Repositories;
+namespace AniSort.Core.Data.Repositories.EF;
 
 public class FileActionRepository : RepositoryBase<FileAction, Guid, AniSortContext>, IFileActionRepository
 {

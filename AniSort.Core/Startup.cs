@@ -7,6 +7,7 @@ using AniDbSharp;
 using AniSort.Core.Commands;
 using AniSort.Core.Data;
 using AniSort.Core.Data.Repositories;
+using AniSort.Core.Data.Repositories.EF;
 using AniSort.Core.DataFlow;
 using AniSort.Core.Helpers;
 using AniSort.Core.IO;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AniDbSharp.Data;
+using AniSort.Core.Data.Repositories.EF;
 using AniSort.Core.Extensions;
 using AniSort.Core.Models;
 using FFMpegCore.Enums;
@@ -43,13 +44,13 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
             .Include(a => a.Episodes)
             .Include(a => a.Synonyms)
             .Include(a => a.ChildrenAnime)
-            .FirstOrDefault(a => a.Id == result.FileInfo.AnimeId);
+            .FirstOrDefault(a => a.AniDbId == result.FileInfo.AnimeId);
         
         if (anime == null)
         {
             anime = new Anime
             {
-                Id = result.FileInfo.AnimeId.Value,
+                AniDbId = result.FileInfo.AnimeId.Value,
                 TotalEpisodes = result.AnimeInfo.TotalEpisodes ?? 0,
                 HighestEpisodeNumber = result.AnimeInfo.HighestEpisodeNumber ?? 0,
                 Year = !string.IsNullOrWhiteSpace(result.AnimeInfo.Year) ? int.Parse(result.AnimeInfo.Year) : 0,
@@ -84,7 +85,7 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
                 .Distinct()
                 .ToHashSet();
 
-            var existingChildrenAnime = Context.Anime.Where(a => childrenAnimeIds.Contains(a.Id)).Select(a => a.Id).Distinct().ToHashSet();
+            var existingChildrenAnime = Context.Anime.Where(a => childrenAnimeIds.Contains(a.AniDbId)).Select(a => a.AniDbId).Distinct().ToHashSet();
             var animeChildrenAnime = anime.ChildrenAnime.Select(c => c.DestinationAnimeId).ToHashSet();
 
             foreach (var (animeId, relation) in childrenAnimeIds.Zip(result.AnimeInfo.RelatedAnimeIdType.Split(',')))
@@ -335,13 +336,13 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
             .Include(a => a.Episodes)
             .Include(a => a.Synonyms)
             .Include(a => a.ChildrenAnime)
-            .FirstOrDefaultAsync(a => a.Id == result.FileInfo.AnimeId);
+            .FirstOrDefaultAsync(a => a.AniDbId == result.FileInfo.AnimeId);
         
         if (anime == null)
         {
             anime = new Anime
             {
-                Id = result.FileInfo.AnimeId.Value,
+                AniDbId = result.FileInfo.AnimeId.Value,
                 TotalEpisodes = result.AnimeInfo.TotalEpisodes ?? 0,
                 HighestEpisodeNumber = result.AnimeInfo.HighestEpisodeNumber ?? 0,
                 Year = !string.IsNullOrWhiteSpace(result.AnimeInfo.Year) ? int.Parse(result.AnimeInfo.Year) : 0,
@@ -376,7 +377,7 @@ public class AnimeRepository : RepositoryBase<Anime, int, AniSortContext>, IAnim
                 .Distinct()
                 .ToHashSet();
 
-            var existingChildrenAnime = Context.Anime.Where(a => childrenAnimeIds.Contains(a.Id)).Select(a => a.Id).Distinct().ToHashSet();
+            var existingChildrenAnime = Context.Anime.Where(a => childrenAnimeIds.Contains(a.AniDbId)).Select(a => a.AniDbId).Distinct().ToHashSet();
             var animeChildrenAnime = anime.ChildrenAnime.Select(c => c.DestinationAnimeId).ToHashSet();
 
             foreach (var (animeId, relation) in childrenAnimeIds.Zip(result.AnimeInfo.RelatedAnimeIdType.Split(',')))

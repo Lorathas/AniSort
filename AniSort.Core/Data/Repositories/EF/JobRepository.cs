@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using AniSort.Core.Data.Filtering;
 using Microsoft.EntityFrameworkCore;
 
-namespace AniSort.Core.Data.Repositories;
+namespace AniSort.Core.Data.Repositories.EF;
 
 public class JobRepository : RepositoryBase<Job, Guid, AniSortContext>, IJobRepository
 {

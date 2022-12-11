@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
-namespace AniSort.Core.Data.Repositories;
+namespace AniSort.Core.Data.Repositories.EF;
 
 public class ReleaseGroupRepository : RepositoryBase<ReleaseGroup, int, AniSortContext>, IReleaseGroupRepository
 {

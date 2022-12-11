@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
-namespace AniSort.Core.Data.Repositories;
+namespace AniSort.Core.Data.Repositories.EF;
 
 public abstract class RepositoryBase<TEntity, TKey, TContext> : IRepository<TEntity, TKey>
     where TContext : DbContext

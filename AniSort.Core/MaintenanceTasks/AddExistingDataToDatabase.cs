@@ -42,7 +42,7 @@ public class AddExistingDataToDatabase : IMaintenanceTask
 
             var existingGroups = context.ReleaseGroups.Select(g => g.Id).Distinct().ToHashSet();
 
-            var existingShows = context.Anime.Select(a => a.Id).Distinct().ToHashSet();
+            var existingShows = context.Anime.Select(a => a.AniDbId).Distinct().ToHashSet();
 
             var storeStopwatch = Stopwatch.StartNew();
 
@@ -54,7 +54,7 @@ public class AddExistingDataToDatabase : IMaintenanceTask
                 }
                 var newAnime = new Anime
                 {
-                    Id = anime.Id,
+                    AniDbId = anime.Id,
                     TotalEpisodes = anime.TotalEpisodes,
                     HighestEpisodeNumber = anime.HighestEpisodeNumber,
                     Year = anime.Year,

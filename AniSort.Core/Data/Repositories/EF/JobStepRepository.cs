@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AniSort.Core.Data.Repositories;
+namespace AniSort.Core.Data.Repositories.EF;
 
 public class JobStepRepository : RepositoryBase<JobStep, Guid, AniSortContext>, IJobStepRepository
 {
