@@ -64,7 +64,10 @@ public class Startup
 
         if (EnvironmentHelpers.IsConsolePresent)
         {
-            var consoleLog = new ColoredConsoleTarget("consoleLog");
+            var consoleLog = new ColoredConsoleTarget("consoleLog")
+            {
+                Layout = new SimpleLayout("${message}")
+            };
             loggingConfig.AddRule(fileAndConsoleMinLevel, LogLevel.Fatal, consoleLog);
         }
 
