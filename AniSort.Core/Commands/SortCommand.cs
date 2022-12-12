@@ -1,31 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using AniDbSharp;
-using AniDbSharp.Data;
-using AniDbSharp.Exceptions;
-using AniSort.Core.Crypto;
-using AniSort.Core.Data;
-using AniSort.Core.Data.Repositories;
 using AniSort.Core.DataFlow;
-using AniSort.Core.Exceptions;
 using AniSort.Core.Extensions;
 using AniSort.Core.Helpers;
 using AniSort.Core.IO;
-using AniSort.Core.Models;
-using AniSort.Core.Utils;
-using FFMpegCore;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.CommandLineUtils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using FileInfo = AniDbSharp.Data.FileInfo;
 
 namespace AniSort.Core.Commands;
 
@@ -36,7 +22,7 @@ public class SortCommand : ICommand
     private readonly AniDbClient client;
     private readonly IServiceProvider serviceProvider;
     private readonly IPathBuilderRepository pathBuilderRepository;
-    private ConsoleProgressBar hashProgressBar;
+    private ConsoleProgressBar? hashProgressBar;
 
     public SortCommand(Config config, ILogger<SortCommand> logger, AniDbClient client, IServiceProvider serviceProvider, IPathBuilderRepository pathBuilderRepository)
     {
@@ -101,24 +87,26 @@ public class SortCommand : ICommand
             var getVideoResolutionBlock = blockProvider.BuildGetFileVideoResolutionBlock();
             var renameBlock = blockProvider.BuildRenameFileBlock();
 
+            var nullTarget = DataflowBlock.NullTarget<FileImport>();
+
             bufferBlock.LinkTo(fetchFileBlock, new DataflowLinkOptions { PropagateCompletion = true });
 
-            fetchFileBlock.LinkTo(hashFileBlock, new DataflowLinkOptions { PropagateCompletion = true }, f => f != null && f.Ed2kHash == null);
-            fetchFileBlock.LinkTo(filterCoolingDownFiles, new DataflowLinkOptions { PropagateCompletion = true }, f => f != null);
-            fetchFileBlock.LinkTo(DataflowBlock.NullTarget<LocalFile>());
+            fetchFileBlock.LinkTo(hashFileBlock, new DataflowLinkOptions { PropagateCompletion = true }, f => f.State == FileImportState.Nominal && f.LocalFile.Ed2kHash == null);
+            fetchFileBlock.LinkTo(filterCoolingDownFiles, new DataflowLinkOptions { PropagateCompletion = true }, f => f.State == FileImportState.Nominal);
+            fetchFileBlock.LinkTo(nullTarget);
 
-            filterCoolingDownFiles.LinkTo(searchFileBlock, f => f != null);
-            filterCoolingDownFiles.LinkTo(DataflowBlock.NullTarget<LocalFile>());
-            hashFileBlock.LinkTo(searchFileBlock, f => f != null);
-            hashFileBlock.LinkTo(DataflowBlock.NullTarget<LocalFile>());
+            filterCoolingDownFiles.LinkTo(searchFileBlock, f => f.State == FileImportState.Nominal);
+            filterCoolingDownFiles.LinkTo(nullTarget);
+            hashFileBlock.LinkTo(searchFileBlock, f => f.State == FileImportState.Nominal);
+            hashFileBlock.LinkTo(nullTarget);
 
-            searchFileBlock.LinkTo(getVideoResolutionBlock, a => a.Resolution == default);
-            searchFileBlock.LinkTo(renameBlock, t => t != default);
-            searchFileBlock.LinkTo(DataflowBlock.NullTarget<(LocalFile LocalFile, FileAnimeInfo AnimeInfo, FileInfo FileInfo, VideoResolution VideoResolution)>());
+            searchFileBlock.LinkTo(getVideoResolutionBlock, f => f is { State: FileImportState.Nominal, Resolution: null });
+            searchFileBlock.LinkTo(renameBlock, f => f.State == FileImportState.Nominal);
+            searchFileBlock.LinkTo(nullTarget);
             getVideoResolutionBlock.LinkTo(renameBlock);
 
             var updateHashBarCancellationSource = new CancellationTokenSource();
-            Task updateHashBarTask = null;
+            Task? updateHashBarTask = null;
 
             if (EnvironmentHelpers.IsConsolePresent)
             {
@@ -147,7 +135,7 @@ public class SortCommand : ICommand
 
             int fileCount = queue.Count;
 
-            while (queue.TryDequeue(out string path))
+            while (queue.TryDequeue(out string? path))
             {
                 bufferBlock.Post(path);
             }
